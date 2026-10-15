@@ -545,6 +545,30 @@
         "b_rnd5_x"
       ],
       "source": "bot/strategy/random_entry.py"
+    },
+    {
+      "id": "leadlag",
+      "name": "Lead-lag ข้ามตลาด (NAS / EURUSD นำทอง)",
+      "family": "price_action",
+      "markets": "XAUUSD · NAS100 · EURUSD",
+      "tf": "M1",
+      "round": "สำรวจ",
+      "verdict": "fail",
+      "idea": "ตลาดหนึ่ง \"ไฟไปก่อน\" แล้วทองขยับตาม — เข้าทองตามทิศของตัวนำ",
+      "rules": [
+        "วัด corr ระหว่างผลตอบแทนตัวนำนาทีนี้กับทอง 1–5 นาทีถัดไป",
+        "ตัวนำขยับแรง (top 5%) → เข้าทองตาม ถือ 1–3 นาที"
+      ],
+      "result": {
+        "label": "M1 3 เดือน (53,634 นาที)",
+        "n": 2681,
+        "exp_r": null,
+        "pf": null,
+        "extra": "นาทีเดียวกัน corr 0.40–0.52 แต่ lag ≥ 1 นาที ≈ 0 · ได้ +0.0002–0.0012%/ไม้ vs ต้นทุน 0.0073%"
+      },
+      "lesson": "ตลาดอัปเดตพร้อมกันภายในนาที — lead-lag จริงอยู่ระดับมิลลิวินาที (สนาม HFT) และการไล่ราคาโบรกที่ช้าผิดข้อตกลงโบรก",
+      "live": [],
+      "source": "research/leadlag.py"
     }
   ],
   "process": [
