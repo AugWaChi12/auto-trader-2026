@@ -60,7 +60,9 @@ def _job(args: tuple[str, str, str]) -> dict:
     r = np.array([g.r for g in groups])
     spec = C.LIVE_INSTANCES[instance]
     prof = C.RISK_PROFILES[spec["profile"]]
-    out = {"tag": tag, "instance": instance, "tf": tf, "symbol": strat.symbol, "verdict": VERDICT.get(tag, ""),
+    verdict = VERDICT.get(tag) or ("กลุ่มควบคุม M1 (สุ่มทิศ)" if tag.startswith("c_") else
+                                   "สายซิ่ง M1 (ทดลอง — ไม่ผ่านวิจัย)" if tf == "M1" else "")
+    out = {"tag": tag, "instance": instance, "tf": tf, "symbol": strat.symbol, "verdict": verdict,
            "allocation": spec.get("allocation"), "risk_pct": prof.risk_per_trade, "n": int(len(r))}
     if len(r) == 0:
         return out

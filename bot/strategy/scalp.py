@@ -120,6 +120,7 @@ class RsiReversionConfig:
     be_at_r: float | None = None
     sl_price: float | None = None      # SL/TP เป็นระยะราคาตายตัว (เช่น ทอง 2.0 = $2 ต่อ 0.01 lot) — ทับค่าแบบ ATR
     tp_price: float | None = None      # ถ้าตั้ง tp_price จะปิดตาม TP/SL เท่านั้น ไม่ใช้ EMA5
+    plan: ManagementPlan | None = None # ทับวิธีบริหารไม้ทั้งหมด (BE / trailing / ขยับ TP)
 
 
 class RsiReversion(_ScalpBase):
@@ -127,6 +128,8 @@ class RsiReversion(_ScalpBase):
         super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed,
                          cfg.be_at_r)
         self.cfg = cfg
+        if cfg.plan is not None:
+            self.plan = cfg.plan
         self.rsi, self.ema5, self.ema200 = RSI(2), EMA(5), EMA(200)
 
     def on_bar(self, bar: Bar, account: IAccount) -> list[Signal]:
@@ -184,6 +187,7 @@ class EmaCrossConfig:
     be_at_r: float | None = None
     sl_price: float | None = None
     tp_price: float | None = None
+    plan: ManagementPlan | None = None
 
 
 class EmaCross(_ScalpBase):
@@ -191,6 +195,8 @@ class EmaCross(_ScalpBase):
         super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed,
                          cfg.be_at_r)
         self.cfg = cfg
+        if cfg.plan is not None:
+            self.plan = cfg.plan
         self.fast, self.slow, self.ema200 = EMA(cfg.fast), EMA(cfg.slow), EMA(200)
         self._prev_diff: float | None = None
 
@@ -241,6 +247,7 @@ class BollingerFadeConfig:
     be_at_r: float | None = None
     sl_price: float | None = None
     tp_price: float | None = None      # ตั้งแล้วใช้ระยะนี้แทนเส้นกลาง
+    plan: ManagementPlan | None = None
 
 
 class BollingerFade(_ScalpBase):
@@ -248,6 +255,8 @@ class BollingerFade(_ScalpBase):
         super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed,
                          cfg.be_at_r)
         self.cfg = cfg
+        if cfg.plan is not None:
+            self.plan = cfg.plan
         self.bb = Bollinger(20)
 
     def on_bar(self, bar: Bar, account: IAccount) -> list[Signal]:

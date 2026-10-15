@@ -89,7 +89,7 @@ function card(c) {
   const prox = Math.round((st.proximity || 0) * 100);
   const sideCol = st.side === "BUY" ? "var(--up)" : st.side === "SELL" ? "var(--down)" : "var(--muted)";
   const verdict = s.verdict || "";
-  const vcls = verdict.startsWith("ตก") ? "fail" : verdict.startsWith("กลุ่มควบคุม") ? "" : verdict ? "test" : "";
+  const vcls = (verdict.startsWith("ตก") || verdict.includes("ไม่ผ่าน")) ? "fail" : verdict.startsWith("กลุ่มควบคุม") ? "" : verdict ? "test" : "";
   const cls = c.open.length ? "card open" : prox >= 80 ? "card hot" : "card";
   let prob = '<div class="prob"><div class="k" style="grid-column:1/-1">ยังไม่มีสถิติ — รัน python -m bot radar-stats</div></div>';
   if (s.n) {

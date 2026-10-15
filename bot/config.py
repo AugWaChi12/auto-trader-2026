@@ -19,6 +19,7 @@ from .strategy.level_sweep import LevelSweep, LevelSweepConfig
 from .strategy.trend_pullback import PullbackConfig, TrendPullback
 from .strategy.vol_expansion import VolExpansion, VolExpansionConfig
 from .strategy.random_entry import RandomConfig, RandomEntry
+from .strategy.daily_trend import DailyTrend, DailyTrendConfig
 from .strategy.scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCrossConfig, RsiReversion,
                              RsiReversionConfig, ScalpWindow)
 from .strategy.sweep_reversal import SweepConfig, SweepReversal
@@ -93,24 +94,24 @@ LOG_DIR = ROOT / "logs"
 # (เพดานขาดทุนรายวันของ RiskManager คิดจาก equity ทั้งบัญชี — แล็บขาดทุนหนักอาจหยุดบอทหลักวันนั้นด้วย)
 # allocation = ทุนเสมือนของบอทนั้น (sub-account): ขนาดไม้ เพดานขาดทุน kill switch คิดจากกำไรขาดทุนของบอทตัวเอง
 # → บอทหนึ่งขาดทุนหนักไม่ทำให้บอทอื่นหยุด · ผลรวม allocation เกินทุนจริงได้บน demo — บัญชีจริงห้ามทำแบบนี้
-# MAGIC + 3 = บอท "gamble" เดิม (เลิกใช้ 2026-10-15 แยกเป็น g_* ตามหมวด) — ห้ามนำเลขนี้กลับมาใช้
-_G = {"tf": "M15", "profile": "test_free", "allocation": 1000.0}
+#
+# magic ที่เลิกใช้แล้ว ห้ามนำกลับมา: +1 lab_m5, +3 gamble, +4..+7 g_session/g_sweep/g_vol/g_trend,
+#                                   +8..+10 bench_rand/bench_long/bench_m5  (2026-10-15)
+_T = {"tf": "M1", "profile": "test_free", "allocation": 1000.0}
 LIVE_INSTANCES: dict[str, dict] = {
-    "main":   {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
-    "lab_m5": {"strategies": ["lr_xau", "lr_nas", "ec_xau"], "tf": "M5", "profile": "test_free", "magic": MAGIC + 1,
-               "allocation": 1000.0},
-    "lab_m1": {"strategies": ["bb_xau"], "tf": "M1", "profile": "test_free", "magic": MAGIC + 2, "allocation": 1000.0},
-    # บอทวัดใจ แยกตามหมวดเทคนิค → เห็นกำไรขาดทุนแต่ละแนวแยกกัน และมี kill switch ของตัวเอง
-    # warmup 12,000 แท่ง M15 ≈ 125 วัน: regime classifier ต้องใช้ ~100 วัน · EMA50(H4) ต้องใช้ ~35 วัน
-    "g_session": {**_G, "strategies": ["g_bo_x", "g_bo_n"], "magic": MAGIC + 4},
-    "g_sweep":   {**_G, "strategies": ["g_sw_x", "g_sw_n", "g_ls_x", "g_ls_n"], "magic": MAGIC + 5, "warmup": 12_000},
-    "g_vol":     {**_G, "strategies": ["g_vx_x", "g_vx_n"], "magic": MAGIC + 6, "warmup": 12_000},
-    "g_trend":   {**_G, "strategies": ["g_pb_x", "g_pb_n"], "magic": MAGIC + 7, "warmup": 6_000},
-    # กลุ่มควบคุม: เข้าแบบไม่มีสมอง ต้นทุนเดียวกัน — กลยุทธ์ที่ไม่ชนะกลุ่มนี้บน demo = ไม่มี edge
-    "bench_rand": {**_G, "strategies": ["b_rnd_x", "b_rnd_n"], "magic": MAGIC + 8},
-    "bench_long": {**_G, "strategies": ["b_lng_x", "b_lng_n"], "magic": MAGIC + 9},
-    # กลุ่มควบคุมของแล็บ M5: เข้า "จังหวะเดียวกับกลยุทธ์" แต่สุ่มทิศ → แยกได้ว่าทิศที่กลยุทธ์เลือกมีค่าไหม
-    "bench_m5":   {**_G, "tf": "M5", "strategies": ["b_lr5_x", "b_lr5_n", "b_ec5_x"], "magic": MAGIC + 10},
+    # ทดสอบไปข้างหน้า — ห้ามแตะ
+    "main":    {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
+    # M1 สายซิ่ง 24 ชม. — ทุกตัวใช้ M1_PLAN (ล็อกกำไรที่ +0.5R, trail SL, ขยับ TP)
+    "lab_m1":  {**_T, "strategies": ["bb_xau"], "magic": MAGIC + 2},
+    "m1_rsi":  {**_T, "strategies": ["lr1_x", "lr1_n"], "magic": MAGIC + 11},
+    "m1_ema":  {**_T, "strategies": ["ec1_x", "ec1_n"], "magic": MAGIC + 12},
+    "m1_bb":   {**_T, "strategies": ["bb1_n"], "magic": MAGIC + 13},
+    "m1_brk":  {**_T, "strategies": ["br1_x", "br1_n"], "magic": MAGIC + 14},
+    "m1_trend": {**_T, "strategies": ["pb1_x", "pb1_n"], "magic": MAGIC + 15, "warmup": 6000},   # EMA50(H1) ต้องใช้ 50 ชม.
+    # กลุ่มควบคุม M1: จังหวะเข้าเดียวกับกลยุทธ์ แต่สุ่มทิศ
+    "c1_rsi":  {**_T, "strategies": ["c_lr1_x", "c_lr1_n"], "magic": MAGIC + 16},
+    "c1_bb":   {**_T, "strategies": ["c_bb1_x", "c_bb1_n"], "magic": MAGIC + 17},
+    "c1_brk":  {**_T, "strategies": ["c_br1_x", "c_br1_n"], "magic": MAGIC + 18},
 }
 
 
@@ -124,6 +125,9 @@ NAS_SESSION = SessionWindow(tz="America/New_York", range_start="09:30", range_en
                             trade_end="12:00", flat_time="15:45")
 
 ALL_DAY = ScalpWindow(0, 24)
+# M1 สายซิ่ง: ได้กำไร +0.5R ล็อก → trail 1 ATR → ราคาถึง 70% ของ TP ขยับ TP +0.5R
+M1_PLAN = ManagementPlan(partial_r=0.5, partial_frac=1.0, be_offset_r=0.1, trail_atr_mult=1.0, trail_start_r=0.5,
+                         tp_extend_at=0.7, tp_extend_r=0.5)
 
 # ห้องทดลองสแกลป์ (research/hypotheses_v3_scalp.md) — **ตกทั้ง 4 ตัวใน backtest** (−0.016 ถึง −0.205R)
 # รันบน demo ตามคำขอเพื่อดูผลจริงกับตา · พารามิเตอร์ = ชุดที่ walk-forward เลือกในหน้าต่างล่าสุด
@@ -132,7 +136,7 @@ LAB_CONFIGS: list = [
     RsiReversionConfig(tag="lr_xau", symbol="XAUUSD", rsi_th=5.0, sl_atr=2.0, max_hold=24, window=ALL_DAY),
     RsiReversionConfig(tag="lr_nas", symbol="NAS100", rsi_th=5.0, sl_atr=2.0, max_hold=12, window=ALL_DAY),
     EmaCrossConfig(tag="ec_xau", symbol="XAUUSD", fast=12, slow=26, sl_atr=1.0, tp_r=2.0, window=ALL_DAY),
-    BollingerFadeConfig(tag="bb_xau", symbol="XAUUSD", k=2.0, sl_atr=2.0, max_hold=15, window=ALL_DAY),
+    BollingerFadeConfig(tag="bb_xau", symbol="XAUUSD", k=2.0, sl_atr=2.0, max_hold=15, window=ALL_DAY, plan=M1_PLAN),
 ]
 
 # บอทวัดใจ: ทุกกลยุทธ์ M15 ที่เคยสร้าง (research/RESULTS.md, RESULTS_v2.md — ตกทั้งหมด) เข้าทุกครั้งที่เงื่อนไขครบ
@@ -150,6 +154,26 @@ GAMBLE_CONFIGS: list = [
     PullbackConfig(tag="g_pb_x", symbol="XAUUSD", window=_XW),
     PullbackConfig(tag="g_pb_n", symbol="NAS100", window=_NW),
 ]
+
+# M1 สายซิ่ง (2026-10-15 ตามคำขอ): เข้าๆ ออกๆ 24 ชม. · ได้กำไร +0.5R ล็อก → trail 1 ATR → ราคาถึง 70% ของ TP ขยับ TP +0.5R
+# ข้อมูลเดิม: M1 ต้นทุน ≈ 16% ของ SL ทุกไม้ (research/hypotheses_v3_scalp.md) — คาดว่าขาดทุน
+_M1W = SessionWindow("UTC", "00:00", "00:15", "20:45", "20:50")   # ย่อในเทรนด์: เกือบทั้งวัน ปิดก่อน rollover
+M1_CONFIGS: list = []
+for _sym, _s in (("XAUUSD", "x"), ("NAS100", "n")):
+    for _mode, _pre in (("rule", ""), ("random", "c_")):
+        M1_CONFIGS += [
+            RsiReversionConfig(tag=f"{_pre}lr1_{_s}", symbol=_sym, rsi_th=10.0, sl_atr=1.5, max_hold=30, tp_r=1.0,
+                               window=ALL_DAY, plan=M1_PLAN, side_mode=_mode, seed=21),
+            BollingerFadeConfig(tag=f"{_pre}bb1_{_s}", symbol=_sym, k=2.0, sl_atr=1.5, max_hold=30, tp_r=1.0,
+                                window=ALL_DAY, plan=M1_PLAN, side_mode=_mode, seed=22),
+            DailyTrendConfig(tag=f"{_pre}br1_{_s}", symbol=_sym, entry_n=30, stop_atr=1.5, plan=M1_PLAN,
+                             side_mode=_mode, seed=23),
+        ]
+    M1_CONFIGS += [
+        EmaCrossConfig(tag=f"ec1_{_s}", symbol=_sym, fast=9, slow=21, sl_atr=1.5, tp_r=1.0, window=ALL_DAY, plan=M1_PLAN),
+        PullbackConfig(tag=f"pb1_{_s}", symbol=_sym, window=_M1W, trend_tf_min=60, trend_ema=50, pullback_ema=20,
+                       sl_atr=1.5, tp_r=1.0, plan=M1_PLAN),
+    ]
 
 # กลุ่มควบคุม (benchmark) — สุ่มเข้าวันละไม่เกิน 1 ไม้ ในช่วงเวลาที่มีสภาพคล่อง ด้วย SL/TP มาตรฐาน
 _M5W = SessionWindow("UTC", "06:45", "07:00", "17:00", "20:00")
@@ -203,13 +227,13 @@ def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = 
     builders = {BreakoutConfig: SessionBreakout, SweepConfig: SweepReversal, MomentumConfig: SessionMomentum,
                 RsiReversionConfig: RsiReversion, EmaCrossConfig: EmaCross, BollingerFadeConfig: BollingerFade,
                 VolExpansionConfig: VolExpansion, LevelSweepConfig: LevelSweep, PullbackConfig: TrendPullback,
-                RandomConfig: RandomEntry}
-    for c in STRATEGY_CONFIGS + LAB_CONFIGS + GAMBLE_CONFIGS + BENCH_CONFIGS:
+                RandomConfig: RandomEntry, DailyTrendConfig: DailyTrend}
+    for c in STRATEGY_CONFIGS + LAB_CONFIGS + GAMBLE_CONFIGS + BENCH_CONFIGS + M1_CONFIGS:
         if tags and c.tag not in tags:
             continue
         if symbols and c.symbol not in symbols:
             continue
-        if tags is None and (c in LAB_CONFIGS or c in GAMBLE_CONFIGS or c in BENCH_CONFIGS):
+        if tags is None and (c in LAB_CONFIGS or c in GAMBLE_CONFIGS or c in BENCH_CONFIGS or c in M1_CONFIGS):
             continue                       # แล็บต้องเรียกชื่อตรงๆ เท่านั้น ไม่ติดไปกับ backtest ปกติ
         out.append(builders[type(c)](c, timeframe))
     return out

@@ -171,3 +171,25 @@ def test_engine_send_exception_is_failsafe() -> None:
     _feed(eng, broker, warmup() + asian_range_then(day, [(2000, 2006, 1999, 2006), (2006, 2008, 2005, 2007)]))
     assert calls["n"] == 1
     assert any(s.outcome == "send_error" for s in eng.stats.signals)
+
+
+def test_position_manager_locks_profit_trails_and_extends_tp() -> None:
+    """M1 สายซิ่ง: +0.5R → ล็อกกำไร, จากนั้น trail SL, ราคาถึง 70% ของ TP → ขยับ TP ออก 0.5R"""
+    from bot.execution.position_manager import PositionManager
+    from bot.core.types import OrderRequest
+    broker = SimBroker({"XAUUSD": XAU}, 10_000.0, M15)
+    plan = ManagementPlan(partial_r=0.5, partial_frac=1.0, be_offset_r=0.1, trail_atr_mult=1.0, trail_start_r=0.5,
+                          tp_extend_at=0.7, tp_extend_r=0.5)
+    pm = PositionManager({"t": plan}, broker, broker, atr_period=2)
+    t = datetime(2025, 1, 6, 8, tzinfo=UTC)
+    for i in range(3):
+        b = Bar(t + i * M15, 2000, 2000.5, 1999.5, 2000)
+        broker.on_bar("XAUUSD", b)
+        pm.on_bar("XAUUSD", b)
+    broker.send(OrderRequest("XAUUSD", Side.BUY, 0.1, 1990.0, 2010.0, "t", "g", "single"))   # entry 2000.2, R ≈ 10.2
+    pos = broker.positions()[0]
+    b = Bar(t + 3 * M15, 2000, 2008, 2000, 2008)          # +0.76R และถึง 76% ของ TP
+    broker.on_bar("XAUUSD", b)
+    pm.on_bar("XAUUSD", b)
+    assert pos.sl > pos.entry_price                         # ล็อกกำไรแล้ว (BE + trail)
+    assert pos.tp > 2010.0                                  # TP ถูกขยับออก

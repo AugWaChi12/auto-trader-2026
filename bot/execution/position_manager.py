@@ -63,8 +63,14 @@ class PositionManager:
                 trail = bar.close - side * plan.trail_atr_mult * atr
                 new_sl = self._tighter(pos, new_sl, trail)
 
-            if new_sl != pos.sl:
-                reply = self.executor.modify(pos.ticket, new_sl, pos.tp)
+            new_tp = pos.tp
+            if plan.tp_extend_at is not None and pos.tp is not None and pos.role != "partial":
+                tp_dist = (pos.tp - pos.entry_price) * side
+                if tp_dist > 0 and (bar.close - pos.entry_price) * side >= plan.tp_extend_at * tp_dist:
+                    new_tp = pos.tp + side * plan.tp_extend_r * pos.risk_per_unit
+
+            if new_sl != pos.sl or new_tp != pos.tp:
+                reply = self.executor.modify(pos.ticket, new_sl, new_tp)
                 if reply.accepted:
                     continue
                 if reply.reason is RejectReason.INVALID_STOPS:

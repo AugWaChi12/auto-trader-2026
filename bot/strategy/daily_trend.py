@@ -78,7 +78,7 @@ class DailyTrend(Strategy):
             (Side.BUY if coin < 0.5 else Side.SELL) if self.cfg.side_mode == "random" else rule)
         d = self.cfg.stop_atr * atr
         return [EnterSignal(self.symbol, side, bar.close - int(side) * d, None, self.tag,
-                            key=f"{self.tag}:{bar.time:%Y%m%d}",
+                            key=f"{self.tag}:{bar.time:%Y%m%d%H%M}",
                             reason=f"Donchian {self.cfg.entry_n}d breakout {'up' if rule is Side.BUY else 'down'}")]
 
     def status(self) -> dict:
