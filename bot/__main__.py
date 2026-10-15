@@ -98,9 +98,9 @@ def _live_broker(symbols: list[str]):
 
 def cmd_live(a: argparse.Namespace) -> None:
     from .live.runner import LiveRunner, setup_file_logging
-    path = setup_file_logging(C.LOG_DIR)
+    path = setup_file_logging(C.LOG_DIR, a.instance)
     print(f"log: {path}")
-    LiveRunner(a.strategies.split(","), a.profile).run_forever()
+    LiveRunner(a.instance, a.strategies.split(",") if a.strategies else None, a.profile).run_forever()
 
 
 def cmd_smoke(a: argparse.Namespace) -> None:
@@ -159,7 +159,7 @@ def cmd_status(a: argparse.Namespace) -> None:
 
 def cmd_monitor(a: argparse.Namespace) -> None:
     from .monitor.server import serve
-    serve(a.port, not a.no_browser)
+    serve(a.port, not a.no_browser, "/charts" if a.charts else "")
 
 
 def main() -> None:
@@ -200,8 +200,9 @@ def main() -> None:
     b.set_defaults(fn=cmd_backtest)
 
     lv = sub.add_parser("live", help="รันบอทบน demo")
-    lv.add_argument("--strategies", default=",".join(C.LIVE_STRATEGIES))
-    lv.add_argument("--profile", choices=list(C.RISK_PROFILES), default=C.LIVE_PROFILE)
+    lv.add_argument("--instance", choices=list(C.LIVE_INSTANCES), default="main")
+    lv.add_argument("--strategies", help="ทับรายชื่อกลยุทธ์ของ instance (คั่นด้วย comma)")
+    lv.add_argument("--profile", choices=list(C.RISK_PROFILES), help="ทับ risk profile ของ instance")
     lv.set_defaults(fn=cmd_live)
 
     sm = sub.add_parser("smoke", help="ทดสอบส่งออเดอร์ 0.01 lot บน demo")
@@ -214,6 +215,7 @@ def main() -> None:
     mo = sub.add_parser("monitor", help="หน้าเว็บ monitor (อ่านอย่างเดียว)")
     mo.add_argument("--port", type=int, default=8765)
     mo.add_argument("--no-browser", action="store_true")
+    mo.add_argument("--charts", action="store_true", help="เปิดหน้ากราฟหลายจอ")
     mo.set_defaults(fn=cmd_monitor)
 
     a = p.parse_args()

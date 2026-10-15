@@ -63,6 +63,7 @@
   <span class="chip" id="botChip">…</span>
   <span class="chip" id="mt5Chip">…</span>
   <span class="chip" id="acctChip">…</span>
+  <a class="chip" href="/charts" style="color:var(--accent);text-decoration:none">📈 กราฟหลายจอ</a>
   <span class="spacer"></span>
   <span class="chip muted" id="updated">กำลังโหลด…</span>
 </header>
@@ -78,6 +79,7 @@
   <div class="card half" id="signalCard"><h2>สัญญาณวันนี้</h2><div id="signals" class="empty">–</div></div>
   <div class="card half"><h2>Equity (ทั้งบัญชี)</h2><div id="curve" class="empty">–</div></div>
 
+  <div class="card wide"><h2>บอททั้งหมด</h2><div class="scroll" id="botTable"></div></div>
   <div class="card wide"><h2>ไม้ที่เปิดอยู่</h2><div class="scroll" id="openTable"></div></div>
   <div class="card wide"><h2>ประวัติการเทรด</h2><div class="scroll" id="tradeTable"></div></div>
   <div class="card wide"><h2>บอทกำลังคิดอะไร (log ล่าสุด)</h2><pre id="log">–</pre></div>
@@ -154,9 +156,9 @@ async function refresh() {
   catch (e) { $("updated").textContent = "ต่อ monitor ไม่ได้"; return; }
 
   const bot = d.bot || {};
-  $("botChip").innerHTML = bot.alive
-    ? `<span class="dot" style="background:var(--up)"></span>บอททำงาน · ${esc(bot.profile || "")}`
-    : `<span class="dot" style="background:var(--down)"></span>บอทไม่ทำงาน${bot.age_s ? ` (เงียบ ${Math.round(bot.age_s / 60)} นาที)` : ""}`;
+  const bots = d.bots || {};
+  const nAlive = Object.values(bots).filter(b => b.alive).length;
+  $("botChip").innerHTML = `<span class="dot" style="background:${nAlive ? "var(--up)" : "var(--down)"}"></span>บอททำงาน ${nAlive}/${Object.keys(bots).length} ตัว`;
   if (bot.killed) $("botChip").innerHTML += ` · <b class="down">KILL SWITCH</b>`;
   else if (bot.halted_today) $("botChip").innerHTML += ` · <b class="down">หยุดวันนี้</b>`;
 
@@ -182,7 +184,20 @@ async function refresh() {
   $("curve").className = "";
   $("curve").innerHTML = curve(d.equity_curve);
 
+  $("botTable").innerHTML = table(Object.entries(bots).map(([name, b]) => ({ name, b, s: d.per_bot?.[name] || {} })), [
+    { h: "บอท", f: r => `<b>${esc(r.name)}</b> <span class="muted">${esc(r.b.tf || "")}</span>` },
+    { h: "สถานะ", f: r => r.b.alive ? '<span class="up">● ทำงาน</span>' : `<span class="down">● ${r.b.never_started ? "ยังไม่เปิด" : "หยุด"}</span>` +
+        (r.b.killed ? ' <b class="down">KILL</b>' : "") },
+    { h: "กลยุทธ์", f: r => esc(Object.keys(r.b.strategies || {}).join(", ") || "–") },
+    { h: "ไม้ปิด", num: 1, f: r => r.s.trades ?? 0 },
+    { h: "ชนะ%", num: 1, f: r => r.s.win_rate == null ? "–" : r.s.win_rate },
+    { h: "วันนี้", num: 1, cls: r => cls(r.s.today), f: r => money(r.s.today ?? 0, true) },
+    { h: "รวม", num: 1, cls: r => cls(r.s.total), f: r => money(r.s.total ?? 0, true) },
+    { h: "เปิดอยู่", num: 1, f: r => r.s.open ?? 0 },
+    { h: "ลอย", num: 1, cls: r => cls(r.s.floating), f: r => money(r.s.floating ?? 0, true) },
+  ]);
   $("openTable").innerHTML = table(d.open, [
+    { h: "บอท", f: r => esc(r.bot) },
     { h: "เวลาเข้า", f: r => fmtT(r.open_time) },
     { h: "กลยุทธ์", f: r => `${esc(r.tag)} <span class="muted">${esc(r.role)}</span>` },
     { h: "ทิศ", f: r => `<span class="side ${r.side}">${r.side}</span> ${esc(r.symbol)}` },
@@ -194,6 +209,7 @@ async function refresh() {
     { h: "กำไร", num: 1, cls: r => cls(r.profit), f: r => money(r.profit, true) },
   ]);
   $("tradeTable").innerHTML = table(d.trades, [
+    { h: "บอท", f: r => esc(r.bot) },
     { h: "เข้า", f: r => fmtT(r.open_time) },
     { h: "ออก", f: r => fmtT(r.close_time) },
     { h: "กลยุทธ์", f: r => esc(r.tag) },

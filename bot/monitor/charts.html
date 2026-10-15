@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot Charts</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1d2129; --muted: #6b7280; --line: #e5e7eb; --grid: #eef0f3;
+    --up: #0f9d58; --down: #d93025; --accent: #b8860b; --entry: #2563eb; --chip: #eef0f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #181b21; --text: #e6e8eb; --muted: #8b93a1; --line: #262a33; --grid: #20242c;
+            --up: #34c77b; --down: #ff6b5e; --accent: #e0b04b; --entry: #6aa3ff; --chip: #222630; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13px/1.4 "Segoe UI", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line);
+           background: var(--card); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header a { color: var(--accent); text-decoration: none; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 2px 9px; font-size: 12px; white-space: nowrap; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+  .spacer { flex: 1; }
+  select { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+  .grid { display: grid; gap: 10px; padding: 10px; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 8px 4px; min-width: 0; }
+  .ptitle { display: flex; justify-content: space-between; align-items: baseline; padding: 0 4px 4px; gap: 8px; }
+  .ptitle b { font-size: 13px; }
+  .ptitle .px { font-variant-numeric: tabular-nums; font-weight: 650; }
+  .ptitle .sub { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  canvas { display: block; width: 100%; height: 260px; }
+  .legend { display: flex; gap: 12px; color: var(--muted); font-size: 11.5px; padding: 0 16px 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 14px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 4px; }
+  @media (max-width: 1300px) { .grid { --cols: 2 !important; } }
+  @media (max-width: 700px) { .grid { --cols: 1 !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>📈 Bot Charts</h1>
+  <a href="/">← ภาพรวม</a>
+  <span id="bots"></span>
+  <span class="spacer"></span>
+  <label class="chip">แท่ง <select id="nbars"><option>80</option><option selected>120</option><option>200</option></select></label>
+  <label class="chip">คอลัมน์ <select id="cols"><option>2</option><option>3</option><option selected>4</option></select></label>
+  <span class="chip" id="updated">…</span>
+</header>
+<div class="legend">
+  <span><i style="border-color:var(--entry)"></i>ราคาเข้า</span>
+  <span><i style="border-color:var(--down);border-top-style:dashed"></i>SL</span>
+  <span><i style="border-color:var(--up);border-top-style:dashed"></i>TP</span>
+  <span>▲▼ จุดเข้า · ● จุดออก (เขียว = กำไร, แดง = ขาดทุน)</span>
+</div>
+<div class="grid" id="grid"></div>
+
+<script>
+const CHARTS = [
+  ["XAUUSD", "M1"], ["XAUUSD", "M5"], ["XAUUSD", "M15"], ["XAUUSD", "H1"],
+  ["NAS100", "M1"], ["NAS100", "M5"], ["NAS100", "M15"], ["NAS100", "H1"],
+];
+const TZ = "Asia/Bangkok";
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmtHM = (ms) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(ms);
+const fmtD = (ms) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, day: "2-digit", month: "2-digit" }).format(ms);
+const grid = document.getElementById("grid");
+const panels = CHARTS.map(([sym, tf]) => {
+  const el = document.createElement("div");
+  el.className = "panel";
+  el.innerHTML = `<div class="ptitle"><b>${sym} · ${tf}</b><span class="sub"></span><span class="px">–</span></div><canvas></canvas>`;
+  grid.appendChild(el);
+  return { sym, tf, el, canvas: el.querySelector("canvas"), data: null };
+});
+
+function draw(p) {
+  const d = p.data, cv = p.canvas, dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d");
+  g.scale(dpr, dpr);
+  g.clearRect(0, 0, W, H);
+  if (!d || d.error || !d.bars?.length) {
+    g.fillStyle = css("--muted"); g.font = "12px sans-serif";
+    g.fillText(d?.error ? "เชื่อม MT5 ไม่ได้" : "กำลังโหลด…", 10, 20);
+    return;
+  }
+  const bars = d.bars.map(b => ({ t: Date.parse(b[0]), o: b[1], h: b[2], l: b[3], c: b[4] }));
+  const levels = d.open.flatMap(o => [o.open_price, o.sl, o.tp].filter(v => v));
+  let lo = Math.min(...bars.map(b => b.l)), hi = Math.max(...bars.map(b => b.h));
+  for (const v of levels) { if (v > lo - (hi - lo) * 0.5 && v < hi + (hi - lo) * 0.5) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+  const R = 58, B = 18, plotW = W - R, plotH = H - B;
+  const n = bars.length, step = plotW / n, bw = Math.max(1, step * 0.65);
+  const X = (i) => i * step + step / 2, Y = (v) => (hi - v) / (hi - lo) * plotH;
+  const digits = hi > 1000 ? 2 : 4;
+
+  // grid + แกนราคา
+  g.strokeStyle = css("--grid"); g.fillStyle = css("--muted"); g.font = "10.5px sans-serif"; g.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4, y = Y(v);
+    g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke();
+    g.fillText(v.toFixed(digits), plotW + 4, y + 3);
+  }
+  // แกนเวลา
+  const ticks = 4;
+  for (let k = 0; k <= ticks; k++) {
+    const i = Math.min(n - 1, Math.round(k * (n - 1) / ticks)), t = bars[i].t;
+    const label = (p.tf.startsWith("H") || p.tf === "D1") ? fmtD(t) + " " + fmtHM(t) : fmtHM(t);
+    g.fillText(label, Math.min(Math.max(X(i) - 14, 0), plotW - 40), H - 4);
+  }
+  // แท่งเทียน
+  for (let i = 0; i < n; i++) {
+    const b = bars[i], up = b.c >= b.o;
+    g.strokeStyle = g.fillStyle = up ? css("--up") : css("--down");
+    g.beginPath(); g.moveTo(X(i), Y(b.h)); g.lineTo(X(i), Y(b.l)); g.stroke();
+    const top = Y(Math.max(b.o, b.c)), h = Math.max(1, Math.abs(Y(b.o) - Y(b.c)));
+    g.fillRect(X(i) - bw / 2, top, bw, h);
+  }
+  // ราคาปัจจุบัน
+  if (d.bid) {
+    const y = Y(d.bid);
+    g.strokeStyle = css("--accent"); g.setLineDash([2, 3]);
+    g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke(); g.setLineDash([]);
+    g.fillStyle = css("--accent"); g.fillRect(plotW, y - 8, R, 16);
+    g.fillStyle = css("--card"); g.fillText(d.bid.toFixed(digits), plotW + 4, y + 4);
+  }
+  // ไม้ที่เปิดอยู่
+  const hline = (v, color, dash, label) => {
+    if (v == null || v < lo || v > hi) return;
+    const y = Y(v);
+    g.strokeStyle = color; g.setLineDash(dash); g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+    g.fillStyle = color; g.fillText(label, 4, y - 3);
+  };
+  for (const o of d.open) {
+    hline(o.open_price, css("--entry"), [], `${o.side} ${o.volume} [${o.bot}] ${o.profit >= 0 ? "+" : ""}${o.profit.toFixed(2)}`);
+    hline(o.sl, css("--down"), [5, 4], "SL");
+    hline(o.tp, css("--up"), [5, 4], "TP");
+  }
+  // หมุดเข้า/ออก
+  const idx = (t) => { if (t < bars[0].t) return -1; let a = 0, z = n - 1; while (a < z) { const m = (a + z + 1) >> 1; if (bars[m].t <= t) a = m; else z = m - 1; } return a; };
+  const markers = [...d.trades.map(t => ({ ...t, closed: true })), ...d.open.map(o => ({ ...o, closed: false }))];
+  for (const t of markers) {
+    const i = idx(Date.parse(t.open_time));
+    if (i >= 0) {
+      const x = X(i), y = Y(t.open_price), s = 5;
+      g.fillStyle = css("--entry"); g.beginPath();
+      if (t.side === "BUY") { g.moveTo(x, y - s); g.lineTo(x - s, y + s); g.lineTo(x + s, y + s); }
+      else { g.moveTo(x, y + s); g.lineTo(x - s, y - s); g.lineTo(x + s, y - s); }
+      g.fill();
+    }
+    if (t.closed) {
+      const j = idx(Date.parse(t.close_time));
+      if (j >= 0) {
+        g.fillStyle = t.profit > 0 ? css("--up") : css("--down");
+        g.beginPath(); g.arc(X(j), Y(t.close_price), 4, 0, Math.PI * 2); g.fill();
+      }
+    }
+  }
+}
+
+async function load(p) {
+  try {
+    const n = document.getElementById("nbars").value;
+    p.data = await (await fetch(`/api/bars?symbol=${p.sym}&tf=${p.tf}&n=${n}`, { cache: "no-store" })).json();
+  } catch { p.data = { error: "fetch" }; }
+  const d = p.data;
+  const px = p.el.querySelector(".px"), sub = p.el.querySelector(".sub");
+  if (d && d.bars?.length) {
+    const first = d.bars[0][1], last = d.bid ?? d.bars.at(-1)[4], ch = last - first;
+    px.textContent = last.toFixed(last > 1000 ? 2 : 4);
+    px.style.color = ch >= 0 ? css("--up") : css("--down");
+    const open = d.open.length, pnl = d.open.reduce((s, o) => s + o.profit, 0);
+    sub.textContent = open ? `${open} ไม้เปิด · ${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}` : `${d.trades.length} ไม้ในจอนี้`;
+  }
+  draw(p);
+}
+
+async function loadBots() {
+  try {
+    const d = await (await fetch("/api", { cache: "no-store" })).json();
+    document.getElementById("bots").innerHTML = Object.entries(d.bots || {}).map(([name, b]) =>
+      `<span class="chip"><span class="dot" style="background:${b.alive ? "var(--up)" : "var(--down)"}"></span>${name} ${b.tf || ""}${d.per_bot?.[name] ? ` · ${(d.per_bot[name].total >= 0 ? "+" : "") + d.per_bot[name].total.toFixed(2)}` : ""}</span>`).join(" ");
+  } catch { /* ภาพรวมโหลดไม่ได้ไม่เป็นไร กราฟยังทำงาน */ }
+}
+
+let busy = false;
+async function refreshAll() {
+  if (busy) return;
+  busy = true;
+  for (const p of panels) await load(p);         // ทีละกราฟ ไม่ยิงพร้อมกัน → เบาเครื่อง
+  await loadBots();
+  document.getElementById("updated").textContent = "อัปเดต " + new Intl.DateTimeFormat("th-TH",
+    { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date());
+  busy = false;
+}
+const savedCols = (() => { try { return localStorage.getItem("cols"); } catch { return null; } })();
+if (savedCols) document.getElementById("cols").value = savedCols;
+const applyCols = () => { grid.style.setProperty("--cols", document.getElementById("cols").value); panels.forEach(draw); };
+document.getElementById("cols").onchange = () => { try { localStorage.setItem("cols", document.getElementById("cols").value); } catch {} applyCols(); };
+document.getElementById("nbars").onchange = refreshAll;
+window.addEventListener("resize", () => panels.forEach(draw));
+applyCols();
+refreshAll();
+setInterval(refreshAll, 5000);
+</script>
+</body>
+</html>

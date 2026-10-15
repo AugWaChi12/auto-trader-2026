@@ -41,17 +41,26 @@ def _find_terminal() -> str | None:
 
 
 class LiveRunner:
-    def __init__(self, strategy_tags: list[str], profile: str) -> None:
-        self.strategies = C.build_strategies(strategy_tags)
+    """หนึ่ง instance = หนึ่งบอท (C.LIVE_INSTANCES) — magic / timeframe / state แยกกัน รันหลายตัวพร้อมกันได้"""
+
+    def __init__(self, instance: str = "main", strategy_tags: list[str] | None = None,
+                 profile: str | None = None) -> None:
+        spec = C.LIVE_INSTANCES[instance]
+        self.instance = instance
+        self.tf = spec["tf"]
+        self.magic = spec["magic"]
+        tags = strategy_tags or spec["strategies"]
+        self.strategies = C.build_strategies(tags, timeframe=self.tf)
         if not self.strategies:
-            raise SystemExit(f"ไม่มีกลยุทธ์ {strategy_tags}")
+            raise SystemExit(f"ไม่มีกลยุทธ์ {tags}")
         self.symbols = sorted({s.symbol for s in self.strategies})
-        self.profile = profile
-        C.STATE_DIR.mkdir(parents=True, exist_ok=True)
-        self.broker = Mt5Broker(self.symbols, C.DEFAULT_SPECS, C.TIMEFRAME, C.SERVER_TIME_MODE, C.MAGIC, C.STATE_DIR)
+        self.profile = profile or spec["profile"]
+        self.state_dir = C.instance_state_dir(instance)
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.broker = Mt5Broker(self.symbols, C.DEFAULT_SPECS, self.tf, C.SERVER_TIME_MODE, self.magic, self.state_dir)
         self.notifier = Notifier()
-        self._risk_path = C.STATE_DIR / "risk.json"
-        self._heartbeat_path = C.STATE_DIR / "heartbeat.json"
+        self._risk_path = self.state_dir / "risk.json"
+        self._heartbeat_path = self.state_dir / "heartbeat.json"
         self._last_time: dict[str, datetime] = {}
         self._known_tickets: set[int] = set()
         self._signals_seen = 0
@@ -88,7 +97,7 @@ class LiveRunner:
         self._known_tickets = {p.ticket for p in self.broker.positions()}
         cfg = self.risk.cfg
         self.notifier.send(
-            f"🤖 บอทเริ่มทำงาน (DEMO)\nกลยุทธ์: {', '.join(s.tag for s in self.strategies)}\n"
+            f"🤖 บอท [{self.instance} {self.tf}] เริ่มทำงาน (DEMO)\nกลยุทธ์: {', '.join(s.tag for s in self.strategies)}\n"
             f"profile: {self.profile} ({cfg.risk_per_trade:.0%}/ไม้, หยุดวันที่ -{cfg.daily_loss_limit:.0%})\n"
             f"equity: {self.broker.equity():,.2f}  ไม้ที่เปิดอยู่: {len(self._known_tickets)}")
 
@@ -156,7 +165,8 @@ class LiveRunner:
 
     def _heartbeat(self) -> None:
         now = datetime.now(UTC)
-        hb = {"time": now.isoformat(), "pid": os.getpid(), "equity": self.broker.equity(),
+        hb = {"time": now.isoformat(), "pid": os.getpid(), "instance": self.instance, "tf": self.tf,
+              "magic": self.magic, "equity": self.broker.equity(),
               "last_bars": {s: t.isoformat() for s, t in self._last_time.items()},
               "algo_trading": self.broker.algo_trading_enabled(), "killed": self.risk.killed,
               "kill_reason": self.risk.kill_reason, "halted_today": self.risk.halted_today,
@@ -169,9 +179,9 @@ class LiveRunner:
                      hb["algo_trading"], hb["last_bars"])
 
 
-def setup_file_logging(log_dir: Path) -> Path:
+def setup_file_logging(log_dir: Path, instance: str = "main") -> Path:
     log_dir.mkdir(parents=True, exist_ok=True)
-    path = log_dir / f"live_{datetime.now():%Y%m%d}.log"
+    path = log_dir / f"{'live' if instance == 'main' else instance}_{datetime.now():%Y%m%d}.log"
     h = logging.FileHandler(path, encoding="utf-8")
     h.setFormatter(logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s"))
     logging.getLogger().addHandler(h)
