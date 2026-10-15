@@ -1,0 +1,204 @@
+{
+  "updated": "2026-10-15",
+  "families": {
+    "session": "เวลา / Session",
+    "price_action": "Price action",
+    "trend": "เทรนด์",
+    "mean_reversion": "Mean reversion",
+    "volatility": "ความผันผวน",
+    "regime": "สภาพตลาด (Regime)",
+    "exits": "การบริหารไม้ / จุดออก"
+  },
+  "techniques": [
+    {
+      "id": "xau_momo", "name": "Session Momentum (ตามทิศช่วงเช้า)", "family": "session",
+      "markets": "XAUUSD", "tf": "M15", "round": "รอบ 1", "verdict": "forward",
+      "idea": "ถ้าทองวิ่งแรงตั้งแต่เปิดวัน (เอเชีย+ลอนดอน) ช่วงนิวยอร์กมักไปต่อทางเดิม",
+      "rules": ["วัดการเคลื่อนที่ 00:00–12:00 UTC (07:00–19:00 ไทย)", "ถ้าเกิน 0.35 × ADR → เข้าตามทิศตอน 19:00 น.", "SL 0.5 ADR, ไม่มี TP, ปิดหมด 03:00 น."],
+      "result": {"label": "Out-of-sample", "n": 133, "exp_r": 0.037, "pf": 1.11, "extra": "In-sample +0.114R (PF 1.41) · grid บวก 34/36 ใน OOS"},
+      "lesson": "ผ่านช่วงจูนแต่ OOS ต่ำกว่าเกณฑ์และแพ้การสุ่มทิศ — ตัวเดียวที่ยังมีหลักฐานพอให้ทดสอบไปข้างหน้า",
+      "live": ["xau_momo"], "source": "bot/strategy/session_momentum.py · research/RESULTS.md"
+    },
+    {
+      "id": "xau_bo", "name": "Asian Range Breakout", "family": "session",
+      "markets": "XAUUSD", "tf": "M15", "round": "รอบ 1", "verdict": "fail",
+      "idea": "ทองเงียบในช่วงเอเชีย แล้วเลือกทางตอนลอนดอน/นิวยอร์กเปิด — เข้าตามทางที่ทะลุกรอบ",
+      "rules": ["กรอบ high/low 00:00–07:00 UTC", "กรอบต้องกว้าง 0.15–0.60 ADR", "ปิดทะลุ → เข้า, SL กลางกรอบ, partial 1.5R + BE + ATR trail"],
+      "result": {"label": "3 ปีเต็ม", "n": 531, "exp_r": 0.027, "pf": 1.03, "extra": "ปีบวกสลับปีลบ"},
+      "lesson": "เป็นเทคนิคดังที่สุดของทอง แต่หลังหักต้นทุนเหลือแทบ 0",
+      "live": ["g_bo_x"], "source": "bot/strategy/session_breakout.py"
+    },
+    {
+      "id": "nas_orb", "name": "Opening Range Breakout (NAS100)", "family": "session",
+      "markets": "NAS100", "tf": "M15", "round": "รอบ 1", "verdict": "fail",
+      "idea": "30 นาทีแรกหลังตลาดหุ้นสหรัฐเปิดกำหนดทิศของวัน",
+      "rules": ["กรอบ 09:30–10:00 นิวยอร์ก", "ปิดทะลุก่อนเที่ยง → เข้า", "ปิดหมด 15:45 นิวยอร์ก"],
+      "result": {"label": "3 ปีเต็ม", "n": 543, "exp_r": -0.007, "pf": 0.97},
+      "lesson": "ORB คลาสสิกไม่เหลือ edge ในดัชนีที่มีสภาพคล่องสูง",
+      "live": ["g_bo_n"], "source": "bot/strategy/session_breakout.py"
+    },
+    {
+      "id": "nas_momo", "name": "Session Momentum (NAS100)", "family": "session",
+      "markets": "NAS100", "tf": "M15", "round": "รอบ 1", "verdict": "fail",
+      "idea": "เหมือน xau_momo แต่กับ NAS100",
+      "rules": ["grid เวลาเข้า × ขนาดการวิ่ง × SL"],
+      "result": {"label": "In-sample grid", "n": null, "exp_r": null, "pf": null, "extra": "บวกแค่ 13/36 ชุด และยิ่งเช้าวิ่งแรงยิ่งแย่"},
+      "lesson": "สิ่งที่ใช้ได้กับตลาดหนึ่งไม่ได้แปลว่าใช้ได้กับอีกตลาด",
+      "live": [], "source": "research/out/sweep_momo.csv"
+    },
+    {
+      "id": "hour_day", "name": "ผลตามชั่วโมง / วันในสัปดาห์", "family": "session",
+      "markets": "XAUUSD · NAS100", "tf": "H1 / D1", "round": "สำรวจ", "verdict": "fail",
+      "idea": "บางชั่วโมงหรือบางวันราคามักขึ้นหรือลง",
+      "rules": ["ผลตอบแทนเฉลี่ยรายชั่วโมง/รายวัน พร้อม t-stat"],
+      "result": {"label": "In-sample", "n": null, "exp_r": null, "pf": null, "extra": "มีแค่ช่วง rollover 21–23 UTC ที่ t > 2 จาก 24 การทดสอบ (คาดว่าเจอ 1 ตัวจากความบังเอิญอยู่แล้ว)"},
+      "lesson": "ทดสอบหลายครั้ง ย่อมเจอ \"สัญญาณ\" จากความบังเอิญ — ต้องปรับเกณฑ์ตามจำนวนครั้ง",
+      "live": [], "source": "research/explore.py"
+    },
+    {
+      "id": "xau_sweep", "name": "Liquidity Sweep ขอบกรอบเอเชีย", "family": "price_action",
+      "markets": "XAUUSD", "tf": "M15", "round": "รอบ 1", "verdict": "fail",
+      "idea": "stop ของคนเทรด breakout กองอยู่เลยขอบกรอบ ราคามักถูกลากไปกินแล้วกลับ",
+      "rules": ["ไส้เจาะขอบกรอบแล้วปิดกลับภายใน 3 แท่ง → สวน", "SL เหนือไส้, TP อีกฝั่งกรอบ (≥ 2R)"],
+      "result": {"label": "3 ปีเต็ม", "n": 307, "exp_r": -0.209, "pf": 0.63, "extra": "ติดลบเกือบทุกปี"},
+      "lesson": "แนว SMC / ล่า stop ที่ฮิตในโซเชียล ไม่รอดเมื่อวัดจริง",
+      "live": ["g_sw_x"], "source": "bot/strategy/sweep_reversal.py"
+    },
+    {
+      "id": "nas_sweep", "name": "Liquidity Sweep (NAS100)", "family": "price_action",
+      "markets": "NAS100", "tf": "M15", "round": "รอบ 1", "verdict": "fail",
+      "idea": "เหมือน xau_sweep กับกรอบ opening range ของ NAS",
+      "rules": ["เหมือน xau_sweep"],
+      "result": {"label": "3 ปีเต็ม", "n": 196, "exp_r": -0.122, "pf": 0.73},
+      "lesson": "",
+      "live": ["g_sw_n"], "source": "bot/strategy/sweep_reversal.py"
+    },
+    {
+      "id": "h7_level_sweep", "name": "Sweep ที่ระดับสำคัญ (PDH/PDL/สัปดาห์)", "family": "price_action",
+      "markets": "XAUUSD · NAS100", "tf": "M15", "round": "รอบ 2 (H7/H8)", "verdict": "fail",
+      "idea": "high/low ของเมื่อวานและสัปดาห์ก่อนคือระดับที่ทั้งโลกเห็น — กวาด stop แล้วกลับ",
+      "rules": ["ไส้เลยระดับ ≥ 0.05 ATR(H1) แล้วปิดกลับภายใน 1–3 แท่ง → สวน", "ไม่เทรดตอนผันผวนสูง", "SL เหนือไส้ + buffer, TP 1.5–3R, time stop 24 ชม."],
+      "result": {"label": "Walk-forward", "n": 171, "exp_r": -0.239, "pf": 0.65, "extra": "ทอง: ติดลบทุกหน้าต่าง · NAS: n=196 −0.060R"},
+      "lesson": "แย่กว่าการสุ่มทิศด้วยซ้ำ",
+      "live": ["g_ls_x", "g_ls_n"], "source": "bot/strategy/level_sweep.py · research/hypotheses.md"
+    },
+    {
+      "id": "pdh_break", "name": "Breakout เหนือ high ของเมื่อวาน", "family": "price_action",
+      "markets": "XAUUSD", "tf": "D1", "round": "สำรวจ", "verdict": "fail",
+      "idea": "ทะลุ high เมื่อวาน = แรงซื้อ ไปต่อ",
+      "rules": ["เจาะ PDH → ถือถึงปิดวัน (ฝั่ง PDL กลับกัน)"],
+      "result": {"label": "In-sample", "n": 237, "exp_r": null, "pf": null, "extra": "ฝั่ง long +0.158%/ไม้ (t 2.64) แต่ฝั่ง short −0.04% · ซื้อเฉยๆ ก็ได้ใกล้เคียงกัน"},
+      "lesson": "ตลาดขาขึ้นทำให้ทุกอย่างที่ \"ซื้อ\" ดูดี — ต้องเทียบกับ long-only เสมอ",
+      "live": [], "source": "research/explore.py"
+    },
+    {
+      "id": "pullback", "name": "Trend Pullback (EMA H4 + ย่อแตะ EMA M15)", "family": "trend",
+      "markets": "XAUUSD · NAS100", "tf": "M15", "round": "รอบ 1", "verdict": "fail",
+      "idea": "เทรนด์ใหญ่ขึ้น → รอราคาย่อมาแตะเส้นค่าเฉลี่ยแล้วเข้าตามเทรนด์",
+      "rules": ["ราคาปิด H4 > EMA50(H4) = ขาขึ้น", "low แตะ EMA20 M15 แล้วปิดเขียวเหนือ EMA → BUY", "SL 1–2 ATR, TP 1.5–2.5R"],
+      "result": {"label": "In-sample grid", "n": 353, "exp_r": -0.024, "pf": 0.96, "extra": "บวกแค่ 2/48 ชุด ดีสุด +0.04R (t 0.62)"},
+      "lesson": "ตัวกรองเทรนด์ EMA50(H4) ของทองให้ผลเท่ากับซื้อเฉยๆ",
+      "live": ["g_pb_x", "g_pb_n"], "source": "bot/strategy/trend_pullback.py"
+    },
+    {
+      "id": "ema_cross", "name": "EMA Cross ตามเทรนด์ (S3)", "family": "trend",
+      "markets": "XAUUSD", "tf": "M5", "round": "รอบ 3 (สแกลป์)", "verdict": "fail",
+      "idea": "เส้นเร็วตัดเส้นช้าในทิศเดียวกับ EMA200",
+      "rules": ["EMA (5,13)/(9,21)/(12,26) ตัดกัน + ราคาอยู่ฝั่งเดียวกับ EMA200", "SL 1–2 ATR, TP 1–2R"],
+      "result": {"label": "Walk-forward", "n": 1123, "exp_r": -0.033, "pf": 0.94, "extra": "~4.8 ไม้/วัน"},
+      "lesson": "แม้แต่พารามิเตอร์ที่ดีที่สุดในช่วงจูนก็ยังติดลบ",
+      "live": ["ec_xau"], "source": "bot/strategy/scalp.py · research/hypotheses_v3_scalp.md"
+    },
+    {
+      "id": "rsi2", "name": "RSI(2) Mean Reversion (Connors)", "family": "mean_reversion",
+      "markets": "XAUUSD · NAS100", "tf": "M5", "round": "รอบ 3 (S1/S2)", "verdict": "fail",
+      "idea": "RSI 2 วันดิ่งสุดโต่งในเทรนด์ขึ้น → เด้งกลับระยะสั้น",
+      "rules": ["RSI(2) < 5–15 และราคา > EMA200 → BUY (ฝั่ง SELL กลับกัน)", "ออกเมื่อปิดข้าม EMA5 หรือ time stop"],
+      "result": {"label": "Walk-forward", "n": 1352, "exp_r": -0.016, "pf": 0.93, "extra": "ทอง ~5.8 ไม้/วัน · NAS n=950 −0.021R"},
+      "lesson": "อัตราชนะ 62–65% แต่ไม้แพ้ใหญ่กว่า — ชนะบ่อยไม่เท่ากับได้เงิน",
+      "live": ["lr_xau", "lr_nas"], "source": "bot/strategy/scalp.py"
+    },
+    {
+      "id": "bb_fade", "name": "Bollinger Fade ช่วงเอเชีย (S4)", "family": "mean_reversion",
+      "markets": "XAUUSD", "tf": "M1", "round": "รอบ 3 (สแกลป์)", "verdict": "fail",
+      "idea": "ตลาดเงียบช่วงเอเชีย ราคาหลุดขอบ Bollinger แล้วกลับเข้ากลาง",
+      "rules": ["00:00–06:00 UTC ปิดนอก BB(20, k) → สวน", "TP เส้นกลาง, SL 1–2 ATR"],
+      "result": {"label": "Test เดือนสุดท้าย", "n": 510, "exp_r": -0.205, "pf": 0.61, "extra": "t = −5.16 · ~24 ไม้/วัน ≈ −4.9% ของพอร์ต/วัน"},
+      "lesson": "M1 ต้นทุน ≈ 16% ของ SL ทุกไม้ — ขาดทุนชัดเจนทางสถิติ",
+      "live": ["bb_xau"], "source": "bot/strategy/scalp.py"
+    },
+    {
+      "id": "nr7", "name": "NR7 / Inside Day", "family": "volatility",
+      "markets": "XAUUSD · NAS100", "tf": "D1", "round": "สำรวจ", "verdict": "fail",
+      "idea": "วันที่แคบที่สุดใน 7 วัน → วันถัดไปมักวิ่งแรง",
+      "rules": ["วัดช่วงแกว่งวันถัดไปเทียบค่าเฉลี่ย"],
+      "result": {"label": "In-sample", "n": 65, "exp_r": null, "pf": null, "extra": "วันถัดไปแกว่ง 0.99× ของปกติ (ทอง) · 0.94× (NAS)"},
+      "lesson": "สมมติฐานพื้นฐานไม่จริงตั้งแต่แรก",
+      "live": [], "source": "research/explore.py"
+    },
+    {
+      "id": "vol_expansion", "name": "Volatility Expansion (เงียบ → ระเบิด)", "family": "volatility",
+      "markets": "XAUUSD · NAS100", "tf": "M15", "round": "รอบ 2 (H5/H6)", "verdict": "fail",
+      "idea": "หลังช่วงบีบตัว ราคามักระเบิด ทางที่ทะลุกรอบคือทางที่วิ่ง",
+      "rules": ["ATR(24) percentile ≤ 10% ภายใน 24 ชม.", "ปิดทะลุกรอบ 12–48 ชม. → เข้า", "SL 1–2 ATR(H1), TP 1.5–3R, time stop 24 ชม."],
+      "result": {"label": "Walk-forward", "n": 42, "exp_r": 0.152, "pf": 1.27, "extra": "กำไรมาจากฝั่ง BUY ทั้งหมด (+0.46R) SELL −0.54R · long-only ได้ +0.71R · NAS n=95 +0.09R"},
+      "lesson": "ตัวอย่างคลาสสิกของ \"ดูดีแต่หลอก\" — benchmark long-only เปิดโปงว่าเป็นแค่ทองขาขึ้น",
+      "live": ["g_vx_x", "g_vx_n"], "source": "bot/strategy/vol_expansion.py"
+    },
+    {
+      "id": "regime_trend", "name": "Regime: เทรนด์ / ไซด์เวย์ (ADX + EMA slope)", "family": "regime",
+      "markets": "XAUUSD · NAS100", "tf": "H1", "round": "รอบ 2 (ด่าน 0)", "verdict": "fail",
+      "idea": "ระบุให้ได้ว่าตลาดเป็นเทรนด์หรือไซด์เวย์ แล้วเลือกเครื่องมือให้ตรง",
+      "rules": ["ADX(14) ≥ 25 และ EMA50 ขยับ ≥ 0.5 ATR ใน 10 ชม. = เทรนด์", "ทดสอบว่าป้ายบอกอนาคต 24 ชม. ได้ไหม"],
+      "result": {"label": "~500 ตัวอย่าง/ตลาด", "n": null, "exp_r": null, "pf": null, "extra": "ป้ายเทรนด์คงอยู่ครบ 24 ชม. แค่ 29–39% · NAS กลับทิศ (t −3.25) · random walk ทำ ADX ได้ถึง 40–58"},
+      "lesson": "\"เห็นเทรนด์\" ส่วนใหญ่คือการมองย้อนหลัง",
+      "live": [], "source": "bot/core/regime.py · research/regime_test.py"
+    },
+    {
+      "id": "regime_vol", "name": "Regime: ระดับความผันผวน", "family": "regime",
+      "markets": "XAUUSD · NAS100", "tf": "H1", "round": "รอบ 2 (ด่าน 0)", "verdict": "pass",
+      "idea": "ตลาดที่ผันผวนสูงมักผันผวนต่อ (volatility clustering)",
+      "rules": ["ATR(24) percentile ≥ 90% = HIGH_VOL, ≤ 10% = DEAD"],
+      "result": {"label": "~500 ตัวอย่าง/ตลาด", "n": null, "exp_r": null, "pf": null, "extra": "24 ชม. หลัง HIGH_VOL แกว่ง 2.84% vs DEAD 1.23% (t 6.4 ทอง / 7.6 NAS)"},
+      "lesson": "สิ่งเดียวที่ผ่าน: ความผันผวนพยากรณ์ได้ แต่ทิศทางพยากรณ์ไม่ได้ → ใช้คุมขนาดไม้/SL ได้ ไม่ใช่สัญญาณเข้า",
+      "live": [], "source": "bot/core/regime.py"
+    },
+    {
+      "id": "small_tp", "name": "ปิดกำไรเร็ว (TP 0.3R / 0.5R / 1R) และเลื่อน BE", "family": "exits",
+      "markets": "XAUUSD · NAS100", "tf": "M1 / M5", "round": "ทดลองจุดออก", "verdict": "fail",
+      "idea": "ได้กำไรนิดหน่อยก็ปิด ดีกว่ารอจนกลับมาขาดทุน",
+      "rules": ["เทียบแบบเดิม vs TP เล็ก vs เลื่อน SL ไปจุดเข้าที่ +0.5R"],
+      "result": {"label": "ec_xau M5", "n": 1146, "exp_r": -0.113, "pf": 0.58, "extra": "TP 0.3R: ชนะ 34% → 73% แต่ขาดทุนรวม −76R → −129R"},
+      "lesson": "อัตราชนะสูงขึ้นเสมอ แต่ค่าคาดหวังไม่ดีขึ้น — ไม้ชนะเล็กลง ไม้แพ้ใหญ่เท่าเดิม",
+      "live": [], "source": "research/take_profit_test.py"
+    },
+    {
+      "id": "fixed_usd", "name": "TP/SL เป็นดอลลาร์ตายตัว ($5 / $2)", "family": "exits",
+      "markets": "XAUUSD", "tf": "M1 / M5", "round": "ทดลองจุดออก", "verdict": "fail",
+      "idea": "กำไร $5 ปิด ขาดทุน $2 ตัด",
+      "rules": ["เทียบกับ SL/TP ตาม ATR ที่ขนาดไม้จริงบน demo"],
+      "result": {"label": "lr_xau M5 (0.01 lot)", "n": 1856, "exp_r": null, "pf": null, "extra": "รวม +$17 → −$768 · อัตราชนะ 62% → 27% · SL $2 เสียจริงเฉลี่ย $2.30"},
+      "lesson": "SL ใกล้กว่าการแกว่งปกติ = โดนตัดเพราะ noise · ต้นทุนกิน SL เล็ก",
+      "live": [], "source": "research/fixed_dollar_test.py"
+    },
+    {
+      "id": "partial_trail", "name": "Partial TP + Break-even + ATR Trailing", "family": "exits",
+      "markets": "XAUUSD · NAS100", "tf": "M15", "round": "รอบ 1", "verdict": "info",
+      "idea": "แบ่งไม้ ปิดครึ่งหนึ่งที่ 1.5R เลื่อนที่เหลือไป BE แล้ว trail ด้วย ATR ให้วิ่งยาว",
+      "rules": ["ใช้ร่วมกับ breakout ในรอบ 1"],
+      "result": {"label": "ส่วนหนึ่งของ breakout", "n": null, "exp_r": null, "pf": null, "extra": "การบริหารไม้ช่วยไม่ได้ถ้าจุดเข้าไม่มี edge"},
+      "lesson": "จุดออกเปลี่ยนรูปร่างผลลัพธ์ได้ แต่สร้าง edge จากศูนย์ไม่ได้",
+      "live": ["g_bo_x"], "source": "bot/execution/position_manager.py"
+    }
+  ],
+  "process": [
+    ["ลงทะเบียนสมมติฐานล่วงหน้า", "เขียนกฎ + เกณฑ์ผ่านก่อนดูข้อมูล และบันทึกตัวที่ล้มทุกตัว (research/hypotheses*.md)"],
+    ["แบ่งข้อมูล", "in-sample สำหรับจูน · walk-forward · hold-out ที่ไม่แตะจนกว่าจะล็อก"],
+    ["เลือกจากที่ราบ ไม่ใช่ยอด", "พารามิเตอร์ ≤ 3–4 ตัว ค่าข้างเคียงต้องบวกด้วย"],
+    ["Benchmark", "เทียบกับสุ่มทิศและ long-only ที่กลไกเดียวกัน — กันหลอกตัวเองจาก drift"],
+    ["ปรับเกณฑ์ตามจำนวนที่ทดสอบ", "Bonferroni t ≥ 2.5–2.7 และแสดง CI95"],
+    ["ตรวจ look-ahead", "รันบน random walk ต้องได้ ≈ −ต้นทุน"],
+    ["Backtest แง่ร้าย", "สเปรดจริง + slippage + ค่าคอม · แท่งเดียวแตะทั้ง SL/TP นับ SL"],
+    ["Forward test บน demo", "ล็อก DEMO ในโค้ด · sub-account แยกต่อบอท · เทียบผลจริงกับ backtest"]
+  ]
+}

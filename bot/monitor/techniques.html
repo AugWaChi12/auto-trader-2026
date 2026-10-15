@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Technique Library</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1d2129; --muted: #6b7280; --line: #e5e7eb; --chip: #eef0f3;
+    --up: #0f9d58; --down: #d93025; --accent: #b8860b; --warn: #c77700; --info: #2563eb; --track: #e9ecf1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #181b21; --text: #e6e8eb; --muted: #8b93a1; --line: #262a33; --chip: #222630;
+            --up: #34c77b; --down: #ff6b5e; --accent: #e0b04b; --warn: #f2b632; --info: #6aa3ff; --track: #262a33; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13.5px/1.5 "Segoe UI", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line);
+           background: var(--card); flex-wrap: wrap; position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 16px; margin: 0; }
+  header a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 14px 16px 28px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .kpi .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kpi .s { color: var(--muted); font-size: 12px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 4px; align-items: center; }
+  .filters .lbl { color: var(--muted); font-size: 12px; margin-right: 4px; }
+  button.f { background: var(--chip); color: var(--text); border: 1px solid transparent; border-radius: 999px;
+             padding: 3px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  button.f.on { border-color: var(--accent); color: var(--accent); }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); margin-top: 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 12px;
+          padding: 12px 14px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .card.fail { border-left-color: var(--down); } .card.pass { border-left-color: var(--up); }
+  .card.forward { border-left-color: var(--warn); } .card.info { border-left-color: var(--info); }
+  .top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .top b { font-size: 14.5px; }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 6px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .v-fail { color: var(--down); background: color-mix(in srgb, var(--down) 12%, transparent); }
+  .v-pass { color: var(--up); background: color-mix(in srgb, var(--up) 12%, transparent); }
+  .v-forward { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .v-info { color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); }
+  .idea { font-size: 13.5px; }
+  details { font-size: 12.5px; color: var(--muted); }
+  details summary { cursor: pointer; }
+  details ul { margin: 4px 0 0; padding-left: 18px; }
+  .metrics { display: flex; gap: 14px; flex-wrap: wrap; padding: 8px 0 2px; border-top: 1px dashed var(--line); }
+  .metrics div { font-variant-numeric: tabular-nums; }
+  .metrics .k { color: var(--muted); font-size: 11px; display: block; }
+  .metrics .v { font-weight: 650; }
+  .extra { font-size: 12px; color: var(--muted); }
+  .lesson { font-size: 12.5px; background: var(--chip); border-radius: 8px; padding: 6px 9px; }
+  .live { font-size: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .live a { color: inherit; text-decoration: none; }
+  .gauge { display: inline-block; width: 46px; height: 6px; background: var(--track); border-radius: 4px; overflow: hidden; vertical-align: middle; }
+  .gauge i { display: block; height: 100%; }
+  .src { font: 11px ui-monospace, Consolas, monospace; color: var(--muted); }
+  .up { color: var(--up); } .down { color: var(--down); }
+  h2 { font-size: 15px; margin: 26px 0 8px; }
+  .process { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; counter-reset: step; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .step b::before { counter-increment: step; content: counter(step) ". "; color: var(--accent); }
+  .step div { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  @media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 Technique Library</h1>
+  <a href="/">← ภาพรวม</a> <a href="/charts">📈 กราฟ</a> <a href="/radar">📡 Radar</a>
+</header>
+<div class="wrap">
+  <div class="kpis">
+    <div class="kpi"><div class="s">เทคนิคที่ทดสอบ</div><div class="v" id="kTotal">–</div><div class="s" id="kFam"></div></div>
+    <div class="kpi"><div class="s">ผ่านเกณฑ์เป็นสัญญาณเข้า</div><div class="v" id="kPass">–</div><div class="s">หลังหักต้นทุนจริง</div></div>
+    <div class="kpi"><div class="s">กำลัง forward test</div><div class="v" id="kFwd">–</div><div class="s">ยังไม่พิสูจน์</div></div>
+    <div class="kpi"><div class="s">กลยุทธ์ที่รันบน demo</div><div class="v" id="kLive">–</div><div class="s" id="kLiveS">ดูสถานะสดที่ Radar</div></div>
+  </div>
+  <div class="filters" id="famFilters"><span class="lbl">หมวด</span></div>
+  <div class="filters" id="verFilters"><span class="lbl">ผล</span></div>
+  <div class="grid" id="grid"></div>
+
+  <h2>🧪 วิธีพิสูจน์ (ใช้กับทุกเทคนิคด้านบน)</h2>
+  <div class="process" id="process"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const VERDICT = { fail: "ตกเกณฑ์", pass: "ผ่าน", forward: "กำลังทดสอบไปข้างหน้า", info: "ข้อมูลประกอบ" };
+let cat = null, radar = {}, fam = "all", ver = "all";
+
+function metric(k, v, cls = "") { return `<div><span class="k">${k}</span><span class="v ${cls}">${v}</span></div>`; }
+
+function card(t) {
+  const r = t.result || {};
+  const m = [];
+  if (r.n != null) m.push(metric("ไม้", r.n.toLocaleString()));
+  if (r.exp_r != null) m.push(metric("ค่าคาดหวัง/ไม้", (r.exp_r > 0 ? "+" : "") + r.exp_r.toFixed(3) + "R", r.exp_r > 0 ? "up" : "down"));
+  if (r.pf != null) m.push(metric("Profit factor", r.pf.toFixed(2), r.pf >= 1 ? "up" : "down"));
+  m.push(metric("วัดจาก", esc(r.label || "–")));
+  const live = (t.live || []).map(tag => {
+    const c = radar[tag];
+    if (!c) return `<span class="badge">${esc(tag)}</span>`;
+    const p = Math.round((c.status?.proximity || 0) * 100);
+    const col = c.status?.side === "BUY" ? "var(--up)" : c.status?.side === "SELL" ? "var(--down)" : "var(--muted)";
+    const pnl = c.live?.trades ? ` · ${c.live.trades} ไม้ <span class="${c.live.pnl >= 0 ? "up" : "down"}">${c.live.pnl >= 0 ? "+" : ""}${c.live.pnl.toFixed(2)}$</span>` : "";
+    return `<a href="/radar" class="badge" title="${esc(c.status?.state || "")}">${c.alive ? "🟢" : "🔴"} ${esc(tag)} <span class="gauge"><i style="width:${p}%;background:${col}"></i></span> ${p}%${pnl}</a>`;
+  }).join("");
+  return `<div class="card ${t.verdict}">
+    <div class="top"><b>${esc(t.name)}</b><span class="badge v-${t.verdict}">${VERDICT[t.verdict] || t.verdict}</span></div>
+    <div class="top"><span class="badge">${esc(cat.families[t.family] || t.family)}</span><span class="badge">${esc(t.markets)}</span>
+      <span class="badge">${esc(t.tf)}</span><span class="badge">${esc(t.round)}</span></div>
+    <div class="idea">${esc(t.idea)}</div>
+    <details><summary>กฎที่ใช้ทดสอบ</summary><ul>${t.rules.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>
+    <div class="metrics">${m.join("")}</div>
+    ${r.extra ? `<div class="extra">${esc(r.extra)}</div>` : ""}
+    ${t.lesson ? `<div class="lesson">💡 ${esc(t.lesson)}</div>` : ""}
+    ${live ? `<div class="live">บน demo: ${live}</div>` : ""}
+    <div class="src">${esc(t.source)}</div>
+  </div>`;
+}
+
+function render() {
+  const list = cat.techniques.filter(t => (fam === "all" || t.family === fam) && (ver === "all" || t.verdict === ver));
+  $("grid").innerHTML = list.map(card).join("") || '<div class="extra">ไม่มีเทคนิคในตัวกรองนี้</div>';
+}
+
+function filters() {
+  const mk = (box, items, get, set) => {
+    box.innerHTML = box.innerHTML.split("</span>")[0] + "</span>" + items.map(([k, label]) =>
+      `<button class="f ${get() === k ? "on" : ""}" data-k="${k}">${esc(label)}</button>`).join("");
+    box.querySelectorAll("button").forEach(b => b.onclick = () => { set(b.dataset.k); filters(); render(); });
+  };
+  const famCount = (k) => cat.techniques.filter(t => t.family === k).length;
+  mk($("famFilters"), [["all", `ทั้งหมด (${cat.techniques.length})`], ...Object.entries(cat.families).map(([k, v]) => [k, `${v} (${famCount(k)})`])],
+     () => fam, (k) => { fam = k; });
+  const verCount = (k) => cat.techniques.filter(t => t.verdict === k).length;
+  mk($("verFilters"), [["all", "ทั้งหมด"], ...Object.entries(VERDICT).map(([k, v]) => [k, `${v} (${verCount(k)})`])], () => ver, (k) => { ver = k; });
+}
+
+async function loadRadar() {
+  try {
+    const d = await (await fetch("/api/radar", { cache: "no-store" })).json();
+    radar = Object.fromEntries((d.cards || []).map(c => [c.tag, c]));
+    const n = Object.keys(radar).length, alive = Object.values(radar).filter(c => c.alive).length;
+    $("kLive").textContent = n;
+    $("kLiveS").textContent = `${alive} ตัวที่บอททำงานอยู่ · ดูสถานะสดที่ Radar`;
+  } catch { /* หน้านี้ยังใช้ได้แม้ไม่มีข้อมูลสด */ }
+}
+
+async function main() {
+  cat = await (await fetch("/api/techniques", { cache: "no-store" })).json();
+  const T = cat.techniques;
+  $("kTotal").textContent = T.length;
+  $("kFam").textContent = `${Object.keys(cat.families).length} หมวด · อัปเดต ${cat.updated}`;
+  $("kPass").textContent = T.filter(t => t.verdict === "pass" && t.family !== "regime").length;
+  $("kFwd").textContent = T.filter(t => t.verdict === "forward").length;
+  $("process").innerHTML = cat.process.map(([h, d]) => `<div class="step"><b>${esc(h)}</b><div>${esc(d)}</div></div>`).join("");
+  filters();
+  await loadRadar();
+  render();
+  setInterval(async () => { await loadRadar(); render(); }, 10000);
+}
+main();
+</script>
+</body>
+</html>

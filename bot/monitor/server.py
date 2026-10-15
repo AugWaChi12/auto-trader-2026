@@ -28,7 +28,8 @@ from ..live.mt5_broker import decode_comment
 log = logging.getLogger("monitor")
 HERE = Path(__file__).parent
 PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html",
-         "/radar": HERE / "radar.html"}
+         "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html"}
+TECHNIQUES = C.ROOT / "research" / "techniques.json"
 RADAR_STATS = C.ROOT / "research" / "out" / "radar_stats.json"
 TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
 
@@ -274,6 +275,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
             url = urlparse(self.path)
             if url.path == "/api":
                 self._send(json.dumps(col.data(), ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/techniques":
+                self._send(TECHNIQUES.read_bytes(), "application/json")
             elif url.path == "/api/radar":
                 self._send(json.dumps(col.radar(), ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/bars":
@@ -304,7 +307,7 @@ def serve(port: int = 8765, open_browser: bool = True, page: str = "") -> None:
     col = Collector()
     srv = ThreadingHTTPServer(("127.0.0.1", port), make_handler(col))
     url = f"http://127.0.0.1:{port}"
-    print(f"monitor: {url}   กราฟหลายจอ: {url}/charts   Signal Radar: {url}/radar   (Ctrl+C เพื่อปิด)")
+    print(f"monitor: {url}   กราฟหลายจอ: {url}/charts   Signal Radar: {url}/radar   คลังเทคนิค: {url}/techniques   (Ctrl+C เพื่อปิด)")
     if open_browser:
         import webbrowser
         webbrowser.open(url + page)
