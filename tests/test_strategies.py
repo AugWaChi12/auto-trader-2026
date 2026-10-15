@@ -204,3 +204,12 @@ def test_engine_tp_usd_sets_dollar_take_profit_by_actual_volume() -> None:
     pos = broker.positions()[0]
     gross_at_tp = (pos.tp - pos.entry_price) * pos.volume * XAU.contract_size
     assert gross_at_tp == pytest.approx(0.6, abs=1e-6)
+
+
+def test_engine_sl_usd_sets_dollar_stop_by_actual_volume() -> None:
+    # เคสนี้ได้ไม้ 0.16 lot → ใช้ $9/$6 ให้ระยะ SL กว้างกว่าสเปรด (ถ้าแคบกว่าสเปรด โบรกจะปฏิเสธ INVALID_STOPS)
+    eng, broker = _engine(ManagementPlan(partial_r=None, tp_usd=6.0, sl_usd=9.0))
+    _feed(eng, broker, warmup() + asian_range_then(date(2025, 1, 20), [(2000, 2006, 1999, 2006)]))
+    pos = broker.positions()[0]
+    assert (pos.entry_price - pos.sl) * pos.volume * XAU.contract_size == pytest.approx(9.0, abs=1e-6)
+    assert (pos.tp - pos.entry_price) * pos.volume * XAU.contract_size == pytest.approx(6.0, abs=1e-6)

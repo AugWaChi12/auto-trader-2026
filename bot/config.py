@@ -131,7 +131,8 @@ ALL_DAY = ScalpWindow(0, 24)
 # แบบเดิม (ล็อก +0.5R → trail 1 ATR → ขยับ TP) เก็บไว้ที่ M1_TRAIL_PLAN
 M1_TRAIL_PLAN = ManagementPlan(partial_r=0.5, partial_frac=1.0, be_offset_r=0.1, trail_atr_mult=1.0, trail_start_r=0.5,
                                tp_extend_at=0.7, tp_extend_r=0.5)
-M1_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, tp_usd=0.6)
+# 2026-10-16: เพิ่ม SL −$0.9 ต่อไม้ ตามคำขอ (เดิม SL ตาม ATR ≈ $2–4)
+M1_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, tp_usd=0.6, sl_usd=0.9)
 
 # ห้องทดลองสแกลป์ (research/hypotheses_v3_scalp.md) — **ตกทั้ง 4 ตัวใน backtest** (−0.016 ถึง −0.205R)
 # รันบน demo ตามคำขอเพื่อดูผลจริงกับตา · พารามิเตอร์ = ชุดที่ walk-forward เลือกในหน้าต่างล่าสุด

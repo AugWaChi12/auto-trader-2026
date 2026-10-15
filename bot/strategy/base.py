@@ -45,6 +45,8 @@ class ManagementPlan:
     tp_extend_r: float = 0.5
     # TP เป็นกำไรดอลลาร์ต่อไม้ (Engine คำนวณระยะราคาจากขนาดไม้จริงตอนเข้า) — ทับ TP ของกลยุทธ์
     tp_usd: float | None = None
+    # SL เป็นขาดทุนดอลลาร์ต่อไม้ (Engine คำนวณจากขนาดไม้จริง) — ทับ SL ของกลยุทธ์หลังคำนวณขนาดไม้แล้ว
+    sl_usd: float | None = None
 
 
 @dataclass(frozen=True)
