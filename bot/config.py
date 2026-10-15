@@ -15,6 +15,8 @@ from .risk.risk_manager import RiskConfig
 from .strategy.base import ManagementPlan, SessionWindow, Strategy
 from .strategy.session_breakout import BreakoutConfig, SessionBreakout
 from .strategy.session_momentum import MomentumConfig, SessionMomentum
+from .strategy.scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCrossConfig, RsiReversion,
+                             RsiReversionConfig)
 from .strategy.sweep_reversal import SweepConfig, SweepReversal
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -59,11 +61,32 @@ WARMUP_BARS = 3000                   # ~1 เดือนของ M15 ให้
 STATE_DIR = ROOT / "state"
 LOG_DIR = ROOT / "logs"
 
+# หลายบอทบนบัญชีเดียว: แต่ละตัวมี magic / state / log ของตัวเอง ไม่แตะไม้ของกัน
+# (เพดานขาดทุนรายวันของ RiskManager คิดจาก equity ทั้งบัญชี — แล็บขาดทุนหนักอาจหยุดบอทหลักวันนั้นด้วย)
+LIVE_INSTANCES: dict[str, dict] = {
+    "main":   {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC},
+    "lab_m5": {"strategies": ["lr_xau", "lr_nas", "ec_xau"], "tf": "M5", "profile": "demo_1k", "magic": MAGIC + 1},
+    "lab_m1": {"strategies": ["bb_xau"], "tf": "M1", "profile": "demo_1k", "magic": MAGIC + 2},
+}
+
+
+def instance_state_dir(name: str) -> Path:
+    return STATE_DIR if name == "main" else STATE_DIR / name
+
 # ---------------------------------------------------------------------------- กลยุทธ์
 GOLD_SESSION = SessionWindow(tz="UTC", range_start="00:00", range_end="07:00",
                              trade_end="16:00", flat_time="20:00")
 NAS_SESSION = SessionWindow(tz="America/New_York", range_start="09:30", range_end="10:00",
                             trade_end="12:00", flat_time="15:45")
+
+# ห้องทดลองสแกลป์ (research/hypotheses_v3_scalp.md) — **ตกทั้ง 4 ตัวใน backtest** (−0.016 ถึง −0.205R)
+# รันบน demo ตามคำขอเพื่อดูผลจริงกับตา · พารามิเตอร์ = ชุดที่ walk-forward เลือกในหน้าต่างล่าสุด
+LAB_CONFIGS: list = [
+    RsiReversionConfig(tag="lr_xau", symbol="XAUUSD", rsi_th=5.0, sl_atr=2.0, max_hold=24),
+    RsiReversionConfig(tag="lr_nas", symbol="NAS100", rsi_th=5.0, sl_atr=2.0, max_hold=12),
+    EmaCrossConfig(tag="ec_xau", symbol="XAUUSD", fast=12, slow=26, sl_atr=1.0, tp_r=2.0),
+    BollingerFadeConfig(tag="bb_xau", symbol="XAUUSD", k=2.0, sl_atr=2.0, max_hold=15),
+]
 
 STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
     # ผลวิจัย (research/out/locked.json): in-sample +0.114R → out-of-sample +0.037R ไม่ผ่านเกณฑ์ +0.10R
@@ -98,15 +121,14 @@ STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
 def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = None,
                      timeframe: str = TIMEFRAME) -> list[Strategy]:
     out: list[Strategy] = []
-    for c in STRATEGY_CONFIGS:
+    builders = {BreakoutConfig: SessionBreakout, SweepConfig: SweepReversal, MomentumConfig: SessionMomentum,
+                RsiReversionConfig: RsiReversion, EmaCrossConfig: EmaCross, BollingerFadeConfig: BollingerFade}
+    for c in STRATEGY_CONFIGS + LAB_CONFIGS:
         if tags and c.tag not in tags:
             continue
         if symbols and c.symbol not in symbols:
             continue
-        if isinstance(c, BreakoutConfig):
-            out.append(SessionBreakout(c, timeframe))
-        elif isinstance(c, SweepConfig):
-            out.append(SweepReversal(c, timeframe))
-        else:
-            out.append(SessionMomentum(c, timeframe))
+        if tags is None and c in LAB_CONFIGS:
+            continue                       # แล็บต้องเรียกชื่อตรงๆ เท่านั้น ไม่ติดไปกับ backtest ปกติ
+        out.append(builders[type(c)](c, timeframe))
     return out

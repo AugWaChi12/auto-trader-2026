@@ -116,7 +116,8 @@ class Engine:
             return
 
         self._groups += 1
-        group = f"{sig.key}#{self._groups}"
+        # key ไม่ซ้ำอยู่แล้ว (consumed หลังส่ง) — เลขต่อท้ายแค่กันชนกรณีส่งซ้ำ key เดิม ต้องสั้นเพราะ comment MT5 ≤ 31 ตัว
+        group = f"{sig.key}#{self._groups % 100}"
         for req in self._split(sig, decision.volume, entry, group):
             reply = self.executor.send(req)
             self.guard.on_reply(sig, reply, now, self.account.equity())
