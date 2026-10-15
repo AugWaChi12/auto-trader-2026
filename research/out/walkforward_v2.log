@@ -1,0 +1,83 @@
+backtests: 324  (2023-10-16 → 2026-04-01, ไม่แตะ hold-out)
+
+######## H5  vol XAUUSD
+                 test                                    params  opt_score  n    exp  rand_exp
+2024-10-16→2025-01-16 {'box_n': 12, 'sl_atr': 1.0, 'tp_r': 1.5}       -inf 15 -0.066    -0.051
+2025-01-16→2025-04-16 {'box_n': 24, 'sl_atr': 2.0, 'tp_r': 3.0}     -0.033  9  0.265     0.014
+2025-04-16→2025-07-16 {'box_n': 24, 'sl_atr': 2.0, 'tp_r': 3.0}      0.057  0    NaN       NaN
+2025-07-16→2025-10-16 {'box_n': 24, 'sl_atr': 2.0, 'tp_r': 3.0}      0.057 18  0.278     0.318
+2025-10-16→2026-01-16 {'box_n': 48, 'sl_atr': 2.0, 'tp_r': 3.0}      0.177  0    NaN       NaN
+2026-01-16→2026-04-01 {'box_n': 48, 'sl_atr': 2.0, 'tp_r': 3.0}      0.274  0    NaN       NaN
+
+  walk-forward รวม: {'n': 42, 'exp': 0.152, 't': 0.69, 'pf': 1.27}  | long +0.464R (n=29) short -0.543R (n=13)
+  benchmark สุ่มทิศ: {'n': 43, 'exp': 0.126, 't': 0.57, 'pf': 1.23} | long-only: {'n': 42, 'exp': 0.712, 't': 2.89, 'pf': 2.82} | หน้าต่างบวก 67%
+  [fail] n>=80
+  [PASS] exp>=+0.10R
+  [PASS] PF>=1.2
+  [fail] t>=2.7
+  [PASS] windows+>=60%
+  [PASS] beat random
+  [fail] beat long-only
+  ==> H5: ตก
+
+######## H6  vol NAS100
+                 test                                    params  opt_score  n    exp  rand_exp
+2024-10-16→2025-01-16 {'box_n': 12, 'sl_atr': 1.0, 'tp_r': 1.5}      0.003 22  0.190    -0.456
+2025-01-16→2025-04-16 {'box_n': 12, 'sl_atr': 1.0, 'tp_r': 1.5}      0.073  5 -0.064    -0.528
+2025-04-16→2025-07-16 {'box_n': 12, 'sl_atr': 1.0, 'tp_r': 1.5}     -0.023 24 -0.107     0.000
+2025-07-16→2025-10-16 {'box_n': 12, 'sl_atr': 1.0, 'tp_r': 3.0}      0.008 36  0.046    -0.472
+2025-10-16→2026-01-16 {'box_n': 48, 'sl_atr': 1.0, 'tp_r': 1.5}      0.066  8  0.731     0.724
+2026-01-16→2026-04-01 {'box_n': 48, 'sl_atr': 1.0, 'tp_r': 1.5}     -0.011  0    NaN       NaN
+
+  walk-forward รวม: {'n': 95, 'exp': 0.092, 't': 0.65, 'pf': 1.16}  | long +0.234R (n=55) short -0.102R (n=40)
+  benchmark สุ่มทิศ: {'n': 95, 'exp': -0.251, 't': -1.99, 'pf': 0.65} | long-only: {'n': 95, 'exp': 0.117, 't': 0.83, 'pf': 1.2} | หน้าต่างบวก 60%
+  [PASS] n>=80
+  [fail] exp>=+0.10R
+  [fail] PF>=1.2
+  [fail] t>=2.7
+  [PASS] windows+>=60%
+  [PASS] beat random
+  [fail] beat long-only
+  ==> H6: ตก
+
+######## H7  sweep XAUUSD
+                 test                                          params  opt_score  n    exp  rand_exp
+2024-10-16→2025-01-16 {'buffer_atr': 0.5, 'max_bars': 3, 'tp_r': 1.5}     -0.223 35 -0.087     0.151
+2025-01-16→2025-04-16 {'buffer_atr': 0.5, 'max_bars': 2, 'tp_r': 1.5}     -0.164 25 -0.277    -0.277
+2025-04-16→2025-07-16 {'buffer_atr': 0.1, 'max_bars': 2, 'tp_r': 3.0}     -0.147 36 -0.537    -0.227
+2025-07-16→2025-10-16 {'buffer_atr': 0.5, 'max_bars': 3, 'tp_r': 1.5}     -0.242 40 -0.181    -0.213
+2025-10-16→2026-01-16 {'buffer_atr': 0.1, 'max_bars': 1, 'tp_r': 2.0}     -0.149 18 -0.196     0.021
+2026-01-16→2026-04-01 {'buffer_atr': 0.5, 'max_bars': 3, 'tp_r': 1.5}     -0.181 17 -0.044    -0.562
+
+  walk-forward รวม: {'n': 171, 'exp': -0.239, 't': -2.65, 'pf': 0.65}  | long -0.156R (n=76) short -0.305R (n=95)
+  benchmark สุ่มทิศ: {'n': 169, 'exp': -0.16, 't': -1.69, 'pf': 0.76} | long-only: {'n': 169, 'exp': -0.04, 't': -0.42, 'pf': 0.93} | หน้าต่างบวก 0%
+  [PASS] n>=80
+  [fail] exp>=+0.10R
+  [fail] PF>=1.2
+  [fail] t>=2.7
+  [fail] windows+>=60%
+  [fail] beat random
+  [fail] beat long-only
+  ==> H7: ตก
+
+######## H8  sweep NAS100
+                 test                                          params  opt_score  n    exp  rand_exp
+2024-10-16→2025-01-16 {'buffer_atr': 0.1, 'max_bars': 3, 'tp_r': 1.5}     -0.315 38 -0.078    -0.141
+2025-01-16→2025-04-16 {'buffer_atr': 0.1, 'max_bars': 3, 'tp_r': 1.5}     -0.238 26 -0.338     0.355
+2025-04-16→2025-07-16 {'buffer_atr': 0.5, 'max_bars': 3, 'tp_r': 1.5}     -0.224 50 -0.121    -0.146
+2025-07-16→2025-10-16 {'buffer_atr': 0.1, 'max_bars': 3, 'tp_r': 1.5}     -0.139 43  0.071    -0.210
+2025-10-16→2026-01-16 {'buffer_atr': 0.1, 'max_bars': 1, 'tp_r': 3.0}     -0.070 20  0.324     0.090
+2026-01-16→2026-04-01 {'buffer_atr': 0.1, 'max_bars': 1, 'tp_r': 3.0}      0.006 19 -0.183     0.247
+
+  walk-forward รวม: {'n': 196, 'exp': -0.06, 't': -0.65, 'pf': 0.9}  | long -0.031R (n=81) short -0.080R (n=115)
+  benchmark สุ่มทิศ: {'n': 197, 'exp': -0.032, 't': -0.34, 'pf': 0.95} | long-only: {'n': 197, 'exp': -0.09, 't': -1.06, 'pf': 0.85} | หน้าต่างบวก 33%
+  [PASS] n>=80
+  [fail] exp>=+0.10R
+  [fail] PF>=1.2
+  [fail] t>=2.7
+  [fail] windows+>=60%
+  [fail] beat random
+  [PASS] beat long-only
+  ==> H8: ตก
+
+สรุป: {'H5': 'ตก', 'H6': 'ตก', 'H7': 'ตก', 'H8': 'ตก'}

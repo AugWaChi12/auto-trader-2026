@@ -177,6 +177,11 @@ class RegimeClassifier:
         self._ema_hist: deque[float] = deque(maxlen=c.slope_bars + 1)
         self.state: RegimeState | None = None
 
+    @property
+    def atr(self) -> float | None:
+        """ATR(14) ของ timeframe ใหญ่ (ใช้กำหนดระยะ SL ของ setup)"""
+        return self._atr.value
+
     def update(self, bar: Bar) -> RegimeState | None:
         """ป้อนแท่ง M15 — คืน state ใหม่เมื่อแท่ง H1 ปิด (มิฉะนั้น None)"""
         h1 = self._agg.update(bar)

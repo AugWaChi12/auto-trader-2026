@@ -20,10 +20,10 @@ ATR(24)-H1 percentile ใน 2,400 แท่ง: ≥ 90% = HIGH_VOL, ≤ 10% = D
 | H2 | Trend pullback | TREND | NAS100 | **ยกเลิก** (ด่าน 0 ตก) |
 | H3 | Range fade ที่ key level + rejection wick | RANGE | XAUUSD | **ยกเลิก** (ด่าน 0 ตก) |
 | H4 | Range fade | RANGE | NAS100 | **ยกเลิก** (ด่าน 0 ตก) |
-| H5 | Volatility expansion breakout หลัง DEAD | DEAD→ทะลุ | XAUUSD | รอ |
-| H6 | Volatility expansion breakout | DEAD→ทะลุ | NAS100 | รอ |
-| H7 | Liquidity sweep ที่ PDH/PDL/weekly level | ทุก regime ยกเว้น HIGH_VOL | XAUUSD | รอ |
-| H8 | Liquidity sweep ที่ key level | ทุก regime ยกเว้น HIGH_VOL | NAS100 | รอ |
+| H5 | Volatility expansion breakout หลัง DEAD | DEAD→ทะลุ | XAUUSD | **ตก** (WF +0.152R n=42 t=0.69 · long-only +0.712R) |
+| H6 | Volatility expansion breakout | DEAD→ทะลุ | NAS100 | **ตก** (WF +0.092R n=95 t=0.65) |
+| H7 | Liquidity sweep ที่ PDH/PDL/weekly level | ทุก regime ยกเว้น HIGH_VOL | XAUUSD | **ตก** (WF −0.239R n=171, 0% หน้าต่างบวก) |
+| H8 | Liquidity sweep ที่ key level | ทุก regime ยกเว้น HIGH_VOL | NAS100 | **ตก** (WF −0.060R n=196) |
 
 ## บันทึกผล
 (เติมตามลำดับ — ห้ามลบแถวที่ล้ม)
@@ -43,3 +43,16 @@ ATR(24)-H1 percentile ใน 2,400 แท่ง: ≥ 90% = HIGH_VOL, ≤ 10% = D
 สรุป: TREND/RANGE ของ classifier นี้ **ไม่มีข้อมูลเกี่ยวกับอนาคต** — regime TREND อยู่ต่อครบ 24 ชม. แค่ 29–39%
 มีแต่ระดับความผันผวน (vol clustering) ที่คงอยู่จริง → ใช้ได้กับขนาด SL/ไม้ และเป็นเงื่อนไขของ H5/H6
 H1–H4 ยกเลิก (ไม่นับเป็นการทดสอบ setup) · ข้อสังเกต NAS ที่กลับทิศ ห้ามนำไปสร้างสมมติฐานใหม่จากข้อมูลชุดนี้
+
+### 2026-10-15 — H5–H8 walk-forward (`python research/walkforward.py`, log: research/out/walkforward_v2.log)
+6 หน้าต่างทดสอบ 3 เดือน (2024-10 → 2026-03), เลือกพารามิเตอร์ด้วยคะแนนที่ราบจาก 12 เดือนก่อนหน้า
+
+| # | WF n | WF exp | t | PF | หน้าต่างบวก | สุ่มทิศ | long-only | ผล |
+|---|---|---|---|---|---|---|---|---|
+| H5 vol XAU | 42 | +0.152R | 0.69 | 1.27 | 67% | +0.126R | **+0.712R** | ตก — ทั้งหมดมาจาก long (+0.46R) short ติดลบ (−0.54R) = drift ขาขึ้นของทอง; 3 ใน 6 หน้าต่างไม่มีช่วง DEAD เลย |
+| H6 vol NAS | 95 | +0.092R | 0.65 | 1.16 | 60% | −0.251R | +0.117R | ตก — แพ้ long-only, t ต่ำ |
+| H7 sweep XAU | 171 | −0.239R | −2.65 | 0.65 | 0% | −0.160R | −0.040R | ตก — แย่กว่าสุ่ม |
+| H8 sweep NAS | 196 | −0.060R | −0.65 | 0.90 | 33% | −0.032R | −0.090R | ตก |
+
+Look-ahead check (random walk, 2 seeds × 2 ตลาด): ทุกตัว −0.01 ถึง −0.24R ✓
+**งบ 8 สมมติฐานหมดแล้ว — ไม่มีตัวใดผ่าน → ไม่ deploy, hold-out ไม่ได้เปิดใช้ (ยังสะอาดสำหรับรอบหน้า)**
