@@ -27,7 +27,7 @@ from research.sweep import RESEARCH_RISK  # noqa: E402
 import bot.strategy.scalp as S  # noqa: E402
 
 # (tag, tf, lot ที่บอทใช้จริงบน demo)
-CASES = [("lr_xau", "M5", 0.01), ("ec_xau", "M5", 0.01), ("bb_xau", "M1", 0.03)]
+CASES = [("lr_xau", "M5", 0.01), ("ec_xau", "M5", 0.01), ("bb_xau", "M1", 0.01)]
 BUILD = {"RsiReversionConfig": S.RsiReversion, "EmaCrossConfig": S.EmaCross, "BollingerFadeConfig": S.BollingerFade}
 
 
@@ -54,7 +54,8 @@ def main() -> None:
     jobs = []
     for tag, tf, lot in CASES:
         jobs += [(tag, tf, lot, "แบบเดิม (ATR)", None, None), (tag, tf, lot, "TP $5 / SL $2", 2.0, 5.0),
-                 (tag, tf, lot, "TP $5 / SL $5", 5.0, 5.0), (tag, tf, lot, "TP $2 / SL $5", 5.0, 2.0)]
+                 (tag, tf, lot, "TP $5 / SL $5", 5.0, 5.0), (tag, tf, lot, "TP $2 / SL $5", 5.0, 2.0),
+                 (tag, tf, lot, "TP $1 / SL $1", 1.0, 1.0)]
     with ProcessPoolExecutor(6) as ex:
         rows = list(ex.map(job, jobs))
     df = pd.DataFrame(rows)
