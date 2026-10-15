@@ -25,7 +25,7 @@ from ..core.interfaces import IAccount
 from ..core.regime import Regime, RegimeClassifier
 from ..core.timeutil import SessionClock
 from ..core.types import TIMEFRAME_MINUTES, Bar, EnterSignal, Side, Signal
-from .base import ManagementPlan, Strategy
+from .base import ManagementPlan, Strategy, clamp01, status_dict
 from .levels import hold_exits, in_rollover
 
 
@@ -85,3 +85,16 @@ class VolExpansion(Strategy):
         tp = bar.close + int(side) * self.cfg.tp_r * d
         return [EnterSignal(self.symbol, side, sl, tp, self.tag, key=f"{self.tag}:{close_t.date()}",
                             reason=f"break {'up' if bar.close > hi else 'down'} of {self.cfg.box_n}h box after DEAD")]
+
+    def status(self) -> dict:
+        b, st = self.last_bar, self.clf.state
+        if b is None or st is None or st.vol_pct is None or len(self._box) < self.cfg.box_n:
+            return status_dict(self, "vol_expansion", "รอข้อมูล (warmup ~100 วัน)")
+        if not any(self._dead):
+            return status_dict(self, "vol_expansion", "ตลาดยังไม่เงียบพอ", 0.0, None,
+                               f"ความผันผวน percentile {st.vol_pct:.0%} (ต้อง ≤ 10% ภายใน 24 ชม.)")
+        hi, lo = max(h for h, _ in self._box), min(lo_ for _, lo_ in self._box)
+        up, dn = hi - b.close, b.close - lo
+        side, dist = ("BUY", up) if up < dn else ("SELL", dn)
+        return status_dict(self, "vol_expansion", "ตลาดเงียบ เฝ้าการระเบิด", 1 - clamp01(dist / max(hi - lo, 1e-9)),
+                           side, f"กรอบ {self.cfg.box_n} ชม. {lo:.2f}–{hi:.2f}")

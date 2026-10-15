@@ -57,7 +57,9 @@ class LiveRunner:
         self.profile = profile or spec["profile"]
         self.state_dir = C.instance_state_dir(instance)
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        self.broker = Mt5Broker(self.symbols, C.DEFAULT_SPECS, self.tf, C.SERVER_TIME_MODE, self.magic, self.state_dir)
+        self.warmup_bars = spec.get("warmup", C.WARMUP_BARS)
+        self.broker = Mt5Broker(self.symbols, C.DEFAULT_SPECS, self.tf, C.SERVER_TIME_MODE, self.magic, self.state_dir,
+                                allocation=spec.get("allocation"))
         self.notifier = Notifier()
         self._risk_path = self.state_dir / "risk.json"
         self._heartbeat_path = self.state_dir / "heartbeat.json"
@@ -87,7 +89,7 @@ class LiveRunner:
                              self.broker.last_bar_close)
 
         for sym in self.symbols:
-            bars = self.broker.closed_bars(sym, C.WARMUP_BARS)
+            bars = self.broker.closed_bars(sym, self.warmup_bars)
             for b in bars:
                 self.engine.warmup(sym, b)
             self.broker.set_last_bar(sym, bars[-1])
@@ -98,7 +100,7 @@ class LiveRunner:
         cfg = self.risk.cfg
         self.notifier.send(
             f"🤖 บอท [{self.instance} {self.tf}] เริ่มทำงาน (DEMO)\nกลยุทธ์: {', '.join(s.tag for s in self.strategies)}\n"
-            f"profile: {self.profile} ({cfg.risk_per_trade:.0%}/ไม้, หยุดวันที่ -{cfg.daily_loss_limit:.0%})\n"
+            f"profile: {self.profile} ({cfg.risk_per_trade:.1%}/ไม้, หยุดวันที่ -{cfg.daily_loss_limit:.0%})\n"
             f"equity: {self.broker.equity():,.2f}  ไม้ที่เปิดอยู่: {len(self._known_tickets)}")
 
     # ------------------------------------------------------------------ วนรอบ
@@ -166,7 +168,7 @@ class LiveRunner:
     def _heartbeat(self) -> None:
         now = datetime.now(UTC)
         hb = {"time": now.isoformat(), "pid": os.getpid(), "instance": self.instance, "tf": self.tf,
-              "magic": self.magic, "equity": self.broker.equity(),
+              "magic": self.magic, "equity": self.broker.equity(), "allocation": self.broker.allocation,
               "last_bars": {s: t.isoformat() for s, t in self._last_time.items()},
               "algo_trading": self.broker.algo_trading_enabled(), "killed": self.risk.killed,
               "kill_reason": self.risk.kill_reason, "halted_today": self.risk.halted_today,

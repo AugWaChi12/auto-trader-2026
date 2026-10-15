@@ -15,6 +15,9 @@ from .risk.risk_manager import RiskConfig
 from .strategy.base import ManagementPlan, SessionWindow, Strategy
 from .strategy.session_breakout import BreakoutConfig, SessionBreakout
 from .strategy.session_momentum import MomentumConfig, SessionMomentum
+from .strategy.level_sweep import LevelSweep, LevelSweepConfig
+from .strategy.trend_pullback import PullbackConfig, TrendPullback
+from .strategy.vol_expansion import VolExpansion, VolExpansionConfig
 from .strategy.scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCrossConfig, RsiReversion,
                              RsiReversionConfig)
 from .strategy.sweep_reversal import SweepConfig, SweepReversal
@@ -49,6 +52,9 @@ RISK_PROFILES: dict[str, RiskConfig] = {
     # demo ทุน $1,000: SL ทองของ xau_momo ~$45 ต่อ 0.01 lot (4.5% ของทุน) → ถ้าไม่ยอม lot ขั้นต่ำจะเทรดไม่ได้เลย
     # เป้าหมายคือเก็บผลเป็น R บน demo ห้ามใช้โปรไฟล์นี้กับเงินจริง
     "demo_1k":    RiskConfig(risk_per_trade=0.01, min_lot_max_risk=0.06, daily_loss_limit=0.10, max_drawdown=0.40),
+    # บอทวัดใจ: เข้าทุกเงื่อนไข ไม้ละ 0.5% หลายไม้พร้อมกัน — ทุกกลยุทธ์ในนี้ตก backtest แล้ว
+    "gamble":     RiskConfig(risk_per_trade=0.005, min_lot_max_risk=0.06, daily_loss_limit=0.15, max_drawdown=0.50,
+                             max_open_groups=10, max_groups_per_symbol=4),
 }
 NEWS_BLACKOUT_MIN = 30
 
@@ -63,10 +69,17 @@ LOG_DIR = ROOT / "logs"
 
 # หลายบอทบนบัญชีเดียว: แต่ละตัวมี magic / state / log ของตัวเอง ไม่แตะไม้ของกัน
 # (เพดานขาดทุนรายวันของ RiskManager คิดจาก equity ทั้งบัญชี — แล็บขาดทุนหนักอาจหยุดบอทหลักวันนั้นด้วย)
+# allocation = ทุนเสมือนของบอทนั้น (sub-account): ขนาดไม้ เพดานขาดทุน kill switch คิดจากกำไรขาดทุนของบอทตัวเอง
+# → บอทหนึ่งขาดทุนหนักไม่ทำให้บอทอื่นหยุด · ผลรวม allocation เกินทุนจริงได้บน demo — บัญชีจริงห้ามทำแบบนี้
+GAMBLE_TAGS = ["g_bo_x", "g_sw_x", "g_bo_n", "g_sw_n", "g_vx_x", "g_vx_n", "g_ls_x", "g_ls_n", "g_pb_x", "g_pb_n"]
 LIVE_INSTANCES: dict[str, dict] = {
-    "main":   {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC},
-    "lab_m5": {"strategies": ["lr_xau", "lr_nas", "ec_xau"], "tf": "M5", "profile": "demo_1k", "magic": MAGIC + 1},
-    "lab_m1": {"strategies": ["bb_xau"], "tf": "M1", "profile": "demo_1k", "magic": MAGIC + 2},
+    "main":   {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
+    "lab_m5": {"strategies": ["lr_xau", "lr_nas", "ec_xau"], "tf": "M5", "profile": "demo_1k", "magic": MAGIC + 1,
+               "allocation": 1000.0},
+    "lab_m1": {"strategies": ["bb_xau"], "tf": "M1", "profile": "demo_1k", "magic": MAGIC + 2, "allocation": 1000.0},
+    # warmup 12,000 แท่ง M15 ≈ 125 วัน — regime classifier ต้องใช้ ~100 วันกว่าจะเริ่มทำงาน
+    "gamble": {"strategies": GAMBLE_TAGS, "tf": "M15", "profile": "gamble", "magic": MAGIC + 3, "allocation": 1000.0,
+               "warmup": 12_000},
 }
 
 
@@ -86,6 +99,22 @@ LAB_CONFIGS: list = [
     RsiReversionConfig(tag="lr_nas", symbol="NAS100", rsi_th=5.0, sl_atr=2.0, max_hold=12),
     EmaCrossConfig(tag="ec_xau", symbol="XAUUSD", fast=12, slow=26, sl_atr=1.0, tp_r=2.0),
     BollingerFadeConfig(tag="bb_xau", symbol="XAUUSD", k=2.0, sl_atr=2.0, max_hold=15),
+]
+
+# บอทวัดใจ: ทุกกลยุทธ์ M15 ที่เคยสร้าง (research/RESULTS.md, RESULTS_v2.md — ตกทั้งหมด) เข้าทุกครั้งที่เงื่อนไขครบ
+_XW = SessionWindow("UTC", "06:45", "07:00", "17:00", "20:00")
+_NW = SessionWindow("America/New_York", "09:30", "09:45", "15:00", "15:45")
+GAMBLE_CONFIGS: list = [
+    BreakoutConfig(tag="g_bo_x", symbol="XAUUSD", window=GOLD_SESSION),
+    SweepConfig(tag="g_sw_x", symbol="XAUUSD", window=GOLD_SESSION),
+    BreakoutConfig(tag="g_bo_n", symbol="NAS100", window=NAS_SESSION, min_range_adr=0.10, max_range_adr=0.50),
+    SweepConfig(tag="g_sw_n", symbol="NAS100", window=NAS_SESSION, min_range_adr=0.10, max_range_adr=0.60),
+    VolExpansionConfig(tag="g_vx_x", symbol="XAUUSD"),
+    VolExpansionConfig(tag="g_vx_n", symbol="NAS100"),
+    LevelSweepConfig(tag="g_ls_x", symbol="XAUUSD", tz="UTC"),
+    LevelSweepConfig(tag="g_ls_n", symbol="NAS100", tz="America/New_York"),
+    PullbackConfig(tag="g_pb_x", symbol="XAUUSD", window=_XW),
+    PullbackConfig(tag="g_pb_n", symbol="NAS100", window=_NW),
 ]
 
 STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
@@ -122,13 +151,14 @@ def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = 
                      timeframe: str = TIMEFRAME) -> list[Strategy]:
     out: list[Strategy] = []
     builders = {BreakoutConfig: SessionBreakout, SweepConfig: SweepReversal, MomentumConfig: SessionMomentum,
-                RsiReversionConfig: RsiReversion, EmaCrossConfig: EmaCross, BollingerFadeConfig: BollingerFade}
-    for c in STRATEGY_CONFIGS + LAB_CONFIGS:
+                RsiReversionConfig: RsiReversion, EmaCrossConfig: EmaCross, BollingerFadeConfig: BollingerFade,
+                VolExpansionConfig: VolExpansion, LevelSweepConfig: LevelSweep, PullbackConfig: TrendPullback}
+    for c in STRATEGY_CONFIGS + LAB_CONFIGS + GAMBLE_CONFIGS:
         if tags and c.tag not in tags:
             continue
         if symbols and c.symbol not in symbols:
             continue
-        if tags is None and c in LAB_CONFIGS:
+        if tags is None and (c in LAB_CONFIGS or c in GAMBLE_CONFIGS):
             continue                       # แล็บต้องเรียกชื่อตรงๆ เท่านั้น ไม่ติดไปกับ backtest ปกติ
         out.append(builders[type(c)](c, timeframe))
     return out

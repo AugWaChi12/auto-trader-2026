@@ -61,14 +61,26 @@ class Strategy(ABC):
     tag: str
     symbol: str
     plan: ManagementPlan
+    last_bar: Bar | None = None     # Engine ตั้งให้ก่อนเรียก on_bar ทุกครั้ง (ใช้ใน status)
 
     @abstractmethod
     def on_bar(self, bar: Bar, account: IAccount) -> list[Signal]:
         """เรียกเมื่อแท่งของ self.symbol ปิด"""
 
     def status(self) -> dict:
-        """สถานะสำหรับหน้า monitor (ไม่บังคับ)"""
+        """สถานะสำหรับหน้า monitor / Signal Radar (ไม่บังคับ)"""
         return {}
+
+
+def clamp01(x: float) -> float:
+    return max(0.0, min(1.0, x))
+
+
+def status_dict(strategy: "Strategy", kind: str, state: str, proximity: float = 0.0, side: str | None = None,
+                detail: str = "", **extra) -> dict:
+    """รูปแบบกลางของ status: proximity 0–1 = ใกล้เข้าเงื่อนไขแค่ไหน (1 = เข้าแล้ว/กำลังจะเข้า)"""
+    return {"type": kind, "tag": strategy.tag, "symbol": strategy.symbol, "state": state,
+            "proximity": round(clamp01(proximity), 3), "side": side, "detail": detail, **extra}
 
 
 class SessionRange:

@@ -160,3 +160,18 @@ def test_min_lot_mode_and_risk_state(tmp_path: Path) -> None:
     rm2 = RiskManager(RiskConfig(), b)
     rm2.load_state(rm.to_state())
     assert rm2.killed and rm2.peak_equity == 1500.0
+
+
+def test_virtual_allocation_isolates_bots(tmp_path: Path) -> None:
+    mt5 = FakeMT5()
+    mt5.deals = [NS(magic=MAGIC, profit=-30.0, commission=-0.5, swap=0.0, fee=0.0),
+                 NS(magic=999, profit=-500.0, commission=0.0, swap=0.0, fee=0.0)]   # บอทอื่นขาดทุนหนัก
+    b = Mt5Broker(["XAUUSD"], C.DEFAULT_SPECS, "M15", "ny_close", MAGIC, tmp_path, mt5=mt5, allocation=1000.0)
+    b.connect(None)
+    assert b.balance() == pytest.approx(969.5)            # ไม่โดนขาดทุนของ magic อื่น
+    mt5.positions.append(NS(ticket=5, magic=MAGIC, symbol="GOLD", type=0, volume=0.01, price_open=1, sl=0, tp=0,
+                            time=0, comment="t:2026-10-15#1|s", profit=12.0, swap=0.0))
+    mt5.positions.append(NS(ticket=6, magic=999, symbol="GOLD", type=0, volume=1, price_open=1, sl=0, tp=0,
+                            time=0, comment="x", profit=-200.0, swap=0.0))
+    assert b.equity() == pytest.approx(981.5)
+    assert b.free_margin() == pytest.approx(981.5)        # ไม่เกิน equity เสมือน

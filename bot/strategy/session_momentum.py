@@ -74,7 +74,18 @@ class SessionMomentum(Strategy):
     def status(self) -> dict:
         rng = self.rng
         adr = rng.daily.adr
+        b = self.last_bar
+        prox, side, state = 0.0, None, "รอข้อมูลช่วงเช้า"
+        if b is not None and rng.range_open is not None and adr:
+            move = b.close - rng.range_open
+            prox, side = min(abs(move) / (self.cfg.min_move_adr * adr), 1.0), ("BUY" if move > 0 else "SELL")
+            state = ("ถึงเวลาตัดสิน" if rng.in_trade_window else
+                     "สะสมแรงช่วงเช้า" if not rng.complete else "วันนี้ผ่านจุดตัดสินแล้ว")
+            if rng.complete and not rng.in_trade_window:
+                prox = 0.0
         return {
+            "tag": self.tag, "state": state, "proximity": round(prox, 3), "side": side,
+            "detail": f"ตัดสิน {self.cfg.entry_time} {self.cfg.tz}",
             "type": "session_momentum", "symbol": self.symbol, "day": str(rng.day),
             "tz": self.cfg.tz, "measure_start": self.cfg.measure_start, "entry_time": self.cfg.entry_time,
             "flat_time": self.cfg.flat_time, "range_open": rng.range_open, "adr": adr,

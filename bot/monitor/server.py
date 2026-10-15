@@ -27,7 +27,9 @@ from ..live.mt5_broker import decode_comment
 
 log = logging.getLogger("monitor")
 HERE = Path(__file__).parent
-PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html"}
+PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html",
+         "/radar": HERE / "radar.html"}
+RADAR_STATS = C.ROOT / "research" / "out" / "radar_stats.json"
 TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
 
 
@@ -210,6 +212,42 @@ class Collector:
             "equity_curve": curve[-500:], "log": self._log_tail(),
         }
 
+    # ------------------------------------------------------------------ Signal Radar
+    def radar(self) -> dict:
+        return self._cached("radar", self._radar)
+
+    def _radar(self) -> dict:
+        hbs = self._heartbeats()
+        try:
+            stats_doc = json.loads(RADAR_STATS.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            stats_doc = {"generated_at": None, "strategies": {}}
+        stats = stats_doc.get("strategies", {})
+        trades = self._trades(self._deals())
+        open_pos = self._open()
+        cards = []
+        for inst, hb in hbs.items():
+            spec = C.LIVE_INSTANCES[inst]
+            prof = C.RISK_PROFILES[spec["profile"]]
+            sts = hb.get("strategies") or {}
+            for tag in spec["strategies"]:
+                st = sts.get(tag, {})
+                mine = [t for t in trades if t["tag"] == tag]
+                live_r = [t["profit"] for t in mine]
+                cards.append({
+                    "tag": tag, "instance": inst, "tf": spec["tf"], "alive": hb.get("alive", False),
+                    "symbol": st.get("symbol") or stats.get(tag, {}).get("symbol"),
+                    "status": st, "stats": stats.get(tag, {}),
+                    "risk_usd": round((spec.get("allocation") or 1000.0) * prof.risk_per_trade, 2),
+                    "min_lot_cap": prof.min_lot_max_risk,
+                    "live": {"trades": len(mine), "wins": sum(1 for x in live_r if x > 0),
+                             "pnl": round(sum(live_r), 2)},
+                    "open": [o for o in open_pos if o["tag"] == tag],
+                })
+        cards.sort(key=lambda c: (-(1 if c["open"] else 0), -(c["status"].get("proximity") or 0)))
+        return {"now": datetime.now(UTC).isoformat(), "stats_generated_at": stats_doc.get("generated_at"),
+                "cards": cards}
+
     # ------------------------------------------------------------------ กราฟ
     def bars(self, symbol: str, tf: str, n: int) -> dict:
         return self._cached(f"bars:{symbol}:{tf}:{n}", lambda: self._bars(symbol, tf, n))
@@ -236,6 +274,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
             url = urlparse(self.path)
             if url.path == "/api":
                 self._send(json.dumps(col.data(), ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/radar":
+                self._send(json.dumps(col.radar(), ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/bars":
                 q = parse_qs(url.query)
                 n = max(20, min(int(q.get("n", ["150"])[0]), 500))
@@ -264,7 +304,7 @@ def serve(port: int = 8765, open_browser: bool = True, page: str = "") -> None:
     col = Collector()
     srv = ThreadingHTTPServer(("127.0.0.1", port), make_handler(col))
     url = f"http://127.0.0.1:{port}"
-    print(f"monitor: {url}   กราฟหลายจอ: {url}/charts   (Ctrl+C เพื่อปิด)")
+    print(f"monitor: {url}   กราฟหลายจอ: {url}/charts   Signal Radar: {url}/radar   (Ctrl+C เพื่อปิด)")
     if open_browser:
         import webbrowser
         webbrowser.open(url + page)

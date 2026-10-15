@@ -19,7 +19,7 @@ from datetime import timedelta
 from ..core.indicators import ATR
 from ..core.interfaces import IAccount
 from ..core.types import TIMEFRAME_MINUTES, Bar, EnterSignal, ExitSignal, Side, Signal
-from .base import ManagementPlan, Strategy
+from .base import ManagementPlan, Strategy, clamp01, status_dict
 from .levels import hold_exits, in_rollover
 from .trend_pullback import EMA
 
@@ -150,6 +150,19 @@ class RsiReversion(_ScalpBase):
         d = self.cfg.sl_atr * atr
         return self._signal(bar, rule, d, None if self.cfg.tp_r is None else self.cfg.tp_r * d, f"RSI2={rsi:.0f}")
 
+    def status(self) -> dict:
+        b, rsi, e200 = self.last_bar, self.rsi.value, self.ema200.value
+        if b is None or rsi is None or not self.ema200.ready:
+            return status_dict(self, "rsi2", "รอข้อมูล")
+        th = self.cfg.rsi_th
+        if b.close > e200:   # ขาขึ้น → รอ RSI2 ดิ่งเพื่อ BUY
+            prox, side, trigger = clamp01((60 - rsi) / (60 - th)), "BUY", f"< {th:.0f}"
+        else:                # ขาลง → รอ RSI2 พุ่งเพื่อ SELL
+            prox, side, trigger = clamp01((rsi - 40) / (60 - th)), "SELL", f"> {100 - th:.0f}"
+        ok = self._can_enter(b)
+        return status_dict(self, "rsi2", "เฝ้า RSI2" if ok else "นอกเวลาเทรด", prox if ok else 0.0, side,
+                           f"RSI2 {rsi:.0f} (เข้าเมื่อ {trigger})")
+
 
 # ---------------------------------------------------------------------------- S3
 @dataclass(frozen=True)
@@ -194,6 +207,18 @@ class EmaCross(_ScalpBase):
         d = self.cfg.sl_atr * atr
         return self._signal(bar, rule, d, self.cfg.tp_r * d, f"EMA{self.cfg.fast}/{self.cfg.slow} cross")
 
+    def status(self) -> dict:
+        b, atr = self.last_bar, self.atr.value
+        if b is None or atr is None or self._prev_diff is None or not self.ema200.ready:
+            return status_dict(self, "ema_cross", "รอข้อมูล")
+        diff, up = self._prev_diff, b.close > self.ema200.value
+        gap = -diff if up else diff               # ระยะที่ต้องวิ่งเพื่อให้ตัดในทิศที่ต้องการ
+        prox = 0.0 if gap < 0 else 1 - clamp01(gap / (0.5 * atr))
+        ok = self._can_enter(b)
+        return status_dict(self, "ema_cross", "รอ EMA ตัดกัน" if ok else "นอกเวลาเทรด", prox if ok else 0.0,
+                           "BUY" if up else "SELL",
+                           f"EMA{self.cfg.fast}−EMA{self.cfg.slow} = {diff:+.2f}" + (" (ตัดไปแล้ว รอรอบใหม่)" if gap < 0 else ""))
+
 
 # ---------------------------------------------------------------------------- S4
 @dataclass(frozen=True)
@@ -234,3 +259,16 @@ class BollingerFade(_ScalpBase):
         d = self.cfg.sl_atr * atr
         tp_d = abs(mid - bar.close) if self.cfg.tp_r is None else min(abs(mid - bar.close), self.cfg.tp_r * d)
         return self._signal(bar, rule, d, tp_d, f"BB({self.cfg.k}) fade")
+
+    def status(self) -> dict:
+        b, q = self.last_bar, self.bb._q
+        if b is None or len(q) < q.maxlen:  # type: ignore[operator]
+            return status_dict(self, "bb_fade", "รอข้อมูล")
+        m = sum(q) / len(q)
+        sd = math.sqrt(sum((x - m) ** 2 for x in q) / len(q)) or 1e-9
+        z = (b.close - m) / sd
+        ok = self._can_enter(b)
+        w = self._window
+        return status_dict(self, "bb_fade", "เฝ้าขอบ Bollinger" if ok else f"นอกช่วง {w.start_hour:02d}–{w.end_hour:02d} UTC",
+                           clamp01(abs(z) / self.cfg.k) if ok else 0.0, "SELL" if z > 0 else "BUY",
+                           f"ห่างเส้นกลาง {z:+.1f} SD (เข้าเมื่อเกิน ±{self.cfg.k})")

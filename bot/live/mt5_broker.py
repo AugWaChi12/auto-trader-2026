@@ -76,7 +76,8 @@ class NotDemoAccount(RuntimeError):
 
 class Mt5Broker(IMarketData, IAccount, IOrderExecutor):
     def __init__(self, symbols: list[str], specs: dict[str, SymbolSpec], timeframe: str, time_mode: str,
-                 magic: int, state_dir: Path, mt5: Any = None, deviation_points: int = 30) -> None:
+                 magic: int, state_dir: Path, mt5: Any = None, deviation_points: int = 30,
+                 allocation: float | None = None) -> None:
         if mt5 is None:
             import MetaTrader5 as mt5  # noqa: N813
         self.mt5 = mt5
@@ -91,6 +92,10 @@ class Mt5Broker(IMarketData, IAccount, IOrderExecutor):
         self._names: dict[str, str] = {}          # canonical -> ชื่อในโบรก
         self._last: dict[str, Bar] = {}
         self._cache: dict[int, Position] = {}     # ticket -> Position (เก็บ meta ที่ server ไม่รู้)
+        # allocation: ทุนเสมือนของบอทนี้ → balance/equity คิดจากกำไรขาดทุนของ magic ตัวเองเท่านั้น
+        # ทำให้บอทหลายตัวบนบัญชีเดียวมีเพดานขาดทุน/ขนาดไม้เป็นของตัวเอง ไม่ลากกันล้ม
+        self.allocation = allocation
+        self._realized_cache: tuple[float, float] | None = None
         self._state_path = state_dir / "positions.json"
         self._meta: dict[str, dict] = self._load_meta()
 
@@ -164,14 +169,31 @@ class Mt5Broker(IMarketData, IAccount, IOrderExecutor):
         return self._specs[symbol]
 
     # ------------------------------------------------------------------ IAccount
+    def _realized(self) -> float:
+        """กำไรขาดทุนที่ปิดแล้วทั้งหมดของ magic นี้ (cache 5 วินาที)"""
+        import time
+        now = time.monotonic()
+        if self._realized_cache and now - self._realized_cache[0] < 5:
+            return self._realized_cache[1]
+        deals = self.mt5.history_deals_get(datetime(2020, 1, 1, tzinfo=UTC), datetime.now(UTC) + timedelta(days=1)) or ()
+        total = sum(d.profit + d.commission + d.swap + d.fee for d in deals if d.magic == self.magic)
+        self._realized_cache = (now, total)
+        return total
+
     def balance(self) -> float:
+        if self.allocation is not None:
+            return self.allocation + self._realized()
         return float(self.mt5.account_info().balance)
 
     def equity(self) -> float:
+        if self.allocation is not None:
+            floating = sum(p.profit + p.swap for p in (self.mt5.positions_get() or ()) if p.magic == self.magic)
+            return self.balance() + floating
         return float(self.mt5.account_info().equity)
 
     def free_margin(self) -> float:
-        return float(self.mt5.account_info().margin_free)
+        real = float(self.mt5.account_info().margin_free)
+        return min(real, self.equity()) if self.allocation is not None else real
 
     def positions(self, symbol: str | None = None, tag: str | None = None) -> list[Position]:
         raw = self.mt5.positions_get() or ()

@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from ..core.indicators import ATR
 from ..core.interfaces import IAccount
 from ..core.types import Bar, EnterSignal, Side, Signal
-from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, flat_signals
+from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, clamp01, flat_signals, status_dict
 
 
 class EMA:
@@ -116,3 +116,16 @@ class TrendPullback(Strategy):
         tp = bar.close + int(side) * self.cfg.tp_r * risk
         return [EnterSignal(self.symbol, side, sl, tp, self.tag, key=f"{self.tag}:{self.rng.day}",
                             reason=f"trend {'up' if t > 0 else 'down'}, pullback to EMA{self.cfg.pullback_ema}")]
+
+    def status(self) -> dict:
+        b, atr, ema, t = self.last_bar, self._atr.value, self._ema.value, self.trend
+        if b is None or atr is None or ema is None or t == 0:
+            return status_dict(self, "trend_pullback", "รอข้อมูล / ยังไม่มีเทรนด์ H4")
+        side = "BUY" if t > 0 else "SELL"
+        trend = f"เทรนด์ H4 {'ขึ้น' if t > 0 else 'ลง'}"
+        if not self.rng.in_trade_window:
+            return status_dict(self, "trend_pullback", "นอกช่วงเข้า", 0.0, side, trend)
+        dist = (b.close - ema) * t
+        prox = 0.9 if dist <= 0 else 1 - clamp01(dist / (1.5 * atr))
+        return status_dict(self, "trend_pullback", "รอราคาย่อมาแตะ EMA" if dist > 0 else "แตะ EMA แล้ว รอแท่งยืนยัน",
+                           prox, side, f"{trend} · ห่าง EMA{self.cfg.pullback_ema} {dist:.2f}")

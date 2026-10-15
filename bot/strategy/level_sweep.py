@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from ..core.interfaces import IAccount
 from ..core.regime import Regime, RegimeClassifier
 from ..core.types import TIMEFRAME_MINUTES, Bar, EnterSignal, Side, Signal
-from .base import ManagementPlan, Strategy
+from .base import ManagementPlan, Strategy, clamp01, status_dict
 from .levels import KeyLevels, hold_exits, in_rollover
 
 
@@ -117,3 +117,20 @@ class LevelSweep(Strategy):
         tp = bar.close + int(side) * self.cfg.tp_r * d
         return EnterSignal(self.symbol, side, sl, tp, self.tag, key=f"{self.tag}:{self._day}:{name}",
                            reason=f"sweep {name} {level:.2f} to {sw.extreme:.2f}, closed back {bar.close:.2f}")
+
+    def status(self) -> dict:
+        b, st, atr = self.last_bar, self.clf.state, self.clf.atr
+        if b is None or st is None or atr is None:
+            return status_dict(self, "level_sweep", "รอข้อมูล (warmup ~100 วัน)")
+        if st.regime in (Regime.HIGH_VOL, Regime.UNKNOWN):
+            return status_dict(self, "level_sweep", "ผันผวนสูง พักกลยุทธ์", 0.0, None, f"regime {st.regime.value}")
+        for name, sw in self._active.items():
+            side = "SELL" if name in ("PDH", "PWH") else "BUY"
+            return status_dict(self, "level_sweep", f"กวาด {name} แล้ว รอปิดกลับ", 0.85, side, f"ไส้ถึง {sw.extreme:.2f}")
+        cands = [(abs(lv - b.close), n, lv, "SELL") for n, lv in self.levels.upper().items() if n not in self._done]
+        cands += [(abs(b.close - lv), n, lv, "BUY") for n, lv in self.levels.lower().items() if n not in self._done]
+        if not cands:
+            return status_dict(self, "level_sweep", "ระดับวันนี้ใช้ไปหมดแล้ว")
+        dist, name, lv, side = min(cands)
+        return status_dict(self, "level_sweep", f"เฝ้า {name}", 0.8 * (1 - clamp01(dist / (2 * atr))), side,
+                           f"{name} {lv:.2f} ห่าง {dist:.2f} ({dist / atr:.1f} ATR)")

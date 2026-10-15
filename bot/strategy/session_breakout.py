@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 from ..core.interfaces import IAccount
 from ..core.types import Bar, EnterSignal, Side, Signal
-from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, flat_signals
+from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, clamp01, flat_signals, status_dict
 
 
 @dataclass(frozen=True)
@@ -79,3 +79,21 @@ class SessionBreakout(Strategy):
             key=f"{self.tag}:{rng.day}",
             reason=f"close {bar.close:.2f} beyond range [{rng.low:.2f}, {rng.high:.2f}] width={ratio:.2f}ADR",
         )]
+
+    def status(self) -> dict:
+        b, rng, c = self.last_bar, self.rng, self.cfg
+        w = c.window
+        if b is None:
+            return status_dict(self, "breakout", "รอข้อมูล")
+        if not rng.complete:
+            return status_dict(self, "breakout", f"กำลังสร้างกรอบ {w.range_start}–{w.range_end} ({w.tz})")
+        if not rng.in_trade_window:
+            return status_dict(self, "breakout", f"นอกช่วงเข้า ({w.range_end}–{w.trade_end} {w.tz})")
+        ratio, adr = rng.width_ratio(), rng.daily.adr
+        if ratio is None or adr is None or not (c.min_range_adr <= ratio <= c.max_range_adr):
+            return status_dict(self, "breakout", "กรอบวันนี้ไม่เข้าเกณฑ์" + (f" ({ratio:.2f} ADR)" if ratio else ""))
+        buf = c.buffer_adr * adr
+        up, dn = rng.high + buf - b.close, b.close - (rng.low - buf)
+        side, dist = ("BUY", up) if up < dn else ("SELL", dn)
+        return status_dict(self, "breakout", "เฝ้าขอบกรอบ", 1 - clamp01(dist / max(rng.width, 1e-9)), side,
+                           f"กรอบ {rng.low:.2f}–{rng.high:.2f} · ห่างจุดทะลุ {max(dist, 0):.2f}")

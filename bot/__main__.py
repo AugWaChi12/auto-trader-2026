@@ -157,6 +157,11 @@ def cmd_status(a: argparse.Namespace) -> None:
         print(f"  {t:%m-%d %H:%M} UTC #{d.position_id} {d.profit + d.commission:+.2f}  {d.comment}")
 
 
+def cmd_radar_stats(a: argparse.Namespace) -> None:
+    import runpy
+    runpy.run_path(str(C.ROOT / "research" / "radar_stats.py"), run_name="__main__")
+
+
 def cmd_monitor(a: argparse.Namespace) -> None:
     from .monitor.server import serve
     serve(a.port, not a.no_browser, "/charts" if a.charts else "")
@@ -211,6 +216,9 @@ def main() -> None:
     st = sub.add_parser("status", help="สถานะบอท")
     st.add_argument("--days", type=int, default=7)
     st.set_defaults(fn=cmd_status)
+
+    rs = sub.add_parser("radar-stats", help="คำนวณสถิติความน่าจะเป็นของหน้า Signal Radar")
+    rs.set_defaults(fn=cmd_radar_stats)
 
     mo = sub.add_parser("monitor", help="หน้าเว็บ monitor (อ่านอย่างเดียว)")
     mo.add_argument("--port", type=int, default=8765)

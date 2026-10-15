@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from ..core.interfaces import IAccount
 from ..core.types import Bar, EnterSignal, Side, Signal
-from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, flat_signals
+from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, clamp01, flat_signals, status_dict
 
 
 @dataclass(frozen=True)
@@ -111,3 +111,18 @@ class SweepReversal(Strategy):
             reason=f"sweep {'high' if side is Side.SELL else 'low'} to {st.extreme:.2f}, "
                    f"closed back {bar.close:.2f}, rr={reward / risk:.1f}",
         )
+
+    def status(self) -> dict:
+        b, rng, c = self.last_bar, self.rng, self.cfg
+        if b is None or not rng.complete:
+            return status_dict(self, "sweep", "กำลังสร้างกรอบ")
+        if not rng.in_trade_window:
+            return status_dict(self, "sweep", "นอกช่วงเข้า")
+        if self._up.active:
+            return status_dict(self, "sweep", "กวาด stop ขอบบนแล้ว รอปิดกลับ", 0.85, "SELL", f"ไส้ถึง {self._up.extreme:.2f}")
+        if self._down.active:
+            return status_dict(self, "sweep", "กวาด stop ขอบล่างแล้ว รอปิดกลับ", 0.85, "BUY", f"ไส้ถึง {self._down.extreme:.2f}")
+        up, dn = rng.high - b.close, b.close - rng.low
+        side, dist = ("SELL", up) if up < dn else ("BUY", dn)
+        return status_dict(self, "sweep", "เฝ้าขอบกรอบ", 0.7 * (1 - clamp01(dist / max(rng.width / 2, 1e-9))), side,
+                           f"กรอบ {rng.low:.2f}–{rng.high:.2f}")

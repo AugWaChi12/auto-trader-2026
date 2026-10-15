@@ -77,6 +77,7 @@ class Engine:
         self.manager.on_bar(symbol, bar)
 
         for strat in self._by_symbol.get(symbol, []):
+            strat.last_bar = bar
             for sig in strat.on_bar(bar, self.account):
                 if isinstance(sig, ExitSignal):
                     for p in self.account.positions(sig.symbol, sig.tag):
@@ -88,6 +89,7 @@ class Engine:
         """ป้อนแท่งประวัติให้กลยุทธ์/ATR สะสมสถานะ (ADR, EMA, กรอบ session) โดยไม่เทรด — ใช้ตอนเริ่ม live"""
         self.manager.warm(symbol, bar)
         for strat in self._by_symbol.get(symbol, []):
+            strat.last_bar = bar
             strat.on_bar(bar, _NO_POSITIONS)
 
     def close_all(self, reason: str) -> None:
