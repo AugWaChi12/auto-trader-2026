@@ -197,10 +197,21 @@ class Collector:
             tick = mt5.symbol_info_tick(self._name(sym))
             if tick:
                 quotes[sym] = {"bid": tick.bid, "ask": tick.ask}
-        per_bot = {name: {**self._stats([t for t in trades if t["bot"] == name]),
-                          "open": sum(1 for p in open_pos if p["bot"] == name),
-                          "floating": round(sum(p["profit"] for p in open_pos if p["bot"] == name), 2)}
-                   for name in self.bots}
+        per_bot = {}
+        for name in self.bots:
+            mine = [t for t in trades if t["bot"] == name]
+            by_tag: dict[str, dict] = {}            # ไม่นับไม้ทดสอบระบบ (smoke) — เหมือน _stats
+            for t in mine:
+                if t["tag"] == "smoke":
+                    continue
+                x = by_tag.setdefault(t["tag"], {"n": 0, "wins": 0, "pnl": 0.0})
+                x["n"] += 1
+                x["wins"] += t["profit"] > 0
+                x["pnl"] = round(x["pnl"] + t["profit"], 2)
+            per_bot[name] = {**self._stats(mine), "by_tag": by_tag,
+                             "last_close": mine[0]["close_time"] if mine else None,
+                             "open": sum(1 for p in open_pos if p["bot"] == name),
+                             "floating": round(sum(p["profit"] for p in open_pos if p["bot"] == name), 2)}
         return {
             "now": datetime.now(UTC).isoformat(),
             "bot": hbs.get("main", {}), "bots": hbs, "per_bot": per_bot,
@@ -209,7 +220,7 @@ class Collector:
                         "demo": acc.trade_mode == mt5.ACCOUNT_TRADE_MODE_DEMO,
                         "floating": round(acc.equity - acc.balance, 2)},
             "terminal": {"connected": bool(term and term.connected), "algo": bool(term and term.trade_allowed)},
-            "open": open_pos, "trades": trades[:150], "stats": self._stats(trades), "quotes": quotes,
+            "open": open_pos, "trades": trades[:50], "stats": self._stats(trades), "quotes": quotes,
             "equity_curve": curve[-500:], "log": self._log_tail(),
         }
 
@@ -249,6 +260,16 @@ class Collector:
         return {"now": datetime.now(UTC).isoformat(), "stats_generated_at": stats_doc.get("generated_at"),
                 "cards": cards}
 
+    # ------------------------------------------------------------------ ประวัติแบ่งหน้า
+    def trades_page(self, bot: str, page: int, size: int) -> dict:
+        def build() -> dict:
+            rows = [t for t in self._trades(self._deals()) if t["bot"] == bot]
+            pages = max((len(rows) + size - 1) // size, 1)
+            p = min(max(page, 1), pages)
+            return {"bot": bot, "total": len(rows), "page": p, "pages": pages, "size": size,
+                    "rows": rows[(p - 1) * size: p * size]}
+        return self._cached(f"trades:{bot}:{page}:{size}", build)
+
     # ------------------------------------------------------------------ กราฟ
     def bars(self, symbol: str, tf: str, n: int) -> dict:
         return self._cached(f"bars:{symbol}:{tf}:{n}", lambda: self._bars(symbol, tf, n))
@@ -277,6 +298,11 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 self._send(json.dumps(col.data(), ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/techniques":
                 self._send(TECHNIQUES.read_bytes(), "application/json")
+            elif url.path == "/api/trades":
+                q = parse_qs(url.query)
+                d = col.trades_page(q.get("bot", ["main"])[0], int(q.get("page", ["1"])[0]),
+                                    max(5, min(int(q.get("size", ["20"])[0]), 100)))
+                self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/radar":
                 self._send(json.dumps(col.radar(), ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/bars":

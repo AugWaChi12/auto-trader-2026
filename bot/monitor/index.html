@@ -52,6 +52,22 @@
         max-height: 260px; overflow: auto; color: var(--muted); }
   pre b { color: var(--text); font-weight: 600; }
   svg { display: block; width: 100%; height: 150px; }
+  .grp { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+  .grp > summary { list-style: none; cursor: pointer; display: grid; align-items: center; gap: 10px; padding: 9px 12px;
+                   grid-template-columns: 18px minmax(90px, 1.1fr) repeat(5, minmax(70px, .8fr)) minmax(140px, 2fr); }
+  .grp > summary::-webkit-details-marker { display: none; }
+  .grp > summary .arr { transition: transform .15s; color: var(--muted); }
+  .grp[open] > summary .arr { transform: rotate(90deg); }
+  .grp > summary:hover { background: var(--chip); }
+  .grp .k { color: var(--muted); font-size: 11px; display: block; }
+  .grp .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tag { font-size: 11px; background: var(--chip); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+  .grp .body { padding: 4px 12px 10px; border-top: 1px solid var(--line); }
+  .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding-top: 8px; font-size: 12.5px; color: var(--muted); }
+  .pager button { background: var(--chip); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 2px 10px; cursor: pointer; font: inherit; }
+  .pager button:disabled { opacity: .4; cursor: default; }
+  @media (max-width: 860px) { .grp > summary { grid-template-columns: 18px 1fr 1fr 1fr; } .grp > summary .wide-only { display: none; } }
   .err { background: color-mix(in srgb, var(--down) 12%, var(--card)); border-color: var(--down); }
   @media (max-width: 860px) { .kpi { grid-column: span 6; } .half { grid-column: span 12; } }
   @media (max-width: 480px) { main { padding: 10px; } .kpi { grid-column: span 12; } }
@@ -83,7 +99,7 @@
 
   <div class="card wide"><h2>บอททั้งหมด</h2><div class="scroll" id="botTable"></div></div>
   <div class="card wide"><h2>ไม้ที่เปิดอยู่</h2><div class="scroll" id="openTable"></div></div>
-  <div class="card wide"><h2>ประวัติการเทรด</h2><div class="scroll" id="tradeTable"></div></div>
+  <div class="card wide"><h2>ประวัติการเทรด (แยกตามบอท — กดเพื่อดูรายการ)</h2><div id="tradeGroups"></div></div>
   <div class="card wide"><h2>บอทกำลังคิดอะไร (log ล่าสุด)</h2><pre id="log">–</pre></div>
 </main>
 
@@ -210,23 +226,82 @@ async function refresh() {
     { h: "TP", num: 1, f: r => r.tp ? r.tp.toFixed(2) : "–" },
     { h: "กำไร", num: 1, cls: r => cls(r.profit), f: r => money(r.profit, true) },
   ]);
-  $("tradeTable").innerHTML = table(d.trades, [
-    { h: "บอท", f: r => esc(r.bot) },
-    { h: "เข้า", f: r => fmtT(r.open_time) },
-    { h: "ออก", f: r => fmtT(r.close_time) },
-    { h: "กลยุทธ์", f: r => esc(r.tag) },
-    { h: "ทิศ", f: r => `<span class="side ${r.side}">${r.side}</span> ${esc(r.symbol)}` },
-    { h: "Lot", num: 1, f: r => r.volume },
-    { h: "ราคาเข้า", num: 1, f: r => r.open_price.toFixed(2) },
-    { h: "ราคาออก", num: 1, f: r => r.close_price.toFixed(2) },
-    { h: "ออกเพราะ", f: r => esc(r.reason) },
-    { h: "กำไร", num: 1, cls: r => cls(r.profit), f: r => money(r.profit, true) },
-  ]);
+  renderGroups(d);
   $("log").innerHTML = (d.log || []).map(l => {
     const e = esc(l);
     return /SEND|CLOSE|MODIFY|NOTIFY|ERROR|WARNING/.test(l) ? `<b>${e}</b>` : e;
   }).join("\n") || "–";
 }
+// ---------------------------------------------------------------- ประวัติแยกกลุ่มตามบอท + แบ่งหน้า
+const PAGE_SIZE = 20;
+const openGroups = (() => { try { return JSON.parse(localStorage.getItem("openGroups") || "{}"); } catch { return {}; } })();
+const saveOpen = () => { try { localStorage.setItem("openGroups", JSON.stringify(openGroups)); } catch {} };
+const TRADE_COLS = [
+  { h: "เข้า", f: r => fmtT(r.open_time) },
+  { h: "ออก", f: r => fmtT(r.close_time) },
+  { h: "กลยุทธ์", f: r => esc(r.tag) },
+  { h: "ทิศ", f: r => `<span class="side ${r.side}">${r.side}</span> ${esc(r.symbol)}` },
+  { h: "Lot", num: 1, f: r => r.volume },
+  { h: "ราคาเข้า", num: 1, f: r => r.open_price.toFixed(2) },
+  { h: "ราคาออก", num: 1, f: r => r.close_price.toFixed(2) },
+  { h: "ออกเพราะ", f: r => esc(r.reason) },
+  { h: "กำไร", num: 1, cls: r => cls(r.profit), f: r => money(r.profit, true) },
+];
+
+function renderGroups(d) {
+  const box = $("tradeGroups");
+  const names = Object.keys(d.bots || {});
+  // สร้างโครงครั้งแรกครั้งเดียว — รอบถัดไปอัปเดตแค่ตัวเลข ไม่ให้ dropdown ที่เปิดอยู่หุบเอง
+  if (box.dataset.built !== names.join(",")) {
+    box.innerHTML = names.map(n => `<details class="grp" data-bot="${esc(n)}" ${openGroups[n] ? "open" : ""}>
+      <summary></summary><div class="body"><div class="scroll rows"></div><div class="pager"></div></div></details>`).join("");
+    box.querySelectorAll("details.grp").forEach(el => el.addEventListener("toggle", () => {
+      const n = el.dataset.bot;
+      if (el.open) { openGroups[n] = openGroups[n] || 1; loadPage(n); } else { delete openGroups[n]; }
+      saveOpen();
+    }));
+    box.dataset.built = names.join(",");
+  }
+  for (const n of names) {
+    const s = d.per_bot?.[n] || {}, b = d.bots[n] || {};
+    const tags = Object.entries(s.by_tag || {}).sort((a, z) => z[1].pnl - a[1].pnl).map(([t, x]) =>
+      `<span class="tag">${esc(t)} ${x.n}ไม้ <span class="${cls(x.pnl)}">${money(x.pnl, true)}</span></span>`).join("");
+    const el = box.querySelector(`details[data-bot="${CSS.escape(n)}"] > summary`);
+    el.innerHTML = `<span class="arr">▶</span>
+      <span><span class="v">${esc(n)}</span> <span class="muted" style="font-size:11px">${esc(b.tf || "")}${b.alive ? "" : " · หยุด"}</span></span>
+      <span><span class="k">ไม้</span><span class="v">${(s.trades || 0).toLocaleString()}</span></span>
+      <span><span class="k">ชนะ</span><span class="v">${s.win_rate == null ? "–" : s.win_rate + "%"}</span></span>
+      <span><span class="k">รวม</span><span class="v ${cls(s.total)}">${money(s.total || 0, true)}</span></span>
+      <span class="wide-only"><span class="k">วันนี้</span><span class="v ${cls(s.today)}">${money(s.today || 0, true)}</span></span>
+      <span class="wide-only"><span class="k">ลอยอยู่ (${s.open || 0} ไม้)</span><span class="v ${cls(s.floating)}">${money(s.floating || 0, true)}</span></span>
+      <span class="tags wide-only">${tags || '<span class="muted" style="font-size:12px">ยังไม่มีไม้ที่ปิด</span>'}</span>`;
+  }
+  // รายการที่กางอยู่: โหลดหน้าปัจจุบันใหม่ (มีไม้ปิดเพิ่มระหว่างดู)
+  for (const n of Object.keys(openGroups)) if (names.includes(n)) loadPage(n);
+}
+
+async function loadPage(bot) {
+  const page = openGroups[bot] || 1;
+  let d;
+  try { d = await (await fetch(`/api/trades?bot=${encodeURIComponent(bot)}&page=${page}&size=${PAGE_SIZE}`, { cache: "no-store" })).json(); }
+  catch { return; }
+  if (d.error) return;
+  const el = $("tradeGroups").querySelector(`details[data-bot="${CSS.escape(bot)}"]`);
+  if (!el) return;
+  openGroups[bot] = d.page;
+  el.querySelector(".rows").innerHTML = table(d.rows, TRADE_COLS);
+  const from = d.total ? (d.page - 1) * d.size + 1 : 0, to = Math.min(d.page * d.size, d.total);
+  el.querySelector(".pager").innerHTML = `<span>${from}–${to} จาก ${d.total.toLocaleString()} ไม้</span>
+    <button data-go="1" ${d.page <= 1 ? "disabled" : ""}>« แรก</button>
+    <button data-go="${d.page - 1}" ${d.page <= 1 ? "disabled" : ""}>‹ ก่อนหน้า</button>
+    <span>หน้า ${d.page}/${d.pages}</span>
+    <button data-go="${d.page + 1}" ${d.page >= d.pages ? "disabled" : ""}>ถัดไป ›</button>
+    <button data-go="${d.pages}" ${d.page >= d.pages ? "disabled" : ""}>สุดท้าย »</button>`;
+  el.querySelectorAll(".pager button").forEach(btn => btn.onclick = () => {
+    openGroups[bot] = +btn.dataset.go; saveOpen(); loadPage(bot);
+  });
+}
+
 refresh();
 setInterval(refresh, 5000);
 </script>
