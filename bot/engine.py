@@ -138,6 +138,10 @@ class Engine:
     def _split(self, sig: EnterSignal, volume: float, entry: float, group: str) -> list[OrderRequest]:
         plan = next(s.plan for s in self._by_symbol[sig.symbol] if s.tag == sig.tag)
         spec = self.market.spec(sig.symbol)
+        if plan.tp_usd:
+            # กำไร $X ต่อไม้ ไม่ว่าขนาดไม้เท่าไร: ระยะราคา = X / (lot × contract)
+            tp = entry + int(sig.side) * plan.tp_usd / (volume * spec.contract_size)
+            return [OrderRequest(sig.symbol, sig.side, volume, sig.sl, tp, sig.tag, group, "single")]
         if plan.partial_r is not None:
             a = spec.round_volume_down(volume * plan.partial_frac)
             b = round(volume - a, 8)

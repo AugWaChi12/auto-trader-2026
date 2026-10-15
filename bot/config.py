@@ -125,9 +125,13 @@ NAS_SESSION = SessionWindow(tz="America/New_York", range_start="09:30", range_en
                             trade_end="12:00", flat_time="15:45")
 
 ALL_DAY = ScalpWindow(0, 24)
-# M1 สายซิ่ง: ได้กำไร +0.5R ล็อก → trail 1 ATR → ราคาถึง 70% ของ TP ขยับ TP +0.5R
-M1_PLAN = ManagementPlan(partial_r=0.5, partial_frac=1.0, be_offset_r=0.1, trail_atr_mult=1.0, trail_start_r=0.5,
-                         tp_extend_at=0.7, tp_extend_r=0.5)
+# บอททดสอบทุกตัว (ยกเว้น main): ปิดทันทีเมื่อกำไร +$0.6 ต่อไม้ · SL ตาม ATR เท่าเดิม — ตามคำขอผู้ใช้ 2026-10-15
+# ผลทดสอบก่อนเปลี่ยน (research/m1_small_tp_test.py, ทอง M1 0.01 lot): ชนะ 76–81% แต่ต้องชนะ 89–92% ถึงเท่าทุน
+#   bb_xau −$20 → −$44/วัน · lr1_x −$21 → −$33/วัน · ec1_x −$11 → −$13/วัน  (ขาดทุนมากกว่าแบบเดิม)
+# แบบเดิม (ล็อก +0.5R → trail 1 ATR → ขยับ TP) เก็บไว้ที่ M1_TRAIL_PLAN
+M1_TRAIL_PLAN = ManagementPlan(partial_r=0.5, partial_frac=1.0, be_offset_r=0.1, trail_atr_mult=1.0, trail_start_r=0.5,
+                               tp_extend_at=0.7, tp_extend_r=0.5)
+M1_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, tp_usd=0.6)
 
 # ห้องทดลองสแกลป์ (research/hypotheses_v3_scalp.md) — **ตกทั้ง 4 ตัวใน backtest** (−0.016 ถึง −0.205R)
 # รันบน demo ตามคำขอเพื่อดูผลจริงกับตา · พารามิเตอร์ = ชุดที่ walk-forward เลือกในหน้าต่างล่าสุด

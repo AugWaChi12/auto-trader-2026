@@ -43,6 +43,8 @@ class ManagementPlan:
     # ขยับ TP ออกเมื่อราคาวิ่งไปถึงสัดส่วนนี้ของระยะ TP (None = ไม่ขยับ) — คู่กับ trailing SL = "ล็อกแล้ววิ่งต่อ"
     tp_extend_at: float | None = None
     tp_extend_r: float = 0.5
+    # TP เป็นกำไรดอลลาร์ต่อไม้ (Engine คำนวณระยะราคาจากขนาดไม้จริงตอนเข้า) — ทับ TP ของกลยุทธ์
+    tp_usd: float | None = None
 
 
 @dataclass(frozen=True)

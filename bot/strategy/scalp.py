@@ -141,8 +141,8 @@ class RsiReversion(_ScalpBase):
         pos = account.positions(self.symbol, self.tag)
         if pos:
             p = pos[0]
-            if self.cfg.tp_price is None and ((p.side is Side.BUY and bar.close > e5) or
-                                              (p.side is Side.SELL and bar.close < e5)):
+            if self.cfg.tp_price is None and not self.plan.tp_usd and (
+                    (p.side is Side.BUY and bar.close > e5) or (p.side is Side.SELL and bar.close < e5)):
                 return [ExitSignal(self.symbol, self.tag, "ema5")]
             return []
         if rsi is None or atr is None or not self.ema200.ready or not self._can_enter(bar):

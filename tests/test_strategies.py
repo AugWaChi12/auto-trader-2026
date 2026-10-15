@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+import pytest
+
 from bot.backtest.sim_broker import SimBroker
 from bot.core.timeutil import UTC
 from bot.core.types import Bar, EnterSignal, ExitSignal, Side, SymbolSpec
@@ -193,3 +195,12 @@ def test_position_manager_locks_profit_trails_and_extends_tp() -> None:
     pm.on_bar("XAUUSD", b)
     assert pos.sl > pos.entry_price                         # ล็อกกำไรแล้ว (BE + trail)
     assert pos.tp > 2010.0                                  # TP ถูกขยับออก
+
+
+def test_engine_tp_usd_sets_dollar_take_profit_by_actual_volume() -> None:
+    """TP = กำไร $0.6 ต่อไม้ ไม่ว่าขนาดไม้เท่าไร"""
+    eng, broker = _engine(ManagementPlan(partial_r=None, tp_usd=0.6))
+    _feed(eng, broker, warmup() + asian_range_then(date(2025, 1, 20), [(2000, 2006, 1999, 2006)]))
+    pos = broker.positions()[0]
+    gross_at_tp = (pos.tp - pos.entry_price) * pos.volume * XAU.contract_size
+    assert gross_at_tp == pytest.approx(0.6, abs=1e-6)
