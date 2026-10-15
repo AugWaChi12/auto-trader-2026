@@ -8,7 +8,8 @@
     "volatility": "ความผันผวน",
     "regime": "สภาพตลาด (Regime)",
     "exits": "การบริหารไม้ / จุดออก",
-    "benchmark": "กลุ่มควบคุม (Benchmark)"
+    "benchmark": "กลุ่มควบคุม (Benchmark)",
+    "daily": "รายวัน / งานวิจัยวิชาการ"
   },
   "techniques": [
     {
@@ -569,6 +570,79 @@
       "lesson": "ตลาดอัปเดตพร้อมกันภายในนาที — lead-lag จริงอยู่ระดับมิลลิวินาที (สนาม HFT) และการไล่ราคาโบรกที่ช้าผิดข้อตกลงโบรก",
       "live": [],
       "source": "research/leadlag.py"
+    },
+    {
+      "id": "t1_trend",
+      "name": "Trend following รายวัน (Donchian / Turtle) 9 ตลาด",
+      "family": "daily",
+      "markets": "ทอง · เงิน · แพลทินัม · WTI · Brent · ก๊าซ · NAS100 · US30 · SPX500",
+      "tf": "D1",
+      "round": "รอบ 4 (T1)",
+      "verdict": "fail",
+      "idea": "Time-series momentum — หลักฐานวิชาการแข็งที่สุด (Moskowitz–Ooi–Pedersen 2012) แกนหลักของกองทุน CTA",
+      "rules": [
+        "ปิดทะลุ high/low 20/50/100 วัน → เข้าตามทาง",
+        "SL 2–4 ATR(20), ออกเมื่อหลุดกรอบครึ่งหนึ่งฝั่งตรงข้าม, ไม่มี TP",
+        "ความเสี่ยงคงที่ต่อไม้ (vol targeting)",
+        "walk-forward 5 ปี → 1 ปี (2013–2022) + swap ข้ามคืน"
+      ],
+      "result": {
+        "label": "Walk-forward 10 ปี",
+        "n": 672,
+        "exp_r": -0.088,
+        "pf": 0.8,
+        "extra": "ไม่มี swap: +0.07 ถึง +0.11R (รูปแบบเดียวกับงานวิจัย) · มี swap ~6%/ปี: ติดลบ · บวกแค่ 2/10 ปี"
+      },
+      "lesson": "ไอเดียไม่ผิด แต่ CFD ที่คิดดอกเบี้ยข้ามคืน ~6%/ปี กิน edge บางๆ หมด — กองทุนใช้ฟิวเจอร์สและกระจาย 50–100 ตลาด",
+      "live": [],
+      "source": "bot/strategy/daily_trend.py · research/daily_trend_wf.py"
+    },
+    {
+      "id": "t3_tom",
+      "name": "Turn-of-the-month (ดัชนีหุ้นสหรัฐ)",
+      "family": "daily",
+      "markets": "NAS100 · US30 · SPX500",
+      "tf": "D1",
+      "round": "รอบ 4 (T3)",
+      "verdict": "fail",
+      "idea": "ดัชนีหุ้นมักขึ้นช่วงวันท้ายเดือนถึงต้นเดือน (เงินเดือน / กองทุนรับเงินเข้า)",
+      "rules": [
+        "ซื้อปิดวันทำการที่ 2 จากท้ายเดือน → ขายปิดวันทำการที่ 3 ของเดือนใหม่",
+        "ไม่มีพารามิเตอร์ · เทียบกับสัปดาห์อื่น"
+      ],
+      "result": {
+        "label": "179 เดือน (2008–2022)",
+        "n": 179,
+        "exp_r": null,
+        "pf": null,
+        "extra": "TOM −0.001%/ครั้ง vs สัปดาห์อื่น +0.037% → ส่วนเกิน −0.038% (t −0.25)"
+      },
+      "lesson": "ปรากฏการณ์ที่ตีพิมพ์มานานหลายสิบปี หายไปเมื่อคนรู้กันทั่ว — ผลในงานวิจัยเก่าไม่รับประกันอนาคต",
+      "live": [],
+      "source": "research/turn_of_month.py"
+    },
+    {
+      "id": "swap_lesson",
+      "name": "ต้นทุนถือข้ามคืน (swap) ของ CFD",
+      "family": "exits",
+      "markets": "ทุกตลาด",
+      "tf": "D1",
+      "round": "รอบ 4",
+      "verdict": "info",
+      "idea": "ไม้ที่ถือหลายวันเสียดอกเบี้ยรายคืน — ต้องอยู่ใน backtest",
+      "rules": [
+        "FxPro วันนี้: โลหะ/ดัชนีฝั่ง BUY ≈ −6 ถึง −7%/ปี · พลังงานสุดโต่ง (NATGAS long −126%/ปี) ตามโครงสร้างฟิวเจอร์ส"
+      ],
+      "result": {
+        "label": "T1 พอร์ต 9 ตลาด",
+        "n": null,
+        "exp_r": null,
+        "pf": null,
+        "extra": "swap พลิก trend following จาก +0.07–0.11R เป็นติดลบ"
+      },
+      "lesson": "swap ต้องคิดเป็น % ของมูลค่าไม้ ไม่ใช่ USD ตายตัว (บั๊กที่เจอและแก้แล้ว: แพงเกินจริงหลายเท่าในปีที่ราคาต่ำ)",
+      "live": [],
+      "source": "bot/backtest/sim_broker.py"
     }
   ],
   "process": [

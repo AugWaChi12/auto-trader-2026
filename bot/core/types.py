@@ -51,6 +51,10 @@ class SymbolSpec:
     slippage: float = 0.0     # slippage ต่อการเข้า/ออกแบบ market (หน่วยราคา)
     commission_per_lot: float = 0.0  # ค่าคอมไป-กลับต่อ 1 lot (USD)
     margin_rate: float = 0.01         # margin = notional * margin_rate (1:100 = 0.01)
+    # swap เป็นอัตราต่อปีของมูลค่าไม้ (เช่น −0.061 = จ่าย 6.1%/ปี, บวก = ได้รับ) — 0 = ไม่คิด
+    # ต้องเป็น % ไม่ใช่ USD ตายตัว: ใช้ย้อนหลังกับราคาต่างยุคได้ถูก (ทอง 2008 $900 vs 2026 $4,100)
+    swap_long_rate: float = 0.0
+    swap_short_rate: float = 0.0
 
     def round_volume_down(self, volume: float) -> float:
         """ปัดลงให้ตรง volume_step (ปัดลงเสมอ → ไม่มีวันเสี่ยงเกินที่คำนวณ)"""
@@ -112,6 +116,8 @@ class Position:
     # สถานะการบริหารไม้ (PositionManager แก้ไข)
     moved_to_be: bool = False
     best_price: float = field(default=0.0)   # ราคาที่ดีที่สุดที่เคยไปถึง (ใช้คิด MFE)
+    swap: float = 0.0                        # swap สะสม (USD) — backtest เท่านั้น
+    swap_date: object = None                 # วันที่คิด swap ล่าสุด
 
     def __post_init__(self) -> None:
         if not self.best_price:

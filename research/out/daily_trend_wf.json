@@ -1,0 +1,143 @@
+{
+ "passed": false,
+ "wf": {
+  "n": 686,
+  "exp": -0.143,
+  "t": -4.0,
+  "pf": 0.64
+ },
+ "random": {
+  "n": 894,
+  "exp": -0.114,
+  "t": -4.47,
+  "pf": 0.62
+ },
+ "long": {
+  "n": 970,
+  "exp": -0.097,
+  "t": -4.56,
+  "pf": 0.64
+ },
+ "years_positive": 0.1,
+ "rows": [
+  {
+   "test": 2013,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.105,
+   "n": 67,
+   "exp": -0.151,
+   "sum_R": -10.1
+  },
+  {
+   "test": 2014,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.291,
+   "n": 71,
+   "exp": -0.097,
+   "sum_R": -6.9
+  },
+  {
+   "test": 2015,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 2.0
+   },
+   "opt": -0.275,
+   "n": 75,
+   "exp": -0.403,
+   "sum_R": -30.2
+  },
+  {
+   "test": 2016,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.315,
+   "n": 71,
+   "exp": -0.189,
+   "sum_R": -13.4
+  },
+  {
+   "test": 2017,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.309,
+   "n": 74,
+   "exp": -0.076,
+   "sum_R": -5.7
+  },
+  {
+   "test": 2018,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.374,
+   "n": 65,
+   "exp": -0.226,
+   "sum_R": -14.7
+  },
+  {
+   "test": 2019,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.317,
+   "n": 68,
+   "exp": -0.123,
+   "sum_R": -8.3
+  },
+  {
+   "test": 2020,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.365,
+   "n": 59,
+   "exp": 0.223,
+   "sum_R": 13.1
+  },
+  {
+   "test": 2021,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.205,
+   "n": 69,
+   "exp": -0.231,
+   "sum_R": -15.9
+  },
+  {
+   "test": 2022,
+   "params": {
+    "entry_n": 20,
+    "stop_atr": 4.0
+   },
+   "opt": -0.255,
+   "n": 67,
+   "exp": -0.086,
+   "sum_R": -5.8
+  }
+ ],
+ "checks": {
+  "n>=150": true,
+  "exp>=+0.10R": false,
+  "PF>=1.2": false,
+  "t>=2.4": false,
+  "years+>=60%": "False",
+  "beat random": false,
+  "beat long-only": false
+ }
+}

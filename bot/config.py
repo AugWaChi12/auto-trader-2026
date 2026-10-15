@@ -41,7 +41,23 @@ DEFAULT_SPECS: dict[str, SymbolSpec] = {
                          min_spread=0.25, slippage=0.05, commission_per_lot=7.0, margin_rate=0.01),
     "NAS100": SymbolSpec(name="NAS100", point=0.01, contract_size=1, volume_min=0.01, volume_step=0.01,
                          min_spread=1.5, slippage=0.5, commission_per_lot=0.0, margin_rate=0.01),
+    # รอบ 4 (รายวัน) — สเปรดตั้งกว้างกว่าที่เห็นตอนตลาดปกติ เพื่อเผื่อช่วงข่าว/เปิดตลาด · swap ดึงจาก MT5 ตอน download
+    "XAGUSD": SymbolSpec(name="XAGUSD", point=0.001, contract_size=5000, min_spread=0.03, slippage=0.005,
+                         commission_per_lot=7.0, margin_rate=0.01),
+    "XPTUSD": SymbolSpec(name="XPTUSD", point=0.01, contract_size=100, min_spread=4.6, slippage=0.5,
+                         commission_per_lot=0.0, margin_rate=0.01),
+    "WTI":    SymbolSpec(name="WTI", point=0.001, contract_size=1000, min_spread=0.05, slippage=0.01,
+                         commission_per_lot=0.0, margin_rate=0.01),
+    "BRENT":  SymbolSpec(name="BRENT", point=0.001, contract_size=1000, min_spread=0.05, slippage=0.01,
+                         commission_per_lot=0.0, margin_rate=0.01),
+    "NATGAS": SymbolSpec(name="NATGAS", point=0.001, contract_size=10000, min_spread=0.021, slippage=0.003,
+                         commission_per_lot=0.0, margin_rate=0.01),
+    "US30":   SymbolSpec(name="US30", point=0.01, contract_size=1, min_spread=3.0, slippage=1.0,
+                         commission_per_lot=0.0, margin_rate=0.01),
+    "SPX500": SymbolSpec(name="SPX500", point=0.01, contract_size=1, min_spread=0.6, slippage=0.2,
+                         commission_per_lot=0.0, margin_rate=0.01),
 }
+DAILY_MARKETS = ["XAUUSD", "XAGUSD", "XPTUSD", "WTI", "BRENT", "NATGAS", "NAS100", "US30", "SPX500"]
 
 # ---------------------------------------------------------------------------- ความเสี่ยง
 RISK_PROFILES: dict[str, RiskConfig] = {

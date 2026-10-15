@@ -192,3 +192,18 @@ def test_account_floor_blocks_test_bots_only_when_real_equity_low() -> None:
     real["eq"] = 590.0
     assert rm.can_open(_sig(), T0) == "account_floor"
     assert RiskManager(RiskConfig(), b, real_equity=lambda: 1.0).can_open(_sig(), T0) == ""   # floor 0 = ปิด
+
+
+def test_swap_accrues_per_calendar_night() -> None:
+    from dataclasses import replace
+    spec = replace(XAU, swap_long_rate=-5 * 365 / 200_000, swap_short_rate=0.01)   # มูลค่า 2000 × 100 oz → $5/lot/คืน
+    b = SimBroker({"XAUUSD": spec}, 10_000.0, timedelta(days=1))
+    mon = datetime(2025, 1, 6, tzinfo=UTC)
+    b.on_bar("XAUUSD", bar(mon, 2000, 2000, 2000, 2000))
+    b.send(OrderRequest("XAUUSD", Side.BUY, 1.0, 1900.0, None, "t", "g"))
+    for i in range(1, 8):                                          # อังคาร → จันทร์ถัดไป = 7 คืน
+        b.on_bar("XAUUSD", bar(mon + timedelta(days=i), 2000, 2001, 1999, 2000))
+    b.close(1, "end")
+    t = b.closed[0]
+    price_pnl = (2000.0 - 2000.20) * 1.0 * 100
+    assert t.pnl == pytest.approx(price_pnl - 5.0 * 7)

@@ -70,6 +70,7 @@ class SimBroker(IMarketData, IAccount, IOrderExecutor):
         self._now = bar.time + self._bar_duration
         for pos in list(self._positions.values()):
             if pos.symbol == symbol:
+                self._accrue_swap(pos, bar)
                 self._check_exit(pos, bar)
 
     def spread(self, symbol: str) -> float:
@@ -101,6 +102,21 @@ class SimBroker(IMarketData, IAccount, IOrderExecutor):
             if pos.tp is not None and l <= pos.tp:
                 return self._close(pos, pos.tp, "tp")
         return None
+
+    def _accrue_swap(self, pos: Position, bar: Bar | None = None) -> None:
+        """คิด swap ตามจำนวนคืนปฏิทินที่ผ่านไป (ศุกร์→จันทร์ = 3 คืน ≈ triple swap วันพุธของโบรก)
+        bar=None → คิดถึงเวลาปัจจุบัน (ตอนปิดไม้) — ด้านระวัง: ปิดตรงเที่ยงคืนพอดีนับเป็นอีก 1 คืน"""
+        spec = self._specs[pos.symbol]
+        rate = spec.swap_long_rate if pos.side is Side.BUY else spec.swap_short_rate
+        price = (bar.close if bar is not None else self._last[pos.symbol].close)
+        per_night = rate / 365 * price * spec.contract_size        # USD ต่อ lot ต่อคืน ตามมูลค่าไม้ ณ ตอนนั้น
+        d = bar.time.date() if bar is not None else self.now().date()
+        if pos.swap_date is None:
+            pos.swap_date = pos.open_time.date()
+        nights = (d - pos.swap_date).days
+        if nights > 0 and per_night:
+            pos.swap += per_night * pos.volume * nights
+        pos.swap_date = max(pos.swap_date, d)
 
     @staticmethod
     def _stop_reason(pos: Position) -> str:
@@ -170,11 +186,12 @@ class SimBroker(IMarketData, IAccount, IOrderExecutor):
         spec = self._specs[pos.symbol]
         bid = self._last[pos.symbol].close
         price = bid if pos.side is Side.BUY else bid + self.spread(pos.symbol)
-        return spec.pnl(pos.side, pos.entry_price, price, pos.volume)
+        return spec.pnl(pos.side, pos.entry_price, price, pos.volume) + pos.swap
 
     def _close(self, pos: Position, price: float, reason: str) -> None:
         spec = self._specs[pos.symbol]
-        pnl = spec.pnl(pos.side, pos.entry_price, price, pos.volume) - spec.commission_per_lot * pos.volume
+        self._accrue_swap(pos)
+        pnl = spec.pnl(pos.side, pos.entry_price, price, pos.volume) - spec.commission_per_lot * pos.volume + pos.swap
         risk = (pos.risk_per_unit + spec.slippage) * pos.volume * spec.contract_size \
             + spec.commission_per_lot * pos.volume
         self._balance += pnl
