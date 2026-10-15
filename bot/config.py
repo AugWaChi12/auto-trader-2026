@@ -1,0 +1,112 @@
+"""
+config.py — ค่าตั้งค่าทั้งหมด (แก้ที่นี่ที่เดียว)
+
+ทุกอย่างเป็น frozen dataclass เหมือน config.py ของ loot_sandbox → อ่านอย่างเดียว แชร์ข้ามเธรดได้
+
+!! ตัวเลขกลยุทธ์ทั้งหมดเป็น "สมมติฐานเริ่มต้น" ไม่ใช่ค่าที่พิสูจน์แล้ว !!
+ปรับทีละตัว และระวัง overfit: ถ้าต้องจูนละเอียดมากถึงจะกำไร = ไม่มี edge จริง
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+from .core.types import SymbolSpec
+from .risk.risk_manager import RiskConfig
+from .strategy.base import ManagementPlan, SessionWindow, Strategy
+from .strategy.session_breakout import BreakoutConfig, SessionBreakout
+from .strategy.session_momentum import MomentumConfig, SessionMomentum
+from .strategy.sweep_reversal import SweepConfig, SweepReversal
+
+ROOT = Path(__file__).resolve().parent.parent
+NEWS_CSV = ROOT / "config" / "news.csv"
+
+TIMEFRAME = "M15"
+INITIAL_BALANCE = 1_000.0   # เท่ากับบัญชี demo FxPro
+
+# โบรก XAUUSD ส่วนใหญ่ใช้ GMT+2/+3 ตาม DST อเมริกา — คำสั่ง download จะตรวจให้ว่าตรงไหม
+SERVER_TIME_MODE = "ny_close"
+
+# ---------------------------------------------------------------------------- สเปคสัญญา
+# point / contract_size / volume_* จะถูกทับด้วยค่าจริงจาก MT5 ตอน download
+# min_spread / slippage / commission / margin_rate ต้องตั้งเองให้ตรงบัญชี (ตั้งแย่ไว้ก่อนปลอดภัยกว่า)
+# ค่าปัจจุบัน: FxPro Raw+ (ค่าคอม $3.5/lot/ด้าน = $7 ไป-กลับ) — ตรวจใน MT5: คลิกขวา symbol → Specification
+DEFAULT_SPECS: dict[str, SymbolSpec] = {
+    "XAUUSD": SymbolSpec(name="XAUUSD", point=0.01, contract_size=100, volume_min=0.01, volume_step=0.01,
+                         min_spread=0.25, slippage=0.05, commission_per_lot=7.0, margin_rate=0.01),
+    "NAS100": SymbolSpec(name="NAS100", point=0.01, contract_size=1, volume_min=0.01, volume_step=0.01,
+                         min_spread=1.5, slippage=0.5, commission_per_lot=0.0, margin_rate=0.01),
+}
+
+# ---------------------------------------------------------------------------- ความเสี่ยง
+RISK_PROFILES: dict[str, RiskConfig] = {
+    "normal":     RiskConfig(risk_per_trade=0.01, daily_loss_limit=0.03, max_drawdown=0.15),
+    "aggressive": RiskConfig(risk_per_trade=0.02, daily_loss_limit=0.05, max_drawdown=0.20),
+    # เผื่อสอบ prop firm: ต้องไม่ชนเพดาน 5%/วัน 10% รวม → ตั้งให้หยุดก่อนถึง
+    "prop":       RiskConfig(risk_per_trade=0.0075, daily_loss_limit=0.035, max_drawdown=0.08,
+                             day_tz="Europe/Prague"),
+    # demo ทุน $1,000: SL ทองของ xau_momo ~$45 ต่อ 0.01 lot (4.5% ของทุน) → ถ้าไม่ยอม lot ขั้นต่ำจะเทรดไม่ได้เลย
+    # เป้าหมายคือเก็บผลเป็น R บน demo ห้ามใช้โปรไฟล์นี้กับเงินจริง
+    "demo_1k":    RiskConfig(risk_per_trade=0.01, min_lot_max_risk=0.06, daily_loss_limit=0.10, max_drawdown=0.40),
+}
+NEWS_BLACKOUT_MIN = 30
+
+# ---------------------------------------------------------------------------- live (เฟส 2: demo เท่านั้น)
+LIVE_STRATEGIES = ["xau_momo"]
+LIVE_PROFILE = "demo_1k"
+MAGIC = 26101501                     # ติดทุกออเดอร์ของบอท — ไม่แตะไม้ที่คนเปิดเอง
+POLL_SECONDS = 5
+WARMUP_BARS = 3000                   # ~1 เดือนของ M15 ให้ ADR/EMA พร้อมก่อนเทรด
+STATE_DIR = ROOT / "state"
+LOG_DIR = ROOT / "logs"
+
+# ---------------------------------------------------------------------------- กลยุทธ์
+GOLD_SESSION = SessionWindow(tz="UTC", range_start="00:00", range_end="07:00",
+                             trade_end="16:00", flat_time="20:00")
+NAS_SESSION = SessionWindow(tz="America/New_York", range_start="09:30", range_end="10:00",
+                            trade_end="12:00", flat_time="15:45")
+
+STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
+    # ผลวิจัย (research/out/locked.json): in-sample +0.114R → out-of-sample +0.037R ไม่ผ่านเกณฑ์ +0.10R
+    # เก็บไว้เป็นตัวเลือกทดสอบบน demo เท่านั้น — ยังไม่ใช่กลยุทธ์ที่พิสูจน์แล้ว
+    MomentumConfig(tag="xau_momo", symbol="XAUUSD", entry_time="12:00", min_move_adr=0.35, sl_adr=0.5,
+                   flat_time="20:00"),
+    BreakoutConfig(
+        tag="xau_bo", symbol="XAUUSD", window=GOLD_SESSION,
+        min_range_adr=0.15, max_range_adr=0.60, buffer_adr=0.02, sl_mode="mid", tp_r=None,
+        plan=ManagementPlan(partial_r=1.5, partial_frac=0.5, trail_atr_mult=2.5, trail_start_r=1.5),
+    ),
+    SweepConfig(
+        tag="xau_sweep", symbol="XAUUSD", window=GOLD_SESSION,
+        min_range_adr=0.15, max_range_adr=0.70, min_sweep_adr=0.02, sl_buffer_adr=0.03,
+        max_bars_outside=3, min_rr=2.0,
+        plan=ManagementPlan(partial_r=1.5, partial_frac=0.5, trail_atr_mult=None),
+    ),
+    BreakoutConfig(
+        tag="nas_orb", symbol="NAS100", window=NAS_SESSION,
+        min_range_adr=0.10, max_range_adr=0.50, buffer_adr=0.02, sl_mode="mid", tp_r=None,
+        plan=ManagementPlan(partial_r=1.5, partial_frac=0.5, trail_atr_mult=2.5, trail_start_r=1.5),
+    ),
+    SweepConfig(
+        tag="nas_sweep", symbol="NAS100", window=NAS_SESSION,
+        min_range_adr=0.10, max_range_adr=0.60, min_sweep_adr=0.02, sl_buffer_adr=0.03,
+        max_bars_outside=3, min_rr=2.0,
+        plan=ManagementPlan(partial_r=1.5, partial_frac=0.5, trail_atr_mult=None),
+    ),
+]
+
+
+def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = None,
+                     timeframe: str = TIMEFRAME) -> list[Strategy]:
+    out: list[Strategy] = []
+    for c in STRATEGY_CONFIGS:
+        if tags and c.tag not in tags:
+            continue
+        if symbols and c.symbol not in symbols:
+            continue
+        if isinstance(c, BreakoutConfig):
+            out.append(SessionBreakout(c, timeframe))
+        elif isinstance(c, SweepConfig):
+            out.append(SweepReversal(c, timeframe))
+        else:
+            out.append(SessionMomentum(c, timeframe))
+    return out

@@ -1,0 +1,7 @@
+{
+  "locked_at": "2026-10-15T03:49:26Z",
+  "rule": "เลือกชุดกลาง grid (ไม่ใช่ยอด) จากที่ราบที่บวก 36/36 ใน in-sample — ล็อกก่อนเปิด out-of-sample",
+  "xau_momo": {"symbol": "XAUUSD", "entry_time": "12:00", "min_move_adr": 0.35, "sl_adr": 0.5, "flat_time": "20:00"},
+  "in_sample": {"n": 152, "exp_r": 0.114, "pf": 1.41, "exp_h1": 0.031, "exp_h2": 0.179},
+  "rejected": {"trend_pullback": "บวก 2/48, ดีสุด +0.04R t=0.62", "nas_momo": "บวก 13/36, ไม่ monotonic"}
+}

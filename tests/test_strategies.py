@@ -1,0 +1,156 @@
+"""ทดสอบกลยุทธ์ด้วยแท่งที่สร้างเองแบบรู้คำตอบล่วงหน้า + ทดสอบ Engine ครบวงจร"""
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta
+
+from bot.backtest.sim_broker import SimBroker
+from bot.core.timeutil import UTC
+from bot.core.types import Bar, EnterSignal, ExitSignal, Side, SymbolSpec
+from bot.engine import Engine
+from bot.execution.order_guard import OrderGuard
+from bot.risk.risk_manager import RiskConfig, RiskManager
+from bot.strategy.base import ManagementPlan, SessionWindow
+from bot.strategy.session_breakout import BreakoutConfig, SessionBreakout
+from bot.strategy.sweep_reversal import SweepConfig, SweepReversal
+
+M15 = timedelta(minutes=15)
+WIN = SessionWindow(tz="UTC", range_start="00:00", range_end="07:00", trade_end="16:00", flat_time="20:00")
+XAU = SymbolSpec(name="XAUUSD", point=0.01, contract_size=100, min_spread=0.2, margin_rate=0.01)
+
+
+def flat_day(d: date, price: float, width: float) -> list[Bar]:
+    """วันที่ราคาแกว่งในกรอบ width รอบ price ทั้งวัน (ใช้อุ่น ADR)"""
+    out = []
+    t = datetime(d.year, d.month, d.day, tzinfo=UTC)
+    for _ in range(96):
+        out.append(Bar(t, price, price + width / 2, price - width / 2, price))
+        t += M15
+    return out
+
+
+def warmup(n_days: int = 10, width: float = 20.0) -> list[Bar]:
+    bars, d = [], date(2025, 1, 6)   # จันทร์
+    while len(bars) < n_days * 96:
+        if d.weekday() < 5:
+            bars += flat_day(d, 2000.0, width)
+        d += timedelta(days=1)
+    return bars
+
+
+def asian_range_then(d: date, after: list[tuple[float, float, float, float]]) -> list[Bar]:
+    """กรอบเอเชีย 1995–2005 (กว้าง 10 = 0.5 ADR) แล้วตามด้วยแท่ง OHLC ที่กำหนด ตั้งแต่ 07:00"""
+    t = datetime(d.year, d.month, d.day, tzinfo=UTC)
+    bars = []
+    for _ in range(28):   # 00:00–07:00
+        bars.append(Bar(t, 2000, 2005, 1995, 2000))
+        t += M15
+    for o, h, l, c in after:
+        bars.append(Bar(t, o, h, l, c))
+        t += M15
+    return bars
+
+
+class _NoPositions:
+    def positions(self, symbol=None, tag=None):
+        return []
+
+
+def run(strategy, bars) -> list:
+    sigs = []
+    for b in bars:
+        sigs += strategy.on_bar(b, _NoPositions())
+    return sigs
+
+
+def test_breakout_fires_on_close_above_range() -> None:
+    s = SessionBreakout(BreakoutConfig("bo", "XAUUSD", WIN, buffer_adr=0.0), "M15")
+    day = date(2025, 1, 20)
+    sigs = run(s, warmup() + asian_range_then(day, [(2000, 2004, 1999, 2003), (2003, 2008, 2002, 2007)]))
+    enters = [x for x in sigs if isinstance(x, EnterSignal)]
+    assert len(enters) == 1
+    e = enters[0]
+    assert e.side is Side.BUY and e.sl == 2000.0 and e.key == f"bo:{day}"
+
+
+def test_breakout_skips_when_range_too_wide() -> None:
+    s = SessionBreakout(BreakoutConfig("bo", "XAUUSD", WIN, max_range_adr=0.4), "M15")
+    sigs = run(s, warmup() + asian_range_then(date(2025, 1, 20), [(2003, 2010, 2002, 2009)]))
+    assert not sigs   # กรอบกว้าง 0.5 ADR > 0.4
+
+
+def test_breakout_no_signal_before_range_complete() -> None:
+    s = SessionBreakout(BreakoutConfig("bo", "XAUUSD", WIN), "M15")
+    t = datetime(2025, 1, 20, 3, 0, tzinfo=UTC)
+    sigs = run(s, warmup() + [Bar(t, 2000, 2050, 1999, 2049)])
+    assert not sigs
+
+
+def test_sweep_sells_after_wick_above_range() -> None:
+    s = SweepReversal(SweepConfig("sw", "XAUUSD", WIN, min_rr=1.5), "M15")
+    # ADR = 20 → ไส้ขึ้นไป 2006 (เลยขอบ 2005) แล้วปิดกลับ 2002
+    # SELL, SL = 2006 + 0.03*20 = 2006.6, TP = 1995 → rr = 7 / 4.6 = 1.52
+    sigs = run(s, warmup() + asian_range_then(date(2025, 1, 20), [(2004, 2006, 2001, 2002)]))
+    enters = [x for x in sigs if isinstance(x, EnterSignal)]
+    assert len(enters) == 1
+    e = enters[0]
+    assert e.side is Side.SELL and e.tp == 1995 and e.sl > 2006
+
+
+def test_sweep_dead_after_real_breakout() -> None:
+    s = SweepReversal(SweepConfig("sw", "XAUUSD", WIN, max_bars_outside=2, min_rr=1.0), "M15")
+    after = [(2004, 2008, 2004, 2007), (2007, 2010, 2006, 2009), (2009, 2009, 2002, 2003)]
+    sigs = run(s, warmup() + asian_range_then(date(2025, 1, 20), after))
+    assert not [x for x in sigs if isinstance(x, EnterSignal)]
+
+
+def test_flat_time_emits_exit_when_in_position() -> None:
+    class _HasPos:
+        def positions(self, symbol=None, tag=None):
+            return [object()]
+    s = SessionBreakout(BreakoutConfig("bo", "XAUUSD", WIN), "M15")
+    t = datetime(2025, 1, 20, 19, 45, tzinfo=UTC)
+    assert isinstance(s.on_bar(Bar(t, 2000, 2001, 1999, 2000), _HasPos())[0], ExitSignal)
+
+
+# ------------------------------------------------------------------ Engine ครบวงจร
+def _engine(plan: ManagementPlan) -> tuple[Engine, SimBroker]:
+    broker = SimBroker({"XAUUSD": XAU}, 10_000.0, M15)
+    strat = SessionBreakout(BreakoutConfig("bo", "XAUUSD", WIN, buffer_adr=0.0, plan=plan), "M15")
+    eng = Engine(broker, broker, broker, [strat], RiskManager(RiskConfig(), broker), OrderGuard(),
+                 broker.last_bar_close)
+    return eng, broker
+
+
+def _feed(eng: Engine, broker: SimBroker, bars: list[Bar]) -> None:
+    for b in bars:
+        broker.on_bar("XAUUSD", b)
+        eng.on_bar("XAUUSD", b)
+
+
+def test_engine_one_trade_per_day_and_partial_then_breakeven() -> None:
+    eng, broker = _engine(ManagementPlan(partial_r=1.0, partial_frac=0.5, be_offset_r=0.0))
+    day = date(2025, 1, 20)
+    after = [
+        (2000, 2006, 1999, 2006),    # breakout → เข้า BUY ~2006.2, SL 2000 (R ≈ 6.2)
+        (2006, 2013, 2005, 2012),    # ถึง 1R → partial TP
+        (2012, 2013, 2011, 2012),    # PositionManager เลื่อน runner ไป BE
+        (2012, 2012, 2005, 2006),    # ย้อนลงมาโดน BE
+        (2006, 2007, 2005, 2007),    # ยังทะลุกรอบอยู่ แต่ key วันนี้ใช้ไปแล้ว → ห้ามเข้าซ้ำ
+    ]
+    _feed(eng, broker, warmup() + asian_range_then(day, after))
+    roles = sorted((t.role, t.exit_reason) for t in broker.closed)
+    assert roles == [("partial", "tp"), ("runner", "be")]
+    assert not broker.positions()
+    assert len({t.group_id for t in broker.closed}) == 1
+    sent = [s for s in eng.stats.signals if s.outcome == "sent"]
+    assert len(sent) == 1
+    assert broker.balance() > 10_000   # partial กำไร, runner เสมอตัว (ลบสเปรดนิดหน่อย)
+
+
+def test_engine_size_matches_risk() -> None:
+    eng, broker = _engine(ManagementPlan(partial_r=None))
+    _feed(eng, broker, warmup() + asian_range_then(date(2025, 1, 20), [(2000, 2006, 1999, 2006)]))
+    pos = broker.positions()[0]
+    loss_if_sl = (pos.entry_price - pos.sl) * pos.volume * XAU.contract_size
+    assert loss_if_sl <= 100.0 + 1e-6          # ไม่เกิน 1% ของ 10,000
+    assert loss_if_sl > 100.0 - 6.2 * 1 * 1   # และไม่ต่ำกว่านั้นเกิน 1 step (0.01 lot)

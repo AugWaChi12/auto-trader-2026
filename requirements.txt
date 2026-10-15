@@ -1,0 +1,6 @@
+numpy>=2.0
+pandas>=2.2
+MetaTrader5>=5.0.45
+tzdata
+matplotlib>=3.8
+pytest>=8.0
