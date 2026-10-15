@@ -48,8 +48,10 @@
   .right { display: grid; gap: 1vh; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
   #board td, #board th { padding: .22vh .4vw; }
   .openlist { flex: 1; min-height: 0; overflow: hidden; }
-  .openlist td, .openlist th { padding: .3vh .35vw; font-size: .92em; }
-  .more { color: var(--muted); font-size: .8em; padding-top: .3vh; }
+  .openlist table { table-layout: fixed; }
+  .openlist td, .openlist th { padding: .3vh .35vw; font-size: .92em; overflow: hidden; text-overflow: ellipsis; }
+  .openlist .sub { color: var(--muted); font-size: .8em; }
+  .more { color: var(--muted); font-size: .8em; padding-top: .3vh; min-height: 1.4em; flex: none; }
   .held { color: var(--muted); font-size: .85em; }
   canvas { width: 100%; flex: 1; min-height: 0; display: block; }
   .mainbot { display: grid; grid-template-columns: auto 1fr auto; gap: .4vh 1.2vw; align-items: center; }
@@ -217,23 +219,25 @@ function vs(d) {
 
 function held(iso) {
   const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
-  return m < 60 ? `${m} นาที` : `${Math.floor(m / 60)} ชม. ${m % 60} น.`;
+  return m < 60 ? `${m} น.` : `${Math.floor(m / 60)}ชม.${String(m % 60).padStart(2, "0")}`;
 }
 
 function openPositions(d) {
-  const rows = [...(d.open || [])].sort((a, z) => Date.parse(z.open_time) - Date.parse(a.open_time));
+  // main ปักหมุดแถวแรกเสมอ ที่เหลือเรียงไม้ล่าสุดก่อน
+  const rows = [...(d.open || [])].sort((a, z) => (z.bot === "main") - (a.bot === "main")
+    || Date.parse(z.open_time) - Date.parse(a.open_time));
   const total = rows.reduce((t, o) => t + o.profit, 0);
   $("openSum").innerHTML = rows.length ? `${rows.length} ไม้ · ลอยรวม <b class="${cls(total)}">${money(total)}</b>` : "";
   const dp = (o) => o.symbol === "XAUUSD" ? 2 : 1;
   const box = $("openList");
   if (!rows.length) { box.innerHTML = '<div class="muted" style="padding:1vh 0">ตอนนี้ไม่มีไม้เปิด</div>'; $("openMore").textContent = ""; return; }
-  box.innerHTML = `<table><thead><tr><th>บอท</th><th>ทิศ</th><th class="r">Lot</th><th class="r">เข้า → ตอนนี้</th>
-      <th class="r">SL / TP</th><th class="r">ถือมา</th><th class="r">ลอย</th></tr></thead><tbody>${rows.map(o => `<tr>
-      <td>${o.bot === "main" ? "<b>★ main</b>" : esc(o.bot)} <span class="muted" style="font-size:.8em">${esc(o.tag)}</span></td>
-      <td><span class="side ${o.side}">${o.side}</span> ${o.symbol === "XAUUSD" ? "ทอง" : "NAS"}</td>
-      <td class="r">${o.volume}</td>
+  // 5 คอลัมน์ กว้างคงที่ → พอดีแผงเสมอ (ข้อความยาวตัดเป็น …) · SL/TP ดูได้จาก tooltip ของแถว
+  box.innerHTML = `<table><colgroup><col style="width:19%"><col style="width:24%"><col style="width:28%"><col style="width:13%"><col style="width:16%"></colgroup>
+      <thead><tr><th>บอท</th><th>ทิศ · lot</th><th class="r">เข้า → ตอนนี้</th><th class="r">ถือมา</th><th class="r">ลอย</th></tr></thead>
+      <tbody>${rows.map(o => `<tr title="${esc(o.bot)} · ${esc(o.tag)} · SL ${o.sl ? o.sl.toFixed(dp(o)) : "–"} · TP ${o.tp ? o.tp.toFixed(dp(o)) : "–"}">
+      <td>${o.bot === "main" ? "<b>★ main</b>" : esc(o.bot)}</td>
+      <td><span class="side ${o.side}">${o.side}</span> ${o.symbol === "XAUUSD" ? "ทอง" : "NAS"} <span class="sub">${o.volume}</span></td>
       <td class="r num">${o.open_price.toFixed(dp(o))} → ${o.price.toFixed(dp(o))}</td>
-      <td class="r num muted">${o.sl ? o.sl.toFixed(dp(o)) : "–"} / ${o.tp ? o.tp.toFixed(dp(o)) : "–"}</td>
       <td class="r held">${held(o.open_time)}</td>
       <td class="r num"><b class="${cls(o.profit)}">${money(o.profit)}</b></td></tr>`).join("")}</tbody></table>`;
   // ซ่อนแถวที่ล้นกรอบ (หน้านี้ห้ามเลื่อน) แล้วบอกว่ามีอีกกี่ไม้
