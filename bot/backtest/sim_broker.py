@@ -108,6 +108,11 @@ class SimBroker(IMarketData, IAccount, IOrderExecutor):
         bar=None → คิดถึงเวลาปัจจุบัน (ตอนปิดไม้) — ด้านระวัง: ปิดตรงเที่ยงคืนพอดีนับเป็นอีก 1 คืน"""
         spec = self._specs[pos.symbol]
         rate = spec.swap_long_rate if pos.side is Side.BUY else spec.swap_short_rate
+        if spec.carry:
+            # ปีของ "คืนแรก" ในช่วงที่คิด (คืน 31 ธ.ค. เป็นของปีเก่า)
+            year = (pos.swap_date or pos.open_time.date()).year
+            row = next((r for r in spec.carry if r[0] == year), spec.carry[-1])
+            rate = row[1] if pos.side is Side.BUY else row[2]
         price = (bar.close if bar is not None else self._last[pos.symbol].close)
         per_night = rate / 365 * price * spec.contract_size        # USD ต่อ lot ต่อคืน ตามมูลค่าไม้ ณ ตอนนั้น
         d = bar.time.date() if bar is not None else self.now().date()

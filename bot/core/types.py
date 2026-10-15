@@ -55,6 +55,8 @@ class SymbolSpec:
     # ต้องเป็น % ไม่ใช่ USD ตายตัว: ใช้ย้อนหลังกับราคาต่างยุคได้ถูก (ทอง 2008 $900 vs 2026 $4,100)
     swap_long_rate: float = 0.0
     swap_short_rate: float = 0.0
+    # ต้นทุนถือที่เปลี่ยนตามปี: ((ปี, long_rate, short_rate), ...) — ถ้ามี ใช้แทน swap_*_rate (research)
+    carry: tuple = ()
 
     def round_volume_down(self, volume: float) -> float:
         """ปัดลงให้ตรง volume_step (ปัดลงเสมอ → ไม่มีวันเสี่ยงเกินที่คำนวณ)"""

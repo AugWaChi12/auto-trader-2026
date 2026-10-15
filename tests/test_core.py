@@ -207,3 +207,17 @@ def test_swap_accrues_per_calendar_night() -> None:
     t = b.closed[0]
     price_pnl = (2000.0 - 2000.20) * 1.0 * 100
     assert t.pnl == pytest.approx(price_pnl - 5.0 * 7)
+
+
+def test_carry_schedule_by_year() -> None:
+    from dataclasses import replace
+    spec = replace(XAU, carry=((2024, -0.0365 * 2, 0.0), (2025, 0.0, 0.0)))
+    b = SimBroker({"XAUUSD": spec}, 10_000.0, timedelta(days=1))
+    t = datetime(2024, 12, 30, tzinfo=UTC)
+    b.on_bar("XAUUSD", bar(t, 2000, 2000, 2000, 2000))
+    b.send(OrderRequest("XAUUSD", Side.BUY, 1.0, 1900.0, None, "t", "g"))
+    for i in range(1, 5):                                     # 31 ธ.ค. (คิด 2024) → 1–3 ม.ค. (คิด 2025 = 0)
+        b.on_bar("XAUUSD", bar(t + timedelta(days=i), 2000, 2001, 1999, 2000))
+    b.close(1, "end")
+    one_night_2024 = 0.0365 * 2 / 365 * 2000 * 100            # คืน 31 ธ.ค. เท่านั้นที่คิดอัตราปี 2024
+    assert b.closed[0].pnl == pytest.approx((2000 - 2000.20) * 100 - one_night_2024, rel=1e-6)

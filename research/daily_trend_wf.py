@@ -39,7 +39,7 @@ HOLDOUT_END = datetime(2026, 10, 16, tzinfo=UTC)
 DATA_START = {"NAS100": datetime(2016, 1, 1, tzinfo=UTC)}   # NAS100 ก่อน 2016 มีแค่ ~100 แท่ง/ปี (ข้อมูลไม่ครบ)
 GRID = {"entry_n": [20, 50, 100], "stop_atr": [2.0, 3.0, 4.0]}
 TEST_YEARS = list(range(2013, 2023))
-T_CRIT = 2.4
+T_CRIT = 2.5   # รอบ 4 มี 4 สมมติฐาน (T1–T4)
 MIN_OPT = 30
 # ความเสี่ยงต่อไม้คงที่ (vol targeting ผ่านระยะ SL ตาม ATR) · พอร์ตเปิดได้หลายตลาดพร้อมกัน
 RISK = RiskConfig(risk_per_trade=0.005, daily_loss_limit=1.0, max_drawdown=1.0, max_open_groups=50,
@@ -125,13 +125,13 @@ def report(wf: dict) -> dict:
     print("ต่อตลาด:", {k: (len(v), round(v.mean(), 3)) for k, v in rule.groupby("symbol")["r"]})
     checks = {
         "n>=150": s["n"] >= 150, "exp>=+0.10R": s["exp"] >= 0.10, "PF>=1.2": s["pf"] >= 1.2,
-        "t>=2.4": s["t"] >= T_CRIT, "years+>=60%": years_pos >= 0.6,
+        f"t>={T_CRIT}": s["t"] >= T_CRIT, "years+>=60%": years_pos >= 0.6,
         "beat random": s["exp"] > sr["exp"], "beat long-only": s["exp"] > sl["exp"],
     }
     for k, v in checks.items():
         print(f"  [{'PASS' if v else 'fail'}] {k}")
     passed = all(checks.values())
-    print(f"==> T1: {'ผ่าน' if passed else 'ตก'}")
+    print(f"==> {'ผ่าน' if passed else 'ตก'}")
     return {"passed": passed, "wf": s, "random": sr, "long": sl, "years_positive": float(years_pos),
             "rows": wf["rows"], "checks": checks}
 
