@@ -158,7 +158,9 @@ class LiveRunner:
         now = datetime.now(UTC)
         hb = {"time": now.isoformat(), "pid": os.getpid(), "equity": self.broker.equity(),
               "last_bars": {s: t.isoformat() for s, t in self._last_time.items()},
-              "algo_trading": self.broker.algo_trading_enabled(), "killed": self.risk.killed}
+              "algo_trading": self.broker.algo_trading_enabled(), "killed": self.risk.killed,
+              "kill_reason": self.risk.kill_reason, "halted_today": self.risk.halted_today,
+              "profile": self.profile, "strategies": {s.tag: s.status() for s in self.strategies}}
         self._heartbeat_path.write_text(json.dumps(hb, indent=1), encoding="utf-8")
         if now - self._last_heartbeat_log >= timedelta(minutes=30):
             self._last_heartbeat_log = now

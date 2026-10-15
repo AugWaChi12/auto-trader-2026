@@ -70,3 +70,14 @@ class SessionMomentum(Strategy):
         sl = bar.close - int(side) * self.cfg.sl_adr * adr
         return [EnterSignal(self.symbol, side, sl, None, self.tag, key=f"{self.tag}:{rng.day}",
                             reason=f"morning move {move:+.2f} = {move / adr:+.2f} ADR")]
+
+    def status(self) -> dict:
+        rng = self.rng
+        adr = rng.daily.adr
+        return {
+            "type": "session_momentum", "symbol": self.symbol, "day": str(rng.day),
+            "tz": self.cfg.tz, "measure_start": self.cfg.measure_start, "entry_time": self.cfg.entry_time,
+            "flat_time": self.cfg.flat_time, "range_open": rng.range_open, "adr": adr,
+            "threshold": self.cfg.min_move_adr * adr if adr else None, "min_move_adr": self.cfg.min_move_adr,
+            "sl_adr": self.cfg.sl_adr,
+        }

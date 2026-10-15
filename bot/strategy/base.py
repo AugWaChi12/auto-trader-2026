@@ -66,6 +66,10 @@ class Strategy(ABC):
     def on_bar(self, bar: Bar, account: IAccount) -> list[Signal]:
         """เรียกเมื่อแท่งของ self.symbol ปิด"""
 
+    def status(self) -> dict:
+        """สถานะสำหรับหน้า monitor (ไม่บังคับ)"""
+        return {}
+
 
 class SessionRange:
     """ติดตามกรอบ high/low ของ session ในแต่ละวัน + ADR สำหรับวัดความกว้าง"""

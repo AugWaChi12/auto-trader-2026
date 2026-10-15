@@ -59,7 +59,11 @@ $env:MT5_PATH = "C:\Program Files\<โบรก> MetaTrader 5\terminal64.exe"   
 .\.venv\Scripts\python -m bot smoke      # ทดสอบ เปิด → เลื่อน SL → ปิด 0.01 lot
 .\start_bot.ps1                           # เปิดบอทในหน้าต่างแยก (หรือ python -m bot live)
 .\.venv\Scripts\python -m bot status     # บอทยังทำงานไหม / ไม้ที่เปิด / P&L
+.\monitor.ps1                             # หน้าเว็บ monitor http://127.0.0.1:8765 (อ่านอย่างเดียว)
 ```
+
+หน้า monitor: สถานะบอท/MT5, equity, กำไรวันนี้/รวม, สัญญาณวันนี้ (ทองวิ่งไปเท่าไรเทียบเกณฑ์),
+ไม้ที่เปิด, ประวัติเข้า-ออก-กำไร, กราฟ equity, log ล่าสุด — stdlib ล้วน ไม่ใช้เน็ต ผูก 127.0.0.1 เท่านั้น
 
 - กลยุทธ์ที่รัน: `LIVE_STRATEGIES` ใน config.py (ตอนนี้ `xau_momo` — ยังไม่ผ่านเกณฑ์ ทดสอบไปข้างหน้าบน demo)
 - profile `demo_1k`: ยอมเปิด 0.01 lot แม้เสี่ยงเกิน 1% (สูงสุด 6%) เพื่อให้ทุน $1,000 เก็บผลเป็น R ได้ — ห้ามใช้กับเงินจริง

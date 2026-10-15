@@ -8,6 +8,7 @@ CLI
     python -m bot smoke                         # ทดสอบส่ง/แก้/ปิดออเดอร์ 0.01 lot บน demo
     python -m bot live                          # รันบอทบน demo (Ctrl+C หยุด)
     python -m bot status                        # ดูสถานะบอท / ไม้ / ผลย้อนหลัง
+    python -m bot monitor                       # หน้าเว็บ monitor ที่ http://127.0.0.1:8765
 """
 from __future__ import annotations
 
@@ -156,6 +157,11 @@ def cmd_status(a: argparse.Namespace) -> None:
         print(f"  {t:%m-%d %H:%M} UTC #{d.position_id} {d.profit + d.commission:+.2f}  {d.comment}")
 
 
+def cmd_monitor(a: argparse.Namespace) -> None:
+    from .monitor.server import serve
+    serve(a.port, not a.no_browser)
+
+
 def main() -> None:
     # Windows console (cp874) พิมพ์ภาษาไทย/สัญลักษณ์บางตัวไม่ได้เมื่อ output ถูก pipe
     for stream in (sys.stdout, sys.stderr):
@@ -204,6 +210,11 @@ def main() -> None:
     st = sub.add_parser("status", help="สถานะบอท")
     st.add_argument("--days", type=int, default=7)
     st.set_defaults(fn=cmd_status)
+
+    mo = sub.add_parser("monitor", help="หน้าเว็บ monitor (อ่านอย่างเดียว)")
+    mo.add_argument("--port", type=int, default=8765)
+    mo.add_argument("--no-browser", action="store_true")
+    mo.set_defaults(fn=cmd_monitor)
 
     a = p.parse_args()
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
