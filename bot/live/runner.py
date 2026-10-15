@@ -107,7 +107,16 @@ class LiveRunner:
 
     # ------------------------------------------------------------------ วนรอบ
     def run_forever(self) -> None:
-        self.start()
+        # เริ่มไม่ได้ (เช่น MT5 ยังไม่เปิดตอนบูตเครื่อง) → รอแล้วลองใหม่ ไม่ดับเงียบ
+        delay = 10
+        while True:
+            try:
+                self.start()
+                break
+            except ConnectionError as e:          # NotDemoAccount ต้องหยุดทันที ห้ามวนลองใหม่
+                log.warning("เริ่มไม่ได้: %s → ลองใหม่ใน %ds", e, delay)
+                time.sleep(delay)
+                delay = min(delay * 2, 300)
         failures = 0
         while True:
             try:

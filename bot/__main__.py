@@ -100,7 +100,11 @@ def cmd_live(a: argparse.Namespace) -> None:
     from .live.runner import LiveRunner, setup_file_logging
     path = setup_file_logging(C.LOG_DIR, a.instance)
     print(f"log: {path}")
-    LiveRunner(a.instance, a.strategies.split(",") if a.strategies else None, a.profile).run_forever()
+    try:
+        LiveRunner(a.instance, a.strategies.split(",") if a.strategies else None, a.profile).run_forever()
+    except Exception:
+        logging.getLogger("live").exception("บอทหยุดเพราะ error ที่ไม่คาดคิด")   # แบบไม่มีหน้าต่าง: เห็นได้จาก log เท่านั้น
+        raise
 
 
 def cmd_smoke(a: argparse.Namespace) -> None:
@@ -170,7 +174,8 @@ def cmd_monitor(a: argparse.Namespace) -> None:
 def main() -> None:
     # Windows console (cp874) พิมพ์ภาษาไทย/สัญลักษณ์บางตัวไม่ได้เมื่อ output ถูก pipe
     for stream in (sys.stdout, sys.stderr):
-        stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        if stream is not None:      # pythonw.exe (รันแบบไม่มีหน้าต่าง) ไม่มี stdout/stderr
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
     p = argparse.ArgumentParser(prog="bot")
     p.add_argument("-v", "--verbose", action="store_true")
     sub = p.add_subparsers(dest="cmd", required=True)

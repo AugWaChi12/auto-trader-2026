@@ -58,7 +58,8 @@ $env:MT5_PATH = "C:\Program Files\<โบรก> MetaTrader 5\terminal64.exe"   
 # MT5 ต้องเปิดอยู่ ล็อกอินบัญชี DEMO และกดปุ่ม "Algo Trading" ให้เป็นสีเขียว
 .\.venv\Scripts\python -m bot smoke      # ทดสอบ เปิด → เลื่อน SL → ปิด 0.01 lot
 .\start_bot.ps1                           # เปิดบอทหลัก (xau_momo) ในหน้าต่างแยก
-.\start_bot.ps1 -Instance all             # เปิดทุกบอท: main + lab_m5 + lab_m1 (แล็บสแกลป์ — ตก backtest, รันเพื่อดูผลจริง)
+.\start_bot.ps1 -Instance all             # เปิดทุกบอทแบบซ่อน (ไม่มีหน้าต่าง) — ดูผ่าน monitor / logs.\stop_bot.ps1 -Instance all              # ปิดทุกบอท (ไม้ที่เปิดอยู่ยังมี SL/TP ฝั่ง server) · -Monitor ปิด monitor ด้วย
+.\start_bot.ps1 -Instance all -Visible    # เปิดแบบมีหน้าต่าง (ไว้ดีบัก)
 .\.venv\Scripts\python -m bot status     # บอทยังทำงานไหม / ไม้ที่เปิด / P&L
 .\monitor.ps1                             # หน้าเว็บ monitor http://127.0.0.1:8765 (อ่านอย่างเดียว)
 .\monitor.ps1 -Charts                     # กราฟหลายจอ: ทอง/NAS × M1/M5/M15/H1 + เส้นจุดเข้า/SL/TP
