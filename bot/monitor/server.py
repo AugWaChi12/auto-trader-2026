@@ -28,7 +28,7 @@ from ..live.mt5_broker import decode_comment
 log = logging.getLogger("monitor")
 HERE = Path(__file__).parent
 PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html",
-         "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html"}
+         "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html", "/live": HERE / "live.html"}
 TECHNIQUES = C.ROOT / "research" / "techniques.json"
 RADAR_STATS = C.ROOT / "research" / "out" / "radar_stats.json"
 TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
@@ -176,7 +176,7 @@ class Collector:
         return {"trades": len(real), "wins": len(wins),
                 "win_rate": round(len(wins) / len(real) * 100, 1) if real else None,
                 "total": round(sum(t["profit"] for t in real), 2), "today": round(sum(t["profit"] for t in today), 2),
-                "today_trades": len(today), "best": max((t["profit"] for t in real), default=None),
+                "today_trades": len(today), "today_wins": sum(1 for t in today if t["profit"] > 0), "best": max((t["profit"] for t in real), default=None),
                 "worst": min((t["profit"] for t in real), default=None)}
 
     def _collect(self) -> dict:

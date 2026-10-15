@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gold Bot Live</title>
+<style>
+  :root {
+    --bg: #0b0d11; --card: #14171d; --line: #232833; --text: #eef0f3; --muted: #8a93a3; --chip: #1d222b;
+    --up: #2fd17a; --down: #ff5f57; --gold: #e8b64a; --entry: #6aa3ff; --track: #222733;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #eef1f5; --card: #ffffff; --line: #e1e5eb; --text: #151a22; --muted: #687384;
+      --chip: #eef1f5; --up: #0d9a52; --down: #d8352c; --gold: #a87710; --entry: #2563eb; --track: #e7ebf0; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: "Segoe UI", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif;
+         font-size: clamp(11px, 1.05vw, 16px); }
+  .app { height: 100vh; display: grid; gap: 1vh; padding: 1.2vh 1.2vw;
+         grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 1.2vh 1vw; min-height: 0; min-width: 0;
+          display: flex; flex-direction: column; overflow: hidden; }
+  .card h3 { margin: 0 0 .8vh; font-size: .82em; font-weight: 600; color: var(--muted); letter-spacing: .02em; display: flex; justify-content: space-between; gap: 8px; }
+  .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* แถบบน */
+  .top { display: flex; align-items: center; gap: 1vw; }
+  .brand { font-size: 1.5em; font-weight: 750; letter-spacing: .01em; }
+  .brand span { color: var(--gold); }
+  .live { display: inline-flex; align-items: center; gap: .4em; font-weight: 700; color: var(--down); font-size: .9em; }
+  .live i { width: .65em; height: .65em; border-radius: 50%; background: var(--down); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.75); } }
+  .pill { background: var(--chip); border-radius: 999px; padding: .25em .8em; font-size: .85em; white-space: nowrap; }
+  .demo { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); font-weight: 650; }
+  .spacer { flex: 1; }
+  .clock { font-size: 1.35em; font-weight: 650; }
+
+  /* KPI */
+  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1vw; }
+  .kpi .v { font-size: 2.1em; font-weight: 750; line-height: 1.1; }
+  .kpi .s { color: var(--muted); font-size: .82em; margin-top: .3vh; }
+
+  /* กลาง */
+  .mid { display: grid; gap: 1vw; min-height: 0; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+  .left { display: grid; gap: 1vh; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
+  .right { display: grid; gap: 1vh; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
+  canvas { width: 100%; flex: 1; min-height: 0; display: block; }
+  .mainbot { display: grid; grid-template-columns: auto 1fr auto; gap: .4vh 1.2vw; align-items: center; }
+  .mainbot .big { font-size: 1.7em; font-weight: 750; }
+  .side { font-weight: 750; padding: .1em .5em; border-radius: 6px; font-size: .9em; }
+  .side.BUY { background: color-mix(in srgb, var(--up) 16%, transparent); color: var(--up); }
+  .side.SELL { background: color-mix(in srgb, var(--down) 16%, transparent); color: var(--down); }
+  .gauge { height: .7em; background: var(--track); border-radius: 6px; overflow: hidden; }
+  .gauge i { display: block; height: 100%; border-radius: 6px; transition: width .5s; }
+
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td, th { padding: .42vh .4vw; white-space: nowrap; text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: .78em; }
+  td.r, th.r { text-align: right; }
+  tr + tr td { border-top: 1px solid var(--line); }
+  .dot { display: inline-block; width: .55em; height: .55em; border-radius: 50%; margin-right: .4em; }
+  .rank { color: var(--muted); width: 1.4em; }
+
+  .vs { display: grid; grid-template-columns: auto 1fr auto; gap: .6vh .8vw; align-items: center; }
+  .vs .bar { height: 1.1em; background: var(--track); border-radius: 6px; position: relative; overflow: hidden; }
+  .vs .bar i { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
+  .vs .bar .zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--muted); }
+
+  /* แถบล่าง: ไม้ล่าสุด */
+  .ticker { display: flex; gap: .8vw; overflow: hidden; }
+  .tk { flex: 0 0 auto; background: var(--chip); border-radius: 10px; padding: .55vh .7vw; font-size: .9em; white-space: nowrap; }
+  .tk b { font-weight: 700; }
+  .foot { display: flex; gap: 1vw; align-items: center; }
+  .foot .lbl { color: var(--muted); font-size: .82em; white-space: nowrap; }
+  .err { position: fixed; inset: auto 1vw 1vh auto; background: var(--down); color: #fff; padding: .4em .9em; border-radius: 8px; display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">🤖 Gold Bot <span>Live</span></div>
+    <span class="live"><i></i>LIVE</span>
+    <span class="pill demo">บัญชี DEMO · เงินเสมือน</span>
+    <span class="pill" id="mt5">MT5 …</span>
+    <span class="pill" id="botsAlive">บอท …</span>
+    <span class="spacer"></span>
+    <span class="clock num" id="clock">--:--:--</span>
+  </div>
+
+  <div class="kpis">
+    <div class="card kpi"><h3>Equity</h3><div class="v num" id="kEq">–</div><div class="s" id="kEqS">–</div></div>
+    <div class="card kpi"><h3>กำไรวันนี้</h3><div class="v num" id="kToday">–</div><div class="s" id="kTodayS">–</div></div>
+    <div class="card kpi"><h3>กำไรรวม</h3><div class="v num" id="kTotal">–</div><div class="s" id="kTotalS">–</div></div>
+    <div class="card kpi"><h3>ไม้วันนี้</h3><div class="v num" id="kTrades">–</div><div class="s" id="kTradesS">–</div></div>
+    <div class="card kpi"><h3>ชนะวันนี้</h3><div class="v num" id="kWin">–</div><div class="s" id="kWinS">–</div></div>
+  </div>
+
+  <div class="mid">
+    <div class="left">
+      <div class="card"><h3><span>XAUUSD · M5</span><span class="num" id="px">–</span></h3><canvas id="chart"></canvas></div>
+      <div class="card"><h3><span>🎯 บอทหลัก — xau_momo</span><span id="mainState" class="muted"></span></h3><div id="mainbot" class="mainbot"></div></div>
+    </div>
+    <div class="right">
+      <div class="card"><h3><span>🏆 อันดับบอท</span><span class="muted">กำไรรวม</span></h3><div id="board"></div></div>
+      <div class="card"><h3><span>⚖️ กลยุทธ์ vs กลุ่มควบคุม (สุ่มทิศ)</span><span class="muted">$ ต่อไม้</span></h3><div id="vs" class="vs"></div></div>
+    </div>
+  </div>
+
+  <div class="card"><div class="foot"><span class="lbl">ไม้ล่าสุด</span><div class="ticker" id="ticker"></div></div></div>
+</div>
+<div class="err" id="err">ต่อ monitor ไม่ได้</div>
+
+<script>
+const TZ = "Asia/Bangkok";
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const money = (v, sign = true) => v == null ? "–" : (sign && v > 0 ? "+" : "") + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const cls = (v) => v > 0 ? "up" : v < 0 ? "down" : "";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const hm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+const START = 1000;   // ทุนเริ่มต้นบัญชี demo
+
+setInterval(() => { $("clock").textContent = new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date()); }, 1000);
+
+let chartData = null;
+function drawChart() {
+  const cv = $("chart"), d = chartData, dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
+  if (!d || !d.bars?.length) return;
+  const bars = d.bars.map(b => ({ t: Date.parse(b[0]), o: b[1], h: b[2], l: b[3], c: b[4] }));
+  let lo = Math.min(...bars.map(b => b.l)), hi = Math.max(...bars.map(b => b.h));
+  for (const o of d.open) for (const v of [o.open_price, o.sl, o.tp]) if (v && v > lo - (hi - lo) * .4 && v < hi + (hi - lo) * .4) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const pad = (hi - lo) * .06 || 1; lo -= pad; hi += pad;
+  const fs = Math.max(10, Math.min(H / 24, 15));
+  g.font = `bold ${fs}px Segoe UI, sans-serif`;
+  const R = Math.ceil(g.measureText(hi.toFixed(2)).width) + 16, plotW = W - R, n = bars.length, step = plotW / n, bw = Math.max(1, step * .62);
+  const X = i => i * step + step / 2, Y = v => (hi - v) / (hi - lo) * H;
+  g.font = `${fs}px Segoe UI, sans-serif`; g.fillStyle = css("--muted"); g.strokeStyle = css("--line");
+  const clampY = (y) => Math.min(Math.max(y, fs), H - 3);
+  for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4, y = Y(v); g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke(); g.fillText(v.toFixed(1), plotW + 6, clampY(y + 4)); }
+  bars.forEach((b, i) => {
+    const up = b.c >= b.o; g.strokeStyle = g.fillStyle = up ? css("--up") : css("--down");
+    g.beginPath(); g.moveTo(X(i), Y(b.h)); g.lineTo(X(i), Y(b.l)); g.stroke();
+    g.fillRect(X(i) - bw / 2, Y(Math.max(b.o, b.c)), bw, Math.max(1, Math.abs(Y(b.o) - Y(b.c))));
+  });
+  const line = (v, col, dash, label) => {
+    if (!v || v < lo || v > hi) return; const y = Y(v);
+    g.strokeStyle = col; g.setLineDash(dash); g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke();
+    g.setLineDash([]); g.lineWidth = 1; if (label) { g.fillStyle = col; g.fillText(label, 6, y - 4); }
+  };
+  for (const o of d.open) { line(o.open_price, css("--entry"), [], `${o.side} [${o.bot}] ${money(o.profit)}`); line(o.sl, css("--down"), [5, 4], ""); line(o.tp, css("--up"), [5, 4], ""); }
+  if (d.bid) { const y = clampY(Y(d.bid) + fs * .35) - fs * .35; g.fillStyle = css("--gold"); g.fillRect(plotW + 2, y - fs * .8, R - 2, fs * 1.6);
+    g.fillStyle = css("--bg"); g.font = `bold ${fs}px Segoe UI`; g.fillText(d.bid.toFixed(2), plotW + 8, y + fs * .35); }
+}
+window.addEventListener("resize", drawChart);
+
+function mainCard(d) {
+  const st = d.bots?.main?.strategies?.xau_momo || {};
+  const pos = (d.open || []).find(o => o.bot === "main");
+  const q = d.quotes?.XAUUSD?.bid;
+  $("mainState").textContent = d.bots?.main?.alive ? "● ทำงาน" : "● หยุด";
+  $("mainState").className = d.bots?.main?.alive ? "up" : "down";
+  if (pos) {
+    $("mainbot").innerHTML = `<span class="side ${pos.side}">${pos.side}</span>
+      <span>ทอง ${pos.volume} lot @ <b class="num">${pos.open_price.toFixed(2)}</b> · SL <span class="num">${pos.sl?.toFixed(2) ?? "–"}</span> · ถือถึง 03:00 น.<br>
+      <span class="muted">เข้าเมื่อ ${hm(pos.open_time)} น. · ตอนนี้ ${pos.price.toFixed(2)}</span></span>
+      <span class="big num ${cls(pos.profit)}">${money(pos.profit)}</span>`;
+  } else if (st.range_open && st.threshold && q) {
+    const move = q - st.range_open, p = Math.min(Math.abs(move) / st.threshold, 1);
+    $("mainbot").innerHTML = `<span class="muted">${esc(st.state || "")}</span>
+      <div><div class="gauge"><i style="width:${p * 100}%;background:${move >= 0 ? "var(--up)" : "var(--down)"}"></i></div>
+      <span class="muted" style="font-size:.85em">ทองวิ่ง ${move >= 0 ? "+" : ""}${move.toFixed(2)} จากเช้า · เกณฑ์ ±${st.threshold.toFixed(2)} · ตัดสิน 19:00 น.</span></div>
+      <span class="big num">${Math.round(p * 100)}%</span>`;
+  } else {
+    $("mainbot").innerHTML = `<span class="muted" style="grid-column:1/-1">รอข้อมูลช่วงเช้า · เข้าได้วันละไม่เกิน 1 ไม้ ตอน 19:00 น.</span>`;
+  }
+}
+
+function board(d) {
+  const rows = Object.entries(d.per_bot || {}).filter(([n]) => n !== "main").map(([n, s]) => ({ n, s, b: d.bots?.[n] || {} }))
+    .sort((a, z) => (z.s.total || 0) - (a.s.total || 0));
+  const main = d.per_bot?.main;
+  const html = rows.map((r, i) => `<tr><td class="rank">${i + 1}</td>
+      <td><span class="dot" style="background:${r.b.alive ? "var(--up)" : "var(--down)"}"></span>${esc(r.n)}${r.n.startsWith("c1_") ? ' <span class="muted" style="font-size:.8em">ควบคุม</span>' : ""}</td>
+      <td class="r">${r.s.trades || 0}</td><td class="r">${r.s.win_rate == null ? "–" : r.s.win_rate + "%"}</td>
+      <td class="r ${cls(r.s.today)}">${money(r.s.today || 0)}</td><td class="r ${cls(r.s.total)}"><b>${money(r.s.total || 0)}</b></td></tr>`).join("");
+  $("board").innerHTML = `<table><thead><tr><th></th><th>บอท</th><th class="r">ไม้</th><th class="r">ชนะ</th><th class="r">วันนี้</th><th class="r">รวม</th></tr></thead>
+    <tbody>${main ? `<tr><td class="rank">★</td><td><span class="dot" style="background:${d.bots?.main?.alive ? "var(--up)" : "var(--down)"}"></span><b>main</b></td>
+      <td class="r">${main.trades}</td><td class="r">${main.win_rate == null ? "–" : main.win_rate + "%"}</td>
+      <td class="r ${cls(main.today + main.floating)}">${money(main.today + main.floating)}</td><td class="r ${cls(main.total + main.floating)}"><b>${money(main.total + main.floating)}</b></td></tr>` : ""}${html}</tbody></table>`;
+}
+
+function vs(d) {
+  const pb = d.per_bot || {};
+  const sum = (pred) => Object.entries(pb).filter(([n]) => pred(n)).reduce((a, [, s]) => ({ n: a.n + (s.trades || 0), pnl: a.pnl + (s.total || 0) }), { n: 0, pnl: 0 });
+  const strat = sum(n => n !== "main" && !n.startsWith("c1_")), ctrl = sum(n => n.startsWith("c1_"));
+  const per = (x) => x.n ? x.pnl / x.n : 0;
+  const a = per(strat), b = per(ctrl), m = Math.max(Math.abs(a), Math.abs(b), 0.01);
+  const bar = (v) => { const w = Math.abs(v) / m * 50; return `<div class="bar"><i style="${v >= 0 ? `left:50%;width:${w}%;background:var(--up)` : `right:50%;width:${w}%;background:var(--down)`}"></i><span class="zero"></span></div>`; };
+  $("vs").innerHTML = `<span>กลยุทธ์ <span class="muted">(${strat.n} ไม้)</span></span>${bar(a)}<b class="num ${cls(a)}">${money(a)}</b>
+    <span>สุ่มทิศ <span class="muted">(${ctrl.n} ไม้)</span></span>${bar(b)}<b class="num ${cls(b)}">${money(b)}</b>
+    <span class="muted" style="grid-column:1/-1;font-size:.8em">${strat.n < 200 || ctrl.n < 200 ? "ข้อมูลยังน้อย — ต้องหลายร้อยไม้ถึงจะเทียบได้" :
+      a > b ? "กลยุทธ์ทำได้ดีกว่าการสุ่ม (ยังต้องดูต่อเนื่อง)" : "กลยุทธ์ยังไม่ดีกว่าการสุ่มทิศ"}</span>`;
+}
+
+async function refresh() {
+  let d;
+  try { d = await (await fetch("/api", { cache: "no-store" })).json(); $("err").style.display = "none"; }
+  catch { $("err").style.display = "block"; return; }
+  if (d.error) { $("err").textContent = "MT5: " + d.error; $("err").style.display = "block"; return; }
+  const a = d.account, s = d.stats, t = d.terminal;
+  $("mt5").innerHTML = `<span class="dot" style="background:${t.connected ? "var(--up)" : "var(--down)"}"></span>MT5 ${t.connected ? "ออนไลน์" : "หลุด"} · Algo ${t.algo ? "เปิด" : "ปิด"}`;
+  const bots = Object.values(d.bots || {}), alive = bots.filter(b => b.alive).length;
+  $("botsAlive").innerHTML = `<span class="dot" style="background:${alive === bots.length ? "var(--up)" : "var(--down)"}"></span>บอททำงาน ${alive}/${bots.length}`;
+
+  $("kEq").textContent = money(a.equity, false);
+  $("kEqS").innerHTML = `เริ่ม ${START.toLocaleString()} · <span class="${cls(a.equity - START)}">${money((a.equity / START - 1) * 100)}%</span>`;
+  $("kToday").innerHTML = `<span class="${cls(s.today + a.floating)}">${money(s.today + a.floating)}</span>`;
+  $("kTodayS").innerHTML = `ปิดแล้ว ${money(s.today)} · ลอย <span class="${cls(a.floating)}">${money(a.floating)}</span>`;
+  $("kTotal").innerHTML = `<span class="${cls(s.total)}">${money(s.total)}</span>`;
+  $("kTotalS").textContent = `${s.trades.toLocaleString()} ไม้ที่ปิดแล้ว · ดีสุด ${money(s.best)} · แย่สุด ${money(s.worst)}`;
+  $("kTrades").textContent = (s.today_trades || 0).toLocaleString();
+  $("kTradesS").textContent = `เปิดอยู่ ${d.open.length} ไม้`;
+  const wr = s.today_trades ? s.today_wins / s.today_trades * 100 : null;
+  $("kWin").textContent = wr == null ? "–" : wr.toFixed(0) + "%";
+  $("kWinS").textContent = s.today_trades ? `${s.today_wins} ชนะ / ${s.today_trades - s.today_wins} แพ้` : "ยังไม่มีไม้ปิดวันนี้";
+
+  mainCard(d); board(d); vs(d);
+  $("ticker").innerHTML = (d.trades || []).slice(0, 12).map(x => `<span class="tk"><span class="side ${x.side}">${x.side}</span>
+    ${esc(x.bot)} <span class="muted">${hm(x.close_time)}</span> <b class="${cls(x.profit)}">${money(x.profit)}</b></span>`).join("");
+}
+
+async function refreshChart() {
+  try { chartData = await (await fetch("/api/bars?symbol=XAUUSD&tf=M5&n=110", { cache: "no-store" })).json(); } catch { return; }
+  if (chartData.bid) $("px").textContent = chartData.bid.toFixed(2);
+  drawChart();
+}
+refresh(); refreshChart();
+setInterval(refresh, 5000); setInterval(refreshChart, 5000);
+</script>
+</body>
+</html>
