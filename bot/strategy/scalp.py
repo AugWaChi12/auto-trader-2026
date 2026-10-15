@@ -118,6 +118,8 @@ class RsiReversionConfig:
     seed: int = 7
     tp_r: float | None = None          # ปิดเมื่อกำไรถึงกี่ R (None = ออกตาม EMA5 เท่านั้น)
     be_at_r: float | None = None
+    sl_price: float | None = None      # SL/TP เป็นระยะราคาตายตัว (เช่น ทอง 2.0 = $2 ต่อ 0.01 lot) — ทับค่าแบบ ATR
+    tp_price: float | None = None      # ถ้าตั้ง tp_price จะปิดตาม TP/SL เท่านั้น ไม่ใช้ EMA5
 
 
 class RsiReversion(_ScalpBase):
@@ -136,7 +138,8 @@ class RsiReversion(_ScalpBase):
         pos = account.positions(self.symbol, self.tag)
         if pos:
             p = pos[0]
-            if (p.side is Side.BUY and bar.close > e5) or (p.side is Side.SELL and bar.close < e5):
+            if self.cfg.tp_price is None and ((p.side is Side.BUY and bar.close > e5) or
+                                              (p.side is Side.SELL and bar.close < e5)):
                 return [ExitSignal(self.symbol, self.tag, "ema5")]
             return []
         if rsi is None or atr is None or not self.ema200.ready or not self._can_enter(bar):
@@ -147,8 +150,9 @@ class RsiReversion(_ScalpBase):
             rule = Side.SELL
         else:
             return []
-        d = self.cfg.sl_atr * atr
-        return self._signal(bar, rule, d, None if self.cfg.tp_r is None else self.cfg.tp_r * d, f"RSI2={rsi:.0f}")
+        d = self.cfg.sl_price or self.cfg.sl_atr * atr
+        tp_d = self.cfg.tp_price or (None if self.cfg.tp_r is None else self.cfg.tp_r * d)
+        return self._signal(bar, rule, d, tp_d, f"RSI2={rsi:.0f}")
 
     def status(self) -> dict:
         b, rsi, e200 = self.last_bar, self.rsi.value, self.ema200.value
@@ -178,6 +182,8 @@ class EmaCrossConfig:
     side_mode: str = "rule"
     seed: int = 7
     be_at_r: float | None = None
+    sl_price: float | None = None
+    tp_price: float | None = None
 
 
 class EmaCross(_ScalpBase):
@@ -204,8 +210,8 @@ class EmaCross(_ScalpBase):
             rule = Side.SELL
         else:
             return []
-        d = self.cfg.sl_atr * atr
-        return self._signal(bar, rule, d, self.cfg.tp_r * d, f"EMA{self.cfg.fast}/{self.cfg.slow} cross")
+        d = self.cfg.sl_price or self.cfg.sl_atr * atr
+        return self._signal(bar, rule, d, self.cfg.tp_price or self.cfg.tp_r * d, f"EMA{self.cfg.fast}/{self.cfg.slow} cross")
 
     def status(self) -> dict:
         b, atr = self.last_bar, self.atr.value
@@ -233,6 +239,8 @@ class BollingerFadeConfig:
     seed: int = 7
     tp_r: float | None = None          # ปิดที่ min(เส้นกลาง, tp_r × R)
     be_at_r: float | None = None
+    sl_price: float | None = None
+    tp_price: float | None = None      # ตั้งแล้วใช้ระยะนี้แทนเส้นกลาง
 
 
 class BollingerFade(_ScalpBase):
@@ -256,8 +264,10 @@ class BollingerFade(_ScalpBase):
             rule = Side.SELL
         else:
             return []
-        d = self.cfg.sl_atr * atr
+        d = self.cfg.sl_price or self.cfg.sl_atr * atr
         tp_d = abs(mid - bar.close) if self.cfg.tp_r is None else min(abs(mid - bar.close), self.cfg.tp_r * d)
+        if self.cfg.tp_price:
+            tp_d = self.cfg.tp_price
         return self._signal(bar, rule, d, tp_d, f"BB({self.cfg.k}) fade")
 
     def status(self) -> dict:
