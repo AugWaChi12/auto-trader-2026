@@ -35,6 +35,8 @@ class MomentumConfig:
     sl_adr: float = 0.5
     adr_lookback: int = 10
     side_mode: str = "follow"   # "follow" = กลยุทธ์จริง | "long" / "random" = benchmark ที่กลไกเหมือนกันทุกอย่าง
+    tp_r: float | None = None   # ปิดกำไรที่กี่ R (None = ถือถึง flat_time ตามผลวิจัยเดิม)
+    tp_price: float | None = None  # หรือปิดกำไรที่ระยะราคาตายตัว
     plan: ManagementPlan = field(default_factory=lambda: ManagementPlan(partial_r=None, trail_atr_mult=None))
 
 
@@ -67,8 +69,11 @@ class SessionMomentum(Strategy):
             side = Side.BUY
         elif self.cfg.side_mode == "random":
             side = Side.BUY if self._rand.random() < 0.5 else Side.SELL
-        sl = bar.close - int(side) * self.cfg.sl_adr * adr
-        return [EnterSignal(self.symbol, side, sl, None, self.tag, key=f"{self.tag}:{rng.day}",
+        d = self.cfg.sl_adr * adr
+        sl = bar.close - int(side) * d
+        tp_d = self.cfg.tp_price or (self.cfg.tp_r * d if self.cfg.tp_r else None)
+        tp = bar.close + int(side) * tp_d if tp_d else None
+        return [EnterSignal(self.symbol, side, sl, tp, self.tag, key=f"{self.tag}:{rng.day}",
                             reason=f"morning move {move:+.2f} = {move / adr:+.2f} ADR")]
 
     def status(self) -> dict:
