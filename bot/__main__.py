@@ -150,8 +150,10 @@ def cmd_status(a: argparse.Namespace) -> None:
     deals = [d for d in b.bot_deals(datetime.now(UTC) - timedelta(days=a.days)) if d.entry == 1]
     total = sum(d.profit + d.commission + d.swap + d.fee for d in deals)
     print(f"ปิดไปแล้ว {len(deals)} ดีล ใน {a.days} วัน  P/L รวม {total:+.2f}")
+    from .core.timeutil import server_to_utc
     for d in deals[-10:]:
-        print(f"  {datetime.fromtimestamp(d.time, UTC):%m-%d %H:%M} #{d.position_id} {d.profit + d.commission:+.2f}  {d.comment}")
+        t = server_to_utc(datetime.fromtimestamp(d.time, UTC).replace(tzinfo=None), C.SERVER_TIME_MODE)
+        print(f"  {t:%m-%d %H:%M} UTC #{d.position_id} {d.profit + d.commission:+.2f}  {d.comment}")
 
 
 def main() -> None:
