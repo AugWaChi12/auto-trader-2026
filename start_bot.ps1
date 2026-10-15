@@ -9,7 +9,7 @@ param(
 $root = $PSScriptRoot
 $py = Join-Path $root ".venv\Scripts\python.exe"
 $names = @($Instance)
-if ($Instance -eq "all") { $names = @("main", "lab_m5", "lab_m1", "gamble") }
+if ($Instance -eq "all") { $names = (& $py -c "from bot import config as C; print(' '.join(C.LIVE_INSTANCES))").Split(" ") }
 foreach ($n in $names) {
     $running = Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -match "bot live --instance $n(\s|$)" }
     if ($running) { Write-Host "[$n] already running (pid $($running[0].ProcessId)) - skipped"; continue }

@@ -81,6 +81,7 @@ const NAMES = {
   session_momentum: "ตามทิศช่วงเช้า", breakout: "ทะลุกรอบ session", sweep: "กวาด stop ขอบกรอบ",
   rsi2: "RSI(2) สวนสั้น", ema_cross: "EMA ตัดกัน", bb_fade: "Bollinger สวนกลับ",
   vol_expansion: "เงียบ → ระเบิด", level_sweep: "กวาด stop ที่ระดับสำคัญ", trend_pullback: "ย่อในเทรนด์",
+  benchmark: "กลุ่มควบคุม — ใช้เทียบว่ากลยุทธ์อื่นดีกว่าการสุ่มจริงไหม",
 };
 
 function card(c) {
@@ -88,7 +89,7 @@ function card(c) {
   const prox = Math.round((st.proximity || 0) * 100);
   const sideCol = st.side === "BUY" ? "var(--up)" : st.side === "SELL" ? "var(--down)" : "var(--muted)";
   const verdict = s.verdict || "";
-  const vcls = verdict.startsWith("ตก") ? "fail" : verdict ? "test" : "";
+  const vcls = verdict.startsWith("ตก") ? "fail" : verdict.startsWith("กลุ่มควบคุม") ? "" : verdict ? "test" : "";
   const cls = c.open.length ? "card open" : prox >= 80 ? "card hot" : "card";
   let prob = '<div class="prob"><div class="k" style="grid-column:1/-1">ยังไม่มีสถิติ — รัน python -m bot radar-stats</div></div>';
   if (s.n) {

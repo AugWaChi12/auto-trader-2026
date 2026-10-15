@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from ..core.indicators import ATR
 from ..core.interfaces import IAccount
 from ..core.types import Bar, EnterSignal, Side, Signal
-from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, flat_signals
+from .base import ManagementPlan, SessionRange, SessionWindow, Strategy, flat_signals, status_dict
 
 
 @dataclass(frozen=True)
@@ -55,3 +55,9 @@ class RandomEntry(Strategy):
         sl = bar.close - int(side) * risk
         tp = None if self.cfg.tp_r is None else bar.close + int(side) * self.cfg.tp_r * risk
         return [EnterSignal(self.symbol, side, sl, tp, self.tag, key=f"{self.tag}:{self.rng.day}")]
+
+    def status(self) -> dict:
+        mode = "ซื้ออย่างเดียว" if self.cfg.side_mode == "long" else "สุ่มทิศ"
+        state = "กำลังสุ่มจังหวะเข้า" if self.rng.in_trade_window else "นอกช่วงเวลา"
+        return status_dict(self, "benchmark", f"กลุ่มควบคุม ({mode})", 0.0, None,
+                           f"{state} · วันละไม่เกิน 1 ไม้ · SL {self.cfg.sl_atr} ATR / TP {self.cfg.tp_r}R")

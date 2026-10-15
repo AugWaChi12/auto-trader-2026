@@ -18,6 +18,7 @@ from .strategy.session_momentum import MomentumConfig, SessionMomentum
 from .strategy.level_sweep import LevelSweep, LevelSweepConfig
 from .strategy.trend_pullback import PullbackConfig, TrendPullback
 from .strategy.vol_expansion import VolExpansion, VolExpansionConfig
+from .strategy.random_entry import RandomConfig, RandomEntry
 from .strategy.scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCrossConfig, RsiReversion,
                              RsiReversionConfig)
 from .strategy.sweep_reversal import SweepConfig, SweepReversal
@@ -71,15 +72,23 @@ LOG_DIR = ROOT / "logs"
 # (เพดานขาดทุนรายวันของ RiskManager คิดจาก equity ทั้งบัญชี — แล็บขาดทุนหนักอาจหยุดบอทหลักวันนั้นด้วย)
 # allocation = ทุนเสมือนของบอทนั้น (sub-account): ขนาดไม้ เพดานขาดทุน kill switch คิดจากกำไรขาดทุนของบอทตัวเอง
 # → บอทหนึ่งขาดทุนหนักไม่ทำให้บอทอื่นหยุด · ผลรวม allocation เกินทุนจริงได้บน demo — บัญชีจริงห้ามทำแบบนี้
-GAMBLE_TAGS = ["g_bo_x", "g_sw_x", "g_bo_n", "g_sw_n", "g_vx_x", "g_vx_n", "g_ls_x", "g_ls_n", "g_pb_x", "g_pb_n"]
+# MAGIC + 3 = บอท "gamble" เดิม (เลิกใช้ 2026-10-15 แยกเป็น g_* ตามหมวด) — ห้ามนำเลขนี้กลับมาใช้
+_G = {"tf": "M15", "profile": "gamble", "allocation": 1000.0}
 LIVE_INSTANCES: dict[str, dict] = {
     "main":   {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
     "lab_m5": {"strategies": ["lr_xau", "lr_nas", "ec_xau"], "tf": "M5", "profile": "demo_1k", "magic": MAGIC + 1,
                "allocation": 1000.0},
     "lab_m1": {"strategies": ["bb_xau"], "tf": "M1", "profile": "demo_1k", "magic": MAGIC + 2, "allocation": 1000.0},
-    # warmup 12,000 แท่ง M15 ≈ 125 วัน — regime classifier ต้องใช้ ~100 วันกว่าจะเริ่มทำงาน
-    "gamble": {"strategies": GAMBLE_TAGS, "tf": "M15", "profile": "gamble", "magic": MAGIC + 3, "allocation": 1000.0,
-               "warmup": 12_000},
+    # บอทวัดใจ แยกตามหมวดเทคนิค → เห็นกำไรขาดทุนแต่ละแนวแยกกัน และมี kill switch ของตัวเอง
+    # warmup 12,000 แท่ง M15 ≈ 125 วัน: regime classifier ต้องใช้ ~100 วัน · EMA50(H4) ต้องใช้ ~35 วัน
+    "g_session": {**_G, "strategies": ["g_bo_x", "g_bo_n"], "magic": MAGIC + 4},
+    "g_sweep":   {**_G, "strategies": ["g_sw_x", "g_sw_n", "g_ls_x", "g_ls_n"], "magic": MAGIC + 5, "warmup": 12_000},
+    "g_vol":     {**_G, "strategies": ["g_vx_x", "g_vx_n"], "magic": MAGIC + 6, "warmup": 12_000},
+    "g_trend":   {**_G, "strategies": ["g_pb_x", "g_pb_n"], "magic": MAGIC + 7, "warmup": 6_000},
+    # กลุ่มควบคุม: เข้าแบบไม่มีสมอง ต้นทุนเดียวกัน — กลยุทธ์ที่ไม่ชนะกลุ่มนี้บน demo = ไม่มี edge
+    "bench_rand": {**_G, "strategies": ["b_rnd_x", "b_rnd_n"], "magic": MAGIC + 8},
+    "bench_long": {**_G, "strategies": ["b_lng_x", "b_lng_n"], "magic": MAGIC + 9},
+    "bench_m5":   {**_G, "tf": "M5", "strategies": ["b_rnd5_x"], "magic": MAGIC + 10},
 }
 
 
@@ -117,6 +126,16 @@ GAMBLE_CONFIGS: list = [
     PullbackConfig(tag="g_pb_n", symbol="NAS100", window=_NW),
 ]
 
+# กลุ่มควบคุม (benchmark) — สุ่มเข้าวันละไม่เกิน 1 ไม้ ในช่วงเวลาที่มีสภาพคล่อง ด้วย SL/TP มาตรฐาน
+_M5W = SessionWindow("UTC", "06:45", "07:00", "17:00", "20:00")
+BENCH_CONFIGS: list = [
+    RandomConfig(tag="b_rnd_x", symbol="XAUUSD", window=_XW, prob_per_bar=0.05, side_mode="random", seed=11),
+    RandomConfig(tag="b_rnd_n", symbol="NAS100", window=_NW, prob_per_bar=0.08, side_mode="random", seed=12),
+    RandomConfig(tag="b_lng_x", symbol="XAUUSD", window=_XW, prob_per_bar=0.05, side_mode="long", seed=13),
+    RandomConfig(tag="b_lng_n", symbol="NAS100", window=_NW, prob_per_bar=0.08, side_mode="long", seed=14),
+    RandomConfig(tag="b_rnd5_x", symbol="XAUUSD", window=_M5W, prob_per_bar=0.02, side_mode="random", seed=15),
+]
+
 STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
     # ผลวิจัย (research/out/locked.json): in-sample +0.114R → out-of-sample +0.037R ไม่ผ่านเกณฑ์ +0.10R
     # เก็บไว้เป็นตัวเลือกทดสอบบน demo เท่านั้น — ยังไม่ใช่กลยุทธ์ที่พิสูจน์แล้ว
@@ -152,13 +171,14 @@ def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = 
     out: list[Strategy] = []
     builders = {BreakoutConfig: SessionBreakout, SweepConfig: SweepReversal, MomentumConfig: SessionMomentum,
                 RsiReversionConfig: RsiReversion, EmaCrossConfig: EmaCross, BollingerFadeConfig: BollingerFade,
-                VolExpansionConfig: VolExpansion, LevelSweepConfig: LevelSweep, PullbackConfig: TrendPullback}
-    for c in STRATEGY_CONFIGS + LAB_CONFIGS + GAMBLE_CONFIGS:
+                VolExpansionConfig: VolExpansion, LevelSweepConfig: LevelSweep, PullbackConfig: TrendPullback,
+                RandomConfig: RandomEntry}
+    for c in STRATEGY_CONFIGS + LAB_CONFIGS + GAMBLE_CONFIGS + BENCH_CONFIGS:
         if tags and c.tag not in tags:
             continue
         if symbols and c.symbol not in symbols:
             continue
-        if tags is None and (c in LAB_CONFIGS or c in GAMBLE_CONFIGS):
+        if tags is None and (c in LAB_CONFIGS or c in GAMBLE_CONFIGS or c in BENCH_CONFIGS):
             continue                       # แล็บต้องเรียกชื่อตรงๆ เท่านั้น ไม่ติดไปกับ backtest ปกติ
         out.append(builders[type(c)](c, timeframe))
     return out

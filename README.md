@@ -65,8 +65,14 @@ $env:MT5_PATH = "C:\Program Files\<โบรก> MetaTrader 5\terminal64.exe"   
 .\.venv\Scripts\python -m bot radar-stats # คำนวณสถิติความน่าจะเป็นใหม่ (หน้า /radar)
 ```
 
-บอทบน demo (bot/config.py `LIVE_INSTANCES`) — แต่ละตัวมีทุนเสมือน $1,000 และเพดานขาดทุนของตัวเอง:
-`main` (xau_momo M15) · `lab_m5` / `lab_m1` (แล็บสแกลป์) · `gamble` (ทุกกลยุทธ์ M15 ที่ตกวิจัย เข้าทุกเงื่อนไข ไม้ละ 0.5%)
+บอทบน demo 10 ตัว (bot/config.py `LIVE_INSTANCES`) — แต่ละตัวมีทุนเสมือน $1,000 และเพดานขาดทุนของตัวเอง:
+
+| กลุ่ม | บอท |
+|---|---|
+| ทดสอบไปข้างหน้า | `main` (xau_momo M15) |
+| แล็บสแกลป์ | `lab_m5` (RSI2, EMA cross) · `lab_m1` (Bollinger) |
+| วัดใจ แยกตามหมวด (ตกวิจัยทั้งหมด, ไม้ละ 0.5%) | `g_session` · `g_sweep` · `g_vol` · `g_trend` |
+| กลุ่มควบคุม (สุ่ม / ซื้ออย่างเดียว) | `bench_rand` · `bench_long` · `bench_m5` |
 
 **คลังเทคนิค** (`/techniques`): ทุกเทคนิคที่ทดสอบ (20 ตัว 7 หมวด) — แนวคิด กฎ ผลวิจัย คำตัดสิน บทเรียน
 และสถานะสดของตัวที่รันบน demo · ข้อมูลอยู่ที่ `research/techniques.json` (เพิ่มเทคนิคใหม่ที่นี่หลังทดสอบเสร็จ)
