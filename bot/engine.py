@@ -121,7 +121,14 @@ class Engine:
         # key ไม่ซ้ำอยู่แล้ว (consumed หลังส่ง) — เลขต่อท้ายแค่กันชนกรณีส่งซ้ำ key เดิม ต้องสั้นเพราะ comment MT5 ≤ 31 ตัว
         group = f"{sig.key}#{self._groups % 100}"
         for req in self._split(sig, decision.volume, entry, group):
-            reply = self.executor.send(req)
+            try:
+                reply = self.executor.send(req)
+            except Exception as e:  # noqa: BLE001
+                # ไม่รู้ว่าออเดอร์ถึง server หรือยัง → fail-safe: ถือว่าใช้สัญญาณนี้ไปแล้ว ห้ามส่งซ้ำ
+                self.guard.mark_consumed(sig.key, now)
+                self._log(now, sig, "send_error", repr(e))
+                log.exception("send failed for %s — marked consumed to avoid duplicate orders", sig.key)
+                return
             self.guard.on_reply(sig, reply, now, self.account.equity())
             if not reply.accepted:
                 self._log(now, sig, f"rejected:{reply.reason.value}", reply.message)

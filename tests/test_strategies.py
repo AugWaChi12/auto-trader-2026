@@ -154,3 +154,20 @@ def test_engine_size_matches_risk() -> None:
     loss_if_sl = (pos.entry_price - pos.sl) * pos.volume * XAU.contract_size
     assert loss_if_sl <= 100.0 + 1e-6          # ไม่เกิน 1% ของ 10,000
     assert loss_if_sl > 100.0 - 6.2 * 1 * 1   # และไม่ต่ำกว่านั้นเกิน 1 step (0.01 lot)
+
+
+def test_engine_send_exception_is_failsafe() -> None:
+    """ส่งออเดอร์แล้วเจอ exception (สถานะไม่แน่นอน) → ต้องจดสัญญาณว่าใช้แล้ว ไม่ส่งซ้ำแท่งถัดไป"""
+    eng, broker = _engine(ManagementPlan(partial_r=None))
+    calls = {"n": 0}
+    real_send = broker.send
+
+    def boom(req):  # noqa: ANN001, ANN202
+        calls["n"] += 1
+        real_send(req)                      # ออเดอร์ถึง server แล้ว แต่ฝั่งเราเจอ error ก่อนได้คำตอบ
+        raise ConnectionError("timeout after send")
+    eng.executor = type("X", (), {"send": staticmethod(boom), "close": broker.close, "modify": broker.modify})()
+    day = date(2025, 1, 20)
+    _feed(eng, broker, warmup() + asian_range_then(day, [(2000, 2006, 1999, 2006), (2006, 2008, 2005, 2007)]))
+    assert calls["n"] == 1
+    assert any(s.outcome == "send_error" for s in eng.stats.signals)

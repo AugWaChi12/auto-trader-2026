@@ -29,6 +29,7 @@ from ..engine import Engine
 from ..execution.order_guard import OrderGuard
 from ..risk.news import NewsCalendar
 from ..risk.risk_manager import RiskManager
+from .fileio import atomic_write
 from .mt5_broker import Mt5Broker
 from .notify import Notifier
 
@@ -143,7 +144,7 @@ class LiveRunner:
 
     def _after_bars(self) -> None:
         self.broker.save_meta()
-        self._risk_path.write_text(json.dumps(self.risk.to_state(), indent=1), encoding="utf-8")
+        atomic_write(self._risk_path, json.dumps(self.risk.to_state(), indent=1))
 
         stats = self.engine.stats
         for s in stats.signals[self._signals_seen:]:
@@ -173,7 +174,7 @@ class LiveRunner:
               "algo_trading": self.broker.algo_trading_enabled(), "killed": self.risk.killed,
               "kill_reason": self.risk.kill_reason, "halted_today": self.risk.halted_today,
               "profile": self.profile, "strategies": {s.tag: s.status() for s in self.strategies}}
-        self._heartbeat_path.write_text(json.dumps(hb, indent=1), encoding="utf-8")
+        atomic_write(self._heartbeat_path, json.dumps(hb, indent=1))
         if now - self._last_heartbeat_log >= timedelta(minutes=30):
             self._last_heartbeat_log = now
             pos = self.broker.positions()

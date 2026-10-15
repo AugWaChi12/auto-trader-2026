@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.interfaces import IAccount, IMarketData, IOrderExecutor
+from .fileio import atomic_write
 from ..core.timeutil import UTC, server_to_utc
 from ..core.types import (Bar, OrderReply, OrderRequest, Position, RejectReason, Side, SymbolSpec,
                           timeframe_delta)
@@ -336,7 +337,4 @@ class Mt5Broker(IMarketData, IAccount, IOrderExecutor):
         meta = {str(t): {"initial_sl": p.initial_sl, "moved_to_be": p.moved_to_be, "best_price": p.best_price}
                 for t, p in self._cache.items()}
         self._meta = meta
-        self._state_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self._state_path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(meta, indent=1), encoding="utf-8")
-        tmp.replace(self._state_path)
+        atomic_write(self._state_path, json.dumps(meta, indent=1))   # ล้มเหลวได้ แต่ห้ามโยน error ระหว่างเทรด

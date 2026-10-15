@@ -175,3 +175,35 @@ def test_virtual_allocation_isolates_bots(tmp_path: Path) -> None:
                             time=0, comment="x", profit=-200.0, swap=0.0))
     assert b.equity() == pytest.approx(981.5)
     assert b.free_margin() == pytest.approx(981.5)        # ไม่เกิน equity เสมือน
+
+
+def test_state_write_failure_never_breaks_trading(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+    """บั๊กจริง 2026-10-15: os.replace โดน PermissionError → ต้องไม่หลุดออกมาจาก send()"""
+    import bot.live.fileio as fio
+    mt5 = FakeMT5()
+    b = broker(mt5, tmp_path)
+
+    def locked(src, dst):  # noqa: ANN001, ANN202
+        raise PermissionError(5, "Access is denied")
+    monkeypatch.setattr(fio.os, "replace", locked)
+    monkeypatch.setattr(fio.time, "sleep", lambda s: None)
+    r = b.send(OrderRequest("XAUUSD", Side.BUY, 0.01, 3955.0, None, "t", "t:2026-10-15#1", "single"))
+    assert r.accepted                                   # ออเดอร์สำเร็จ แม้บันทึกไฟล์ไม่ได้
+    assert not list(tmp_path.glob("*.tmp"))             # ไม่ทิ้งไฟล์ขยะ
+
+
+def test_atomic_write_retries_then_succeeds(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+    import os
+    import bot.live.fileio as fio
+    calls = {"n": 0}
+    real = os.replace
+
+    def flaky(src, dst):  # noqa: ANN001, ANN202
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise PermissionError(5, "Access is denied")
+        return real(src, dst)
+    monkeypatch.setattr(fio.os, "replace", flaky)
+    monkeypatch.setattr(fio.time, "sleep", lambda s: None)
+    assert fio.atomic_write(tmp_path / "x.json", "{}")
+    assert (tmp_path / "x.json").read_text() == "{}" and calls["n"] == 3
