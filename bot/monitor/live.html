@@ -45,7 +45,12 @@
   /* กลาง */
   .mid { display: grid; gap: 1vw; min-height: 0; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
   .left { display: grid; gap: 1vh; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
-  .right { display: grid; gap: 1vh; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
+  .right { display: grid; gap: 1vh; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
+  #board td, #board th { padding: .22vh .4vw; }
+  .openlist { flex: 1; min-height: 0; overflow: hidden; }
+  .openlist td, .openlist th { padding: .3vh .35vw; font-size: .92em; }
+  .more { color: var(--muted); font-size: .8em; padding-top: .3vh; }
+  .held { color: var(--muted); font-size: .85em; }
   canvas { width: 100%; flex: 1; min-height: 0; display: block; }
   .mainbot { display: grid; grid-template-columns: auto 1fr auto; gap: .4vh 1.2vw; align-items: center; }
   .mainbot .big { font-size: 1.7em; font-weight: 750; }
@@ -104,6 +109,8 @@
     </div>
     <div class="right">
       <div class="card"><h3><span>🏆 อันดับบอท</span><span class="muted">กำไรรวม</span></h3><div id="board"></div></div>
+      <div class="card"><h3><span>📌 ไม้ที่กำลังเทรด</span><span id="openSum" class="num"></span></h3>
+        <div class="openlist" id="openList"></div><div class="more" id="openMore"></div></div>
       <div class="card"><h3><span>⚖️ กลยุทธ์ vs กลุ่มควบคุม (สุ่มทิศ)</span><span class="muted">$ ต่อไม้</span></h3><div id="vs" class="vs"></div></div>
     </div>
   </div>
@@ -208,6 +215,34 @@ function vs(d) {
       a > b ? "กลยุทธ์ทำได้ดีกว่าการสุ่ม (ยังต้องดูต่อเนื่อง)" : "กลยุทธ์ยังไม่ดีกว่าการสุ่มทิศ"}</span>`;
 }
 
+function held(iso) {
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  return m < 60 ? `${m} นาที` : `${Math.floor(m / 60)} ชม. ${m % 60} น.`;
+}
+
+function openPositions(d) {
+  const rows = [...(d.open || [])].sort((a, z) => Date.parse(z.open_time) - Date.parse(a.open_time));
+  const total = rows.reduce((t, o) => t + o.profit, 0);
+  $("openSum").innerHTML = rows.length ? `${rows.length} ไม้ · ลอยรวม <b class="${cls(total)}">${money(total)}</b>` : "";
+  const dp = (o) => o.symbol === "XAUUSD" ? 2 : 1;
+  const box = $("openList");
+  if (!rows.length) { box.innerHTML = '<div class="muted" style="padding:1vh 0">ตอนนี้ไม่มีไม้เปิด</div>'; $("openMore").textContent = ""; return; }
+  box.innerHTML = `<table><thead><tr><th>บอท</th><th>ทิศ</th><th class="r">Lot</th><th class="r">เข้า → ตอนนี้</th>
+      <th class="r">SL / TP</th><th class="r">ถือมา</th><th class="r">ลอย</th></tr></thead><tbody>${rows.map(o => `<tr>
+      <td>${o.bot === "main" ? "<b>★ main</b>" : esc(o.bot)} <span class="muted" style="font-size:.8em">${esc(o.tag)}</span></td>
+      <td><span class="side ${o.side}">${o.side}</span> ${o.symbol === "XAUUSD" ? "ทอง" : "NAS"}</td>
+      <td class="r">${o.volume}</td>
+      <td class="r num">${o.open_price.toFixed(dp(o))} → ${o.price.toFixed(dp(o))}</td>
+      <td class="r num muted">${o.sl ? o.sl.toFixed(dp(o)) : "–"} / ${o.tp ? o.tp.toFixed(dp(o)) : "–"}</td>
+      <td class="r held">${held(o.open_time)}</td>
+      <td class="r num"><b class="${cls(o.profit)}">${money(o.profit)}</b></td></tr>`).join("")}</tbody></table>`;
+  // ซ่อนแถวที่ล้นกรอบ (หน้านี้ห้ามเลื่อน) แล้วบอกว่ามีอีกกี่ไม้
+  const limit = box.getBoundingClientRect().bottom;
+  let hidden = 0;
+  box.querySelectorAll("tbody tr").forEach(tr => { if (tr.getBoundingClientRect().bottom > limit) { tr.style.display = "none"; hidden++; } });
+  $("openMore").textContent = hidden ? `+ อีก ${hidden} ไม้ (ดูทั้งหมดที่หน้าภาพรวม)` : "";
+}
+
 async function refresh() {
   let d;
   try { d = await (await fetch("/api", { cache: "no-store" })).json(); $("err").style.display = "none"; }
@@ -230,7 +265,7 @@ async function refresh() {
   $("kWin").textContent = wr == null ? "–" : wr.toFixed(0) + "%";
   $("kWinS").textContent = s.today_trades ? `${s.today_wins} ชนะ / ${s.today_trades - s.today_wins} แพ้` : "ยังไม่มีไม้ปิดวันนี้";
 
-  mainCard(d); board(d); vs(d);
+  mainCard(d); board(d); vs(d); openPositions(d);
   $("ticker").innerHTML = (d.trades || []).slice(0, 12).map(x => `<span class="tk"><span class="side ${x.side}">${x.side}</span>
     ${esc(x.bot)} <span class="muted">${hm(x.close_time)}</span> <b class="${cls(x.profit)}">${money(x.profit)}</b></span>`).join("");
 }
