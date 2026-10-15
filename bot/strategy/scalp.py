@@ -74,9 +74,10 @@ class ScalpWindow:
 
 class _ScalpBase(Strategy):
     def __init__(self, tag: str, symbol: str, timeframe: str, window: ScalpWindow, max_hold: int,
-                 side_mode: str, seed: int) -> None:
+                 side_mode: str, seed: int, be_at_r: float | None = None) -> None:
         self.tag, self.symbol = tag, symbol
-        self.plan = ManagementPlan(partial_r=None, trail_atr_mult=None)
+        # be_at_r: เลื่อน SL ไปจุดเข้าเมื่อกำไรเคยถึงกี่ R (partial_frac=1 → ไม่แบ่งไม้ แค่เลื่อน BE)
+        self.plan = ManagementPlan(partial_r=be_at_r, partial_frac=1.0, be_offset_r=0.05, trail_atr_mult=None)
         self._bar = timedelta(minutes=TIMEFRAME_MINUTES[timeframe])
         self._max_hold = self._bar * max_hold
         self._window = window
@@ -115,11 +116,14 @@ class RsiReversionConfig:
     window: ScalpWindow = field(default_factory=ScalpWindow)
     side_mode: str = "rule"
     seed: int = 7
+    tp_r: float | None = None          # ปิดเมื่อกำไรถึงกี่ R (None = ออกตาม EMA5 เท่านั้น)
+    be_at_r: float | None = None
 
 
 class RsiReversion(_ScalpBase):
     def __init__(self, cfg: RsiReversionConfig, timeframe: str) -> None:
-        super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed)
+        super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed,
+                         cfg.be_at_r)
         self.cfg = cfg
         self.rsi, self.ema5, self.ema200 = RSI(2), EMA(5), EMA(200)
 
@@ -143,7 +147,8 @@ class RsiReversion(_ScalpBase):
             rule = Side.SELL
         else:
             return []
-        return self._signal(bar, rule, self.cfg.sl_atr * atr, None, f"RSI2={rsi:.0f}")
+        d = self.cfg.sl_atr * atr
+        return self._signal(bar, rule, d, None if self.cfg.tp_r is None else self.cfg.tp_r * d, f"RSI2={rsi:.0f}")
 
 
 # ---------------------------------------------------------------------------- S3
@@ -159,11 +164,13 @@ class EmaCrossConfig:
     window: ScalpWindow = field(default_factory=ScalpWindow)
     side_mode: str = "rule"
     seed: int = 7
+    be_at_r: float | None = None
 
 
 class EmaCross(_ScalpBase):
     def __init__(self, cfg: EmaCrossConfig, timeframe: str) -> None:
-        super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed)
+        super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed,
+                         cfg.be_at_r)
         self.cfg = cfg
         self.fast, self.slow, self.ema200 = EMA(cfg.fast), EMA(cfg.slow), EMA(200)
         self._prev_diff: float | None = None
@@ -199,11 +206,14 @@ class BollingerFadeConfig:
     window: ScalpWindow = field(default_factory=lambda: ScalpWindow(0, 6))
     side_mode: str = "rule"
     seed: int = 7
+    tp_r: float | None = None          # ปิดที่ min(เส้นกลาง, tp_r × R)
+    be_at_r: float | None = None
 
 
 class BollingerFade(_ScalpBase):
     def __init__(self, cfg: BollingerFadeConfig, timeframe: str) -> None:
-        super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed)
+        super().__init__(cfg.tag, cfg.symbol, timeframe, cfg.window, cfg.max_hold, cfg.side_mode, cfg.seed,
+                         cfg.be_at_r)
         self.cfg = cfg
         self.bb = Bollinger(20)
 
@@ -221,4 +231,6 @@ class BollingerFade(_ScalpBase):
             rule = Side.SELL
         else:
             return []
-        return self._signal(bar, rule, self.cfg.sl_atr * atr, abs(mid - bar.close), f"BB({self.cfg.k}) fade")
+        d = self.cfg.sl_atr * atr
+        tp_d = abs(mid - bar.close) if self.cfg.tp_r is None else min(abs(mid - bar.close), self.cfg.tp_r * d)
+        return self._signal(bar, rule, d, tp_d, f"BB({self.cfg.k}) fade")
