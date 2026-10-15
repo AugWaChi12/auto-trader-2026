@@ -181,3 +181,14 @@ def test_news_blackout_window() -> None:
     assert cal.in_blackout(ev - timedelta(minutes=29))
     assert cal.in_blackout(ev + timedelta(minutes=30))
     assert not cal.in_blackout(ev + timedelta(minutes=31))
+
+
+def test_account_floor_blocks_test_bots_only_when_real_equity_low() -> None:
+    b = broker_with_price()
+    real = {"eq": 1000.0}
+    rm = RiskManager(RiskConfig(account_floor=600.0, daily_loss_limit=1.0, max_drawdown=1.0), b,
+                     real_equity=lambda: real["eq"])
+    assert rm.can_open(_sig(), T0) == ""
+    real["eq"] = 590.0
+    assert rm.can_open(_sig(), T0) == "account_floor"
+    assert RiskManager(RiskConfig(), b, real_equity=lambda: 1.0).can_open(_sig(), T0) == ""   # floor 0 = ปิด

@@ -1,0 +1,1633 @@
+[
+ {
+  "tag": "xau_momo",
+  "instance": "main",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 103,
+  "exp_r": 0.114,
+  "win_rate": 0.534,
+  "losers_gave_back_0_5R": 0.25,
+  "losers_never_in_profit": 0.125,
+  "avg_mfe_losers": 0.35,
+  "avg_mae_winners": 0.31,
+  "cost_per_trade_r": 0.009,
+  "exp_r_before_cost": 0.123,
+  "long": {
+   "n": 55,
+   "exp_r": 0.004
+  },
+  "short": {
+   "n": 48,
+   "exp_r": 0.241
+  },
+  "worst_hours_th": [
+   {
+    "hour": 19,
+    "total_r": 11.7,
+    "n": 103
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 19,
+    "total_r": 11.7,
+    "n": 103
+   }
+  ],
+  "exits": {
+   "eod": {
+    "n": 78,
+    "avg_r": 0.47
+   },
+   "sl": {
+    "n": 25,
+    "avg_r": -1.0
+   }
+  },
+  "diagnosis": [
+   "↕️ สองฝั่งต่างกันมาก: BUY +0.004R vs SELL +0.241R — ฝั่ง SELL ดีกว่า (ระวัง: อาจเป็นแค่ทิศตลาดช่วงนี้)"
+  ]
+ },
+ {
+  "tag": "lr_xau",
+  "instance": "lab_m5",
+  "tf": "M5",
+  "symbol": "XAUUSD",
+  "n": 1516,
+  "exp_r": -0.01,
+  "win_rate": 0.626,
+  "losers_gave_back_0_5R": 0.067,
+  "losers_never_in_profit": 0.333,
+  "avg_mfe_losers": 0.21,
+  "avg_mae_winners": 0.3,
+  "cost_per_trade_r": 0.043,
+  "exp_r_before_cost": 0.032,
+  "long": {
+   "n": 812,
+   "exp_r": -0.019
+  },
+  "short": {
+   "n": 704,
+   "exp_r": -0.001
+  },
+  "worst_hours_th": [
+   {
+    "hour": 21,
+    "total_r": -7.5,
+    "n": 49
+   },
+   {
+    "hour": 9,
+    "total_r": -6.4,
+    "n": 68
+   },
+   {
+    "hour": 7,
+    "total_r": -6.2,
+    "n": 75
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 11,
+    "total_r": 6.2,
+    "n": 76
+   },
+   {
+    "hour": 15,
+    "total_r": 6.0,
+    "n": 70
+   },
+   {
+    "hour": 22,
+    "total_r": 5.3,
+    "n": 57
+   }
+  ],
+  "exits": {
+   "ema5": {
+    "n": 1180,
+    "avg_r": 0.27
+   },
+   "sl": {
+    "n": 336,
+    "avg_r": -1.0
+   }
+  },
+  "diagnosis": [
+   "💸 ต้นทุนคือตัวการ: ก่อนหักต้นทุน +0.032R → หลังหัก -0.010R",
+   "🕐 แพ้หนักช่วง 21:00 น. (รวม -7.5R จาก 49 ไม้)"
+  ]
+ },
+ {
+  "tag": "lr_nas",
+  "instance": "lab_m5",
+  "tf": "M5",
+  "symbol": "NAS100",
+  "n": 1589,
+  "exp_r": -0.036,
+  "win_rate": 0.622,
+  "losers_gave_back_0_5R": 0.065,
+  "losers_never_in_profit": 0.364,
+  "avg_mfe_losers": 0.19,
+  "avg_mae_winners": 0.31,
+  "cost_per_trade_r": 0.067,
+  "exp_r_before_cost": 0.031,
+  "long": {
+   "n": 936,
+   "exp_r": -0.036
+  },
+  "short": {
+   "n": 653,
+   "exp_r": -0.035
+  },
+  "worst_hours_th": [
+   {
+    "hour": 7,
+    "total_r": -15.3,
+    "n": 102
+   },
+   {
+    "hour": 23,
+    "total_r": -11.9,
+    "n": 69
+   },
+   {
+    "hour": 6,
+    "total_r": -9.1,
+    "n": 60
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 18,
+    "total_r": 11.1,
+    "n": 56
+   },
+   {
+    "hour": 17,
+    "total_r": 8.6,
+    "n": 74
+   },
+   {
+    "hour": 1,
+    "total_r": 6.2,
+    "n": 71
+   }
+  ],
+  "exits": {
+   "ema5": {
+    "n": 1205,
+    "avg_r": 0.26
+   },
+   "sl": {
+    "n": 369,
+    "avg_r": -1.01
+   },
+   "time_stop": {
+    "n": 14,
+    "avg_r": -0.21
+   },
+   "end": {
+    "n": 1,
+    "avg_r": -0.06
+   }
+  },
+  "diagnosis": [
+   "💸 ต้นทุนคือตัวการ: ก่อนหักต้นทุน +0.031R → หลังหัก -0.036R",
+   "🕐 แพ้หนักช่วง 07:00 น. (รวม -15.3R จาก 102 ไม้)"
+  ]
+ },
+ {
+  "tag": "ec_xau",
+  "instance": "lab_m5",
+  "tf": "M5",
+  "symbol": "XAUUSD",
+  "n": 1258,
+  "exp_r": -0.064,
+  "win_rate": 0.342,
+  "losers_gave_back_0_5R": 0.518,
+  "losers_never_in_profit": 0.163,
+  "avg_mfe_losers": 0.66,
+  "avg_mae_winners": 0.46,
+  "cost_per_trade_r": 0.088,
+  "exp_r_before_cost": 0.024,
+  "long": {
+   "n": 644,
+   "exp_r": -0.051
+  },
+  "short": {
+   "n": 614,
+   "exp_r": -0.077
+  },
+  "worst_hours_th": [
+   {
+    "hour": 17,
+    "total_r": -25.2,
+    "n": 64
+   },
+   {
+    "hour": 3,
+    "total_r": -23.4,
+    "n": 39
+   },
+   {
+    "hour": 8,
+    "total_r": -16.2,
+    "n": 71
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 22,
+    "total_r": 8.4,
+    "n": 55
+   },
+   {
+    "hour": 21,
+    "total_r": 7.5,
+    "n": 70
+   },
+   {
+    "hour": 15,
+    "total_r": 6.4,
+    "n": 58
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 822,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 392,
+    "avg_r": 1.83
+   },
+   "time_stop": {
+    "n": 43,
+    "avg_r": 0.56
+   },
+   "weekend": {
+    "n": 1,
+    "avg_r": 1.41
+   }
+  },
+  "diagnosis": [
+   "💸 ต้นทุนคือตัวการ: ก่อนหักต้นทุน +0.024R → หลังหัก -0.064R",
+   "↩️ คืนกำไรบ่อย: 52% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 17:00 น. (รวม -25.2R จาก 64 ไม้)"
+  ]
+ },
+ {
+  "tag": "bb_xau",
+  "instance": "lab_m1",
+  "tf": "M1",
+  "symbol": "XAUUSD",
+  "n": 5397,
+  "exp_r": -0.112,
+  "win_rate": 0.463,
+  "losers_gave_back_0_5R": 0.292,
+  "losers_never_in_profit": 0.27,
+  "avg_mfe_losers": 0.37,
+  "avg_mae_winners": 0.38,
+  "cost_per_trade_r": 0.119,
+  "exp_r_before_cost": 0.007,
+  "long": {
+   "n": 2716,
+   "exp_r": -0.107
+  },
+  "short": {
+   "n": 2681,
+   "exp_r": -0.116
+  },
+  "worst_hours_th": [
+   {
+    "hour": 3,
+    "total_r": -59.2,
+    "n": 171
+   },
+   {
+    "hour": 9,
+    "total_r": -53.9,
+    "n": 265
+   },
+   {
+    "hour": 8,
+    "total_r": -48.0,
+    "n": 282
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 21,
+    "total_r": 21.7,
+    "n": 214
+   },
+   {
+    "hour": 16,
+    "total_r": 1.4,
+    "n": 234
+   },
+   {
+    "hour": 1,
+    "total_r": -8.6,
+    "n": 249
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 2331,
+    "avg_r": -1.01
+   },
+   "tp": {
+    "n": 1782,
+    "avg_r": 0.88
+   },
+   "time_stop": {
+    "n": 1284,
+    "avg_r": 0.14
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ +0.007R ต่อไม้",
+   "📏 SL แคบเกินเทียบต้นทุน: ต้นทุนกิน 12% ของ SL ทุกไม้",
+   "🕐 แพ้หนักช่วง 03:00 น. (รวม -59.2R จาก 171 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_bo_x",
+  "instance": "g_session",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 156,
+  "exp_r": 0.161,
+  "win_rate": 0.513,
+  "losers_gave_back_0_5R": 0.355,
+  "losers_never_in_profit": 0.158,
+  "avg_mfe_losers": 0.42,
+  "avg_mae_winners": 0.43,
+  "cost_per_trade_r": 0.015,
+  "exp_r_before_cost": 0.176,
+  "long": {
+   "n": 75,
+   "exp_r": 0.014
+  },
+  "short": {
+   "n": 81,
+   "exp_r": 0.297
+  },
+  "worst_hours_th": [
+   {
+    "hour": 15,
+    "total_r": -6.1,
+    "n": 30
+   },
+   {
+    "hour": 22,
+    "total_r": -1.6,
+    "n": 9
+   },
+   {
+    "hour": 21,
+    "total_r": 1.3,
+    "n": 19
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 14,
+    "total_r": 13.8,
+    "n": 24
+   },
+   {
+    "hour": 16,
+    "total_r": 6.2,
+    "n": 18
+   },
+   {
+    "hour": 17,
+    "total_r": 5.4,
+    "n": 13
+   }
+  ],
+  "exits": {
+   "eod": {
+    "n": 56,
+    "avg_r": 0.06
+   },
+   "sl": {
+    "n": 52,
+    "avg_r": -1.0
+   },
+   "eod+tp": {
+    "n": 39,
+    "avg_r": 1.71
+   },
+   "tp+trail": {
+    "n": 9,
+    "avg_r": 0.76
+   }
+  },
+  "diagnosis": [
+   "↩️ คืนกำไรบ่อย: 36% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "↕️ สองฝั่งต่างกันมาก: BUY +0.014R vs SELL +0.297R — ฝั่ง SELL ดีกว่า (ระวัง: อาจเป็นแค่ทิศตลาดช่วงนี้)",
+   "🕐 แพ้หนักช่วง 15:00 น. (รวม -6.1R จาก 30 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_bo_n",
+  "instance": "g_session",
+  "tf": "M15",
+  "symbol": "NAS100",
+  "n": 172,
+  "exp_r": -0.029,
+  "win_rate": 0.471,
+  "losers_gave_back_0_5R": 0.363,
+  "losers_never_in_profit": 0.165,
+  "avg_mfe_losers": 0.44,
+  "avg_mae_winners": 0.37,
+  "cost_per_trade_r": 0.025,
+  "exp_r_before_cost": -0.005,
+  "long": {
+   "n": 95,
+   "exp_r": 0.001
+  },
+  "short": {
+   "n": 77,
+   "exp_r": -0.067
+  },
+  "worst_hours_th": [
+   {
+    "hour": 22,
+    "total_r": -6.1,
+    "n": 69
+   },
+   {
+    "hour": 21,
+    "total_r": -3.3,
+    "n": 81
+   },
+   {
+    "hour": 23,
+    "total_r": 3.1,
+    "n": 20
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 23,
+    "total_r": 3.1,
+    "n": 20
+   },
+   {
+    "hour": 21,
+    "total_r": -3.3,
+    "n": 81
+   },
+   {
+    "hour": 22,
+    "total_r": -6.1,
+    "n": 69
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 72,
+    "avg_r": -1.0
+   },
+   "eod": {
+    "n": 63,
+    "avg_r": 0.28
+   },
+   "eod+tp": {
+    "n": 25,
+    "avg_r": 1.6
+   },
+   "tp+trail": {
+    "n": 12,
+    "avg_r": 0.77
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.005R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 36% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 22:00 น. (รวม -6.1R จาก 69 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_sw_x",
+  "instance": "g_sweep",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 88,
+  "exp_r": -0.229,
+  "win_rate": 0.352,
+  "losers_gave_back_0_5R": 0.421,
+  "losers_never_in_profit": 0.158,
+  "avg_mfe_losers": 0.63,
+  "avg_mae_winners": 0.86,
+  "cost_per_trade_r": 0.041,
+  "exp_r_before_cost": -0.189,
+  "long": {
+   "n": 44,
+   "exp_r": -0.172
+  },
+  "short": {
+   "n": 44,
+   "exp_r": -0.287
+  },
+  "worst_hours_th": [
+   {
+    "hour": 14,
+    "total_r": -6.9,
+    "n": 25
+   },
+   {
+    "hour": 19,
+    "total_r": -5.5,
+    "n": 10
+   },
+   {
+    "hour": 20,
+    "total_r": -3.3,
+    "n": 5
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 22,
+    "total_r": -0.1,
+    "n": 5
+   },
+   {
+    "hour": 16,
+    "total_r": -0.5,
+    "n": 8
+   },
+   {
+    "hour": 21,
+    "total_r": -2.5,
+    "n": 7
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 57,
+    "avg_r": -1.0
+   },
+   "tp+trail": {
+    "n": 18,
+    "avg_r": 0.75
+   },
+   "tp": {
+    "n": 8,
+    "avg_r": 2.19
+   },
+   "eod+tp": {
+    "n": 3,
+    "avg_r": 1.71
+   },
+   "eod": {
+    "n": 2,
+    "avg_r": 0.31
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.189R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 42% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 14:00 น. (รวม -6.9R จาก 25 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_sw_n",
+  "instance": "g_sweep",
+  "tf": "M15",
+  "symbol": "NAS100",
+  "n": 76,
+  "exp_r": -0.105,
+  "win_rate": 0.382,
+  "losers_gave_back_0_5R": 0.511,
+  "losers_never_in_profit": 0.213,
+  "avg_mfe_losers": 0.66,
+  "avg_mae_winners": 0.52,
+  "cost_per_trade_r": 0.05,
+  "exp_r_before_cost": -0.054,
+  "long": {
+   "n": 37,
+   "exp_r": -0.092
+  },
+  "short": {
+   "n": 39,
+   "exp_r": -0.117
+  },
+  "worst_hours_th": [
+   {
+    "hour": 22,
+    "total_r": -6.9,
+    "n": 40
+   },
+   {
+    "hour": 21,
+    "total_r": -3.4,
+    "n": 27
+   },
+   {
+    "hour": 23,
+    "total_r": 2.3,
+    "n": 9
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 23,
+    "total_r": 2.3,
+    "n": 9
+   },
+   {
+    "hour": 21,
+    "total_r": -3.4,
+    "n": 27
+   },
+   {
+    "hour": 22,
+    "total_r": -6.9,
+    "n": 40
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 46,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 13,
+    "avg_r": 2.03
+   },
+   "tp+trail": {
+    "n": 11,
+    "avg_r": 0.76
+   },
+   "eod": {
+    "n": 3,
+    "avg_r": 0.12
+   },
+   "stop_moved+tp": {
+    "n": 2,
+    "avg_r": 0.6
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.054R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 51% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 22:00 น. (รวม -6.9R จาก 40 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_ls_x",
+  "instance": "g_sweep",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 140,
+  "exp_r": 0.037,
+  "win_rate": 0.379,
+  "losers_gave_back_0_5R": 0.402,
+  "losers_never_in_profit": 0.207,
+  "avg_mfe_losers": 0.54,
+  "avg_mae_winners": 0.43,
+  "cost_per_trade_r": 0.031,
+  "exp_r_before_cost": 0.068,
+  "long": {
+   "n": 79,
+   "exp_r": -0.122
+  },
+  "short": {
+   "n": 61,
+   "exp_r": 0.243
+  },
+  "worst_hours_th": [
+   {
+    "hour": 7,
+    "total_r": -6.3,
+    "n": 26
+   },
+   {
+    "hour": 9,
+    "total_r": -2.7,
+    "n": 13
+   },
+   {
+    "hour": 19,
+    "total_r": -1.1,
+    "n": 7
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 22,
+    "total_r": 5.3,
+    "n": 6
+   },
+   {
+    "hour": 21,
+    "total_r": 3.5,
+    "n": 14
+   },
+   {
+    "hour": 8,
+    "total_r": 2.7,
+    "n": 21
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 85,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 43,
+    "avg_r": 1.94
+   },
+   "weekend": {
+    "n": 6,
+    "avg_r": 0.55
+   },
+   "time_stop": {
+    "n": 6,
+    "avg_r": 0.57
+   }
+  },
+  "diagnosis": [
+   "↩️ คืนกำไรบ่อย: 40% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "↕️ สองฝั่งต่างกันมาก: BUY -0.122R vs SELL +0.243R — ฝั่ง SELL ดีกว่า (ระวัง: อาจเป็นแค่ทิศตลาดช่วงนี้)",
+   "🕐 แพ้หนักช่วง 07:00 น. (รวม -6.3R จาก 26 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_ls_n",
+  "instance": "g_sweep",
+  "tf": "M15",
+  "symbol": "NAS100",
+  "n": 136,
+  "exp_r": -0.064,
+  "win_rate": 0.338,
+  "losers_gave_back_0_5R": 0.467,
+  "losers_never_in_profit": 0.133,
+  "avg_mfe_losers": 0.64,
+  "avg_mae_winners": 0.53,
+  "cost_per_trade_r": 0.053,
+  "exp_r_before_cost": -0.011,
+  "long": {
+   "n": 67,
+   "exp_r": -0.039
+  },
+  "short": {
+   "n": 69,
+   "exp_r": -0.088
+  },
+  "worst_hours_th": [
+   {
+    "hour": 13,
+    "total_r": -7.0,
+    "n": 7
+   },
+   {
+    "hour": 23,
+    "total_r": -6.9,
+    "n": 8
+   },
+   {
+    "hour": 22,
+    "total_r": -3.2,
+    "n": 12
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 11,
+    "total_r": 3.5,
+    "n": 11
+   },
+   {
+    "hour": 16,
+    "total_r": 2.7,
+    "n": 6
+   },
+   {
+    "hour": 15,
+    "total_r": 1.7,
+    "n": 10
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 90,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 42,
+    "avg_r": 1.9
+   },
+   "weekend": {
+    "n": 3,
+    "avg_r": 0.36
+   },
+   "time_stop": {
+    "n": 1,
+    "avg_r": 0.46
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.011R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 47% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 13:00 น. (รวม -7.0R จาก 7 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_vx_x",
+  "instance": "g_vol",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 45,
+  "exp_r": 0.163,
+  "win_rate": 0.4,
+  "losers_gave_back_0_5R": 0.444,
+  "losers_never_in_profit": 0.185,
+  "avg_mfe_losers": 0.58,
+  "avg_mae_winners": 0.41,
+  "cost_per_trade_r": 0.019,
+  "exp_r_before_cost": 0.183,
+  "long": {
+   "n": 18,
+   "exp_r": -0.019
+  },
+  "short": {
+   "n": 27,
+   "exp_r": 0.285
+  },
+  "worst_hours_th": [
+   {
+    "hour": 19,
+    "total_r": 3.5,
+    "n": 5
+   },
+   {
+    "hour": 7,
+    "total_r": 4.8,
+    "n": 7
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 7,
+    "total_r": 4.8,
+    "n": 7
+   },
+   {
+    "hour": 19,
+    "total_r": 3.5,
+    "n": 5
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 26,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 16,
+    "avg_r": 1.97
+   },
+   "time_stop": {
+    "n": 3,
+    "avg_r": 0.63
+   }
+  },
+  "diagnosis": [
+   "↩️ คืนกำไรบ่อย: 44% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "↕️ สองฝั่งต่างกันมาก: BUY -0.019R vs SELL +0.285R — ฝั่ง SELL ดีกว่า (ระวัง: อาจเป็นแค่ทิศตลาดช่วงนี้)"
+  ]
+ },
+ {
+  "tag": "g_vx_n",
+  "instance": "g_vol",
+  "tf": "M15",
+  "symbol": "NAS100",
+  "n": 30,
+  "exp_r": 0.172,
+  "win_rate": 0.4,
+  "losers_gave_back_0_5R": 0.556,
+  "losers_never_in_profit": 0.167,
+  "avg_mfe_losers": 0.73,
+  "avg_mae_winners": 0.32,
+  "cost_per_trade_r": 0.031,
+  "exp_r_before_cost": 0.203,
+  "long": {
+   "n": 19,
+   "exp_r": -0.146
+  },
+  "short": {
+   "n": 11,
+   "exp_r": 0.723
+  },
+  "worst_hours_th": [],
+  "best_hours_th": [],
+  "exits": {
+   "sl": {
+    "n": 17,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 11,
+    "avg_r": 2.01
+   },
+   "time_stop": {
+    "n": 1,
+    "avg_r": 0.64
+   },
+   "weekend": {
+    "n": 1,
+    "avg_r": -0.59
+   }
+  },
+  "diagnosis": [
+   "↩️ คืนกำไรบ่อย: 56% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "↕️ สองฝั่งต่างกันมาก: BUY -0.146R vs SELL +0.723R — ฝั่ง SELL ดีกว่า (ระวัง: อาจเป็นแค่ทิศตลาดช่วงนี้)"
+  ]
+ },
+ {
+  "tag": "g_pb_x",
+  "instance": "g_trend",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 249,
+  "exp_r": -0.134,
+  "win_rate": 0.301,
+  "losers_gave_back_0_5R": 0.494,
+  "losers_never_in_profit": 0.195,
+  "avg_mfe_losers": 0.64,
+  "avg_mae_winners": 0.49,
+  "cost_per_trade_r": 0.033,
+  "exp_r_before_cost": -0.101,
+  "long": {
+   "n": 127,
+   "exp_r": -0.141
+  },
+  "short": {
+   "n": 122,
+   "exp_r": -0.127
+  },
+  "worst_hours_th": [
+   {
+    "hour": 14,
+    "total_r": -17.2,
+    "n": 56
+   },
+   {
+    "hour": 17,
+    "total_r": -14.3,
+    "n": 26
+   },
+   {
+    "hour": 16,
+    "total_r": -7.6,
+    "n": 34
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 19,
+    "total_r": 5.7,
+    "n": 25
+   },
+   {
+    "hour": 20,
+    "total_r": 3.1,
+    "n": 17
+   },
+   {
+    "hour": 18,
+    "total_r": -1.0,
+    "n": 24
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 169,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 70,
+    "avg_r": 1.93
+   },
+   "eod": {
+    "n": 10,
+    "avg_r": 0.05
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.101R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 49% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 14:00 น. (รวม -17.2R จาก 56 ไม้)"
+  ]
+ },
+ {
+  "tag": "g_pb_n",
+  "instance": "g_trend",
+  "tf": "M15",
+  "symbol": "NAS100",
+  "n": 193,
+  "exp_r": 0.128,
+  "win_rate": 0.44,
+  "losers_gave_back_0_5R": 0.444,
+  "losers_never_in_profit": 0.204,
+  "avg_mfe_losers": 0.54,
+  "avg_mae_winners": 0.42,
+  "cost_per_trade_r": 0.032,
+  "exp_r_before_cost": 0.16,
+  "long": {
+   "n": 107,
+   "exp_r": 0.158
+  },
+  "short": {
+   "n": 86,
+   "exp_r": 0.091
+  },
+  "worst_hours_th": [
+   {
+    "hour": 0,
+    "total_r": 1.3,
+    "n": 18
+   },
+   {
+    "hour": 1,
+    "total_r": 2.0,
+    "n": 14
+   },
+   {
+    "hour": 21,
+    "total_r": 2.6,
+    "n": 67
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 22,
+    "total_r": 15.2,
+    "n": 65
+   },
+   {
+    "hour": 23,
+    "total_r": 3.6,
+    "n": 29
+   },
+   {
+    "hour": 21,
+    "total_r": 2.6,
+    "n": 67
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 92,
+    "avg_r": -1.01
+   },
+   "eod": {
+    "n": 54,
+    "avg_r": 0.47
+   },
+   "tp": {
+    "n": 47,
+    "avg_r": 1.96
+   }
+  },
+  "diagnosis": [
+   "↩️ คืนกำไรบ่อย: 44% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก"
+  ]
+ },
+ {
+  "tag": "b_rnd_x",
+  "instance": "bench_rand",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 227,
+  "exp_r": -0.185,
+  "win_rate": 0.291,
+  "losers_gave_back_0_5R": 0.54,
+  "losers_never_in_profit": 0.168,
+  "avg_mfe_losers": 0.68,
+  "avg_mae_winners": 0.48,
+  "cost_per_trade_r": 0.032,
+  "exp_r_before_cost": -0.153,
+  "long": {
+   "n": 103,
+   "exp_r": -0.29
+  },
+  "short": {
+   "n": 124,
+   "exp_r": -0.099
+  },
+  "worst_hours_th": [
+   {
+    "hour": 16,
+    "total_r": -13.0,
+    "n": 29
+   },
+   {
+    "hour": 15,
+    "total_r": -9.1,
+    "n": 47
+   },
+   {
+    "hour": 23,
+    "total_r": -7.6,
+    "n": 14
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 18,
+    "total_r": 3.3,
+    "n": 26
+   },
+   {
+    "hour": 21,
+    "total_r": -2.1,
+    "n": 8
+   },
+   {
+    "hour": 17,
+    "total_r": -2.6,
+    "n": 26
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 157,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 57,
+    "avg_r": 1.94
+   },
+   "eod": {
+    "n": 13,
+    "avg_r": 0.32
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.153R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 54% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "↕️ สองฝั่งต่างกันมาก: BUY -0.290R vs SELL -0.099R — ฝั่ง SELL ดีกว่า (ระวัง: อาจเป็นแค่ทิศตลาดช่วงนี้)",
+   "🕐 แพ้หนักช่วง 16:00 น. (รวม -13.0R จาก 29 ไม้)"
+  ]
+ },
+ {
+  "tag": "b_rnd_n",
+  "instance": "bench_rand",
+  "tf": "M15",
+  "symbol": "NAS100",
+  "n": 209,
+  "exp_r": -0.01,
+  "win_rate": 0.416,
+  "losers_gave_back_0_5R": 0.361,
+  "losers_never_in_profit": 0.156,
+  "avg_mfe_losers": 0.45,
+  "avg_mae_winners": 0.41,
+  "cost_per_trade_r": 0.031,
+  "exp_r_before_cost": 0.021,
+  "long": {
+   "n": 94,
+   "exp_r": 0.037
+  },
+  "short": {
+   "n": 115,
+   "exp_r": -0.047
+  },
+  "worst_hours_th": [
+   {
+    "hour": 21,
+    "total_r": -7.7,
+    "n": 44
+   },
+   {
+    "hour": 0,
+    "total_r": -7.5,
+    "n": 34
+   },
+   {
+    "hour": 23,
+    "total_r": -1.5,
+    "n": 42
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 22,
+    "total_r": 14.4,
+    "n": 55
+   },
+   {
+    "hour": 1,
+    "total_r": 1.1,
+    "n": 20
+   },
+   {
+    "hour": 2,
+    "total_r": -1.3,
+    "n": 11
+   }
+  ],
+  "exits": {
+   "eod": {
+    "n": 90,
+    "avg_r": 0.24
+   },
+   "sl": {
+    "n": 87,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 32,
+    "avg_r": 1.98
+   }
+  },
+  "diagnosis": [
+   "💸 ต้นทุนคือตัวการ: ก่อนหักต้นทุน +0.021R → หลังหัก -0.010R",
+   "↩️ คืนกำไรบ่อย: 36% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 21:00 น. (รวม -7.7R จาก 44 ไม้)"
+  ]
+ },
+ {
+  "tag": "b_lng_x",
+  "instance": "bench_long",
+  "tf": "M15",
+  "symbol": "XAUUSD",
+  "n": 223,
+  "exp_r": -0.207,
+  "win_rate": 0.291,
+  "losers_gave_back_0_5R": 0.43,
+  "losers_never_in_profit": 0.133,
+  "avg_mfe_losers": 0.6,
+  "avg_mae_winners": 0.51,
+  "cost_per_trade_r": 0.032,
+  "exp_r_before_cost": -0.175,
+  "long": {
+   "n": 223,
+   "exp_r": -0.207
+  },
+  "short": {
+   "n": 0,
+   "exp_r": null
+  },
+  "worst_hours_th": [
+   {
+    "hour": 18,
+    "total_r": -19.2,
+    "n": 25
+   },
+   {
+    "hour": 19,
+    "total_r": -11.5,
+    "n": 23
+   },
+   {
+    "hour": 14,
+    "total_r": -7.7,
+    "n": 28
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 20,
+    "total_r": 6.7,
+    "n": 18
+   },
+   {
+    "hour": 16,
+    "total_r": 2.4,
+    "n": 37
+   },
+   {
+    "hour": 15,
+    "total_r": 0.9,
+    "n": 39
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 153,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 53,
+    "avg_r": 1.91
+   },
+   "eod": {
+    "n": 17,
+    "avg_r": 0.34
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.175R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 43% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 18:00 น. (รวม -19.2R จาก 25 ไม้)"
+  ]
+ },
+ {
+  "tag": "b_lng_n",
+  "instance": "bench_long",
+  "tf": "M15",
+  "symbol": "NAS100",
+  "n": 220,
+  "exp_r": 0.05,
+  "win_rate": 0.459,
+  "losers_gave_back_0_5R": 0.361,
+  "losers_never_in_profit": 0.21,
+  "avg_mfe_losers": 0.47,
+  "avg_mae_winners": 0.44,
+  "cost_per_trade_r": 0.031,
+  "exp_r_before_cost": 0.082,
+  "long": {
+   "n": 220,
+   "exp_r": 0.05
+  },
+  "short": {
+   "n": 0,
+   "exp_r": null
+  },
+  "worst_hours_th": [
+   {
+    "hour": 2,
+    "total_r": -4.1,
+    "n": 8
+   },
+   {
+    "hour": 0,
+    "total_r": -3.0,
+    "n": 30
+   },
+   {
+    "hour": 21,
+    "total_r": -2.9,
+    "n": 50
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 22,
+    "total_r": 11.5,
+    "n": 72
+   },
+   {
+    "hour": 1,
+    "total_r": 6.5,
+    "n": 24
+   },
+   {
+    "hour": 23,
+    "total_r": 3.0,
+    "n": 36
+   }
+  ],
+  "exits": {
+   "eod": {
+    "n": 93,
+    "avg_r": 0.37
+   },
+   "sl": {
+    "n": 91,
+    "avg_r": -1.01
+   },
+   "tp": {
+    "n": 36,
+    "avg_r": 1.91
+   }
+  },
+  "diagnosis": [
+   "↩️ คืนกำไรบ่อย: 36% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก"
+  ]
+ },
+ {
+  "tag": "b_lr5_x",
+  "instance": "bench_m5",
+  "tf": "M5",
+  "symbol": "XAUUSD",
+  "n": 1661,
+  "exp_r": -0.017,
+  "win_rate": 0.529,
+  "losers_gave_back_0_5R": 0.063,
+  "losers_never_in_profit": 0.38,
+  "avg_mfe_losers": 0.19,
+  "avg_mae_winners": 0.25,
+  "cost_per_trade_r": 0.043,
+  "exp_r_before_cost": 0.026,
+  "long": {
+   "n": 860,
+   "exp_r": -0.016
+  },
+  "short": {
+   "n": 801,
+   "exp_r": -0.017
+  },
+  "worst_hours_th": [
+   {
+    "hour": 21,
+    "total_r": -8.5,
+    "n": 57
+   },
+   {
+    "hour": 8,
+    "total_r": -7.2,
+    "n": 91
+   },
+   {
+    "hour": 23,
+    "total_r": -6.9,
+    "n": 93
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 16,
+    "total_r": 6.1,
+    "n": 83
+   },
+   {
+    "hour": 22,
+    "total_r": 6.0,
+    "n": 58
+   },
+   {
+    "hour": 20,
+    "total_r": 5.7,
+    "n": 70
+   }
+  ],
+  "exits": {
+   "ema5": {
+    "n": 1451,
+    "avg_r": 0.13
+   },
+   "sl": {
+    "n": 210,
+    "avg_r": -1.0
+   }
+  },
+  "diagnosis": [
+   "💸 ต้นทุนคือตัวการ: ก่อนหักต้นทุน +0.026R → หลังหัก -0.017R",
+   "🕐 แพ้หนักช่วง 21:00 น. (รวม -8.5R จาก 57 ไม้)"
+  ]
+ },
+ {
+  "tag": "b_lr5_n",
+  "instance": "bench_m5",
+  "tf": "M5",
+  "symbol": "NAS100",
+  "n": 1736,
+  "exp_r": -0.061,
+  "win_rate": 0.5,
+  "losers_gave_back_0_5R": 0.076,
+  "losers_never_in_profit": 0.397,
+  "avg_mfe_losers": 0.19,
+  "avg_mae_winners": 0.28,
+  "cost_per_trade_r": 0.068,
+  "exp_r_before_cost": 0.007,
+  "long": {
+   "n": 831,
+   "exp_r": -0.042
+  },
+  "short": {
+   "n": 905,
+   "exp_r": -0.078
+  },
+  "worst_hours_th": [
+   {
+    "hour": 16,
+    "total_r": -12.5,
+    "n": 88
+   },
+   {
+    "hour": 23,
+    "total_r": -12.0,
+    "n": 76
+   },
+   {
+    "hour": 8,
+    "total_r": -11.7,
+    "n": 80
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 22,
+    "total_r": 5.6,
+    "n": 56
+   },
+   {
+    "hour": 1,
+    "total_r": 4.4,
+    "n": 85
+   },
+   {
+    "hour": 20,
+    "total_r": 2.5,
+    "n": 69
+   }
+  ],
+  "exits": {
+   "ema5": {
+    "n": 1482,
+    "avg_r": 0.1
+   },
+   "sl": {
+    "n": 248,
+    "avg_r": -1.01
+   },
+   "time_stop": {
+    "n": 6,
+    "avg_r": 0.06
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ +0.007R ต่อไม้",
+   "🕐 แพ้หนักช่วง 16:00 น. (รวม -12.5R จาก 88 ไม้)"
+  ]
+ },
+ {
+  "tag": "b_ec5_x",
+  "instance": "bench_m5",
+  "tf": "M5",
+  "symbol": "XAUUSD",
+  "n": 1205,
+  "exp_r": -0.089,
+  "win_rate": 0.333,
+  "losers_gave_back_0_5R": 0.51,
+  "losers_never_in_profit": 0.164,
+  "avg_mfe_losers": 0.67,
+  "avg_mae_winners": 0.46,
+  "cost_per_trade_r": 0.088,
+  "exp_r_before_cost": -0.001,
+  "long": {
+   "n": 606,
+   "exp_r": -0.074
+  },
+  "short": {
+   "n": 599,
+   "exp_r": -0.105
+  },
+  "worst_hours_th": [
+   {
+    "hour": 8,
+    "total_r": -36.1,
+    "n": 71
+   },
+   {
+    "hour": 3,
+    "total_r": -19.0,
+    "n": 39
+   },
+   {
+    "hour": 19,
+    "total_r": -18.9,
+    "n": 81
+   }
+  ],
+  "best_hours_th": [
+   {
+    "hour": 18,
+    "total_r": 16.7,
+    "n": 81
+   },
+   {
+    "hour": 22,
+    "total_r": 16.6,
+    "n": 50
+   },
+   {
+    "hour": 1,
+    "total_r": 11.0,
+    "n": 45
+   }
+  ],
+  "exits": {
+   "sl": {
+    "n": 797,
+    "avg_r": -1.0
+   },
+   "tp": {
+    "n": 367,
+    "avg_r": 1.83
+   },
+   "time_stop": {
+    "n": 41,
+    "avg_r": 0.51
+   }
+  },
+  "diagnosis": [
+   "🎯 สัญญาณไม่มีข้อมูล: แม้ไม่มีต้นทุนก็ได้แค่ -0.001R ต่อไม้",
+   "↩️ คืนกำไรบ่อย: 51% ของไม้แพ้เคยกำไร ≥ 0.5R มาก่อน → ลองศึกษาจุดออก",
+   "🕐 แพ้หนักช่วง 08:00 น. (รวม -36.1R จาก 71 ไม้)"
+  ]
+ }
+]

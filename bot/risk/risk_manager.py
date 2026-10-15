@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Callable
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -40,6 +41,8 @@ class RiskConfig:
     # ถ้าขนาดที่คำนวณได้ต่ำกว่า lot ขั้นต่ำ: ยอมเปิด lot ขั้นต่ำ ถ้าความเสี่ยงจริงไม่เกินค่านี้ (0 = ไม่ยอม)
     # มีไว้สำหรับ demo ทุนเล็กที่ต้องการเก็บข้อมูลผลเป็น R — ไม่ควรใช้กับเงินจริง
     min_lot_max_risk: float = 0.0
+    # ถ้า equity จริงของบัญชีต่ำกว่านี้ → ไม่เปิดไม้ใหม่ (0 = ปิด) — กันบอททดสอบผลาญบัญชีจนบอทหลักเทรดไม่ได้
+    account_floor: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -53,9 +56,11 @@ class SizeDecision:
 
 
 class RiskManager:
-    def __init__(self, cfg: RiskConfig, account: IAccount, news: NewsCalendar | None = None) -> None:
+    def __init__(self, cfg: RiskConfig, account: IAccount, news: NewsCalendar | None = None,
+                 real_equity: Callable[[], float] | None = None) -> None:
         self.cfg = cfg
         self.account = account
+        self.real_equity = real_equity      # equity จริงของบัญชี (live) — account อาจเป็น sub-account เสมือน
         self.news = news
         self._tz = ZoneInfo(cfg.day_tz)
         self._day: date | None = None
@@ -111,6 +116,8 @@ class RiskManager:
             return "killed"
         if self.halted_today:
             return "daily_halt"
+        if self.cfg.account_floor > 0 and self.real_equity is not None and self.real_equity() < self.cfg.account_floor:
+            return "account_floor"
         if self.news and self.news.in_blackout(now):
             return "news_blackout"
         groups = {p.group_id for p in self.account.positions()}

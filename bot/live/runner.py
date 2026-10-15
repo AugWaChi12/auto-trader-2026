@@ -78,7 +78,8 @@ class LiveRunner:
 
         now = datetime.now(UTC)
         news = NewsCalendar.default(C.NEWS_CSV, (now.year - 1, now.year + 1), C.NEWS_BLACKOUT_MIN)
-        self.risk = RiskManager(C.RISK_PROFILES[self.profile], self.broker, news)
+        self.risk = RiskManager(C.RISK_PROFILES[self.profile], self.broker, news,
+                                real_equity=lambda: float(self.broker.mt5.account_info().equity))
         if self._risk_path.exists():
             self.risk.load_state(json.loads(self._risk_path.read_text(encoding="utf-8")))
             log.info("risk state restored: %s", self.risk.to_state())

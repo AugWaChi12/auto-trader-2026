@@ -20,7 +20,7 @@ from .strategy.trend_pullback import PullbackConfig, TrendPullback
 from .strategy.vol_expansion import VolExpansion, VolExpansionConfig
 from .strategy.random_entry import RandomConfig, RandomEntry
 from .strategy.scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCrossConfig, RsiReversion,
-                             RsiReversionConfig)
+                             RsiReversionConfig, ScalpWindow)
 from .strategy.sweep_reversal import SweepConfig, SweepReversal
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,6 +56,11 @@ RISK_PROFILES: dict[str, RiskConfig] = {
     # บอทวัดใจ: เข้าทุกเงื่อนไข ไม้ละ 0.5% หลายไม้พร้อมกัน — ทุกกลยุทธ์ในนี้ตก backtest แล้ว
     "gamble":     RiskConfig(risk_per_trade=0.005, min_lot_max_risk=0.06, daily_loss_limit=0.15, max_drawdown=0.50,
                              max_open_groups=10, max_groups_per_symbol=4),
+    # บอททดสอบ "ไม่มี limit": ไม่หยุดรายวัน ไม่มี kill switch ไม้ 0.01 lot เสมอ (risk 0.25% < lot ขั้นต่ำ → ใช้ขั้นต่ำ)
+    # เหลือด่านเดียว: equity จริงของบัญชีต่ำกว่า $600 → หยุดเปิดไม้ใหม่ เพื่อเหลือเงินให้บอทหลัก
+    "test_free":  RiskConfig(risk_per_trade=0.0025, min_lot_max_risk=0.15, daily_loss_limit=1.0, max_drawdown=1.0,
+                             max_open_groups=20, max_groups_per_symbol=10, close_on_daily_halt=False,
+                             account_floor=600.0),
 }
 NEWS_BLACKOUT_MIN = 30
 
@@ -73,12 +78,12 @@ LOG_DIR = ROOT / "logs"
 # allocation = ทุนเสมือนของบอทนั้น (sub-account): ขนาดไม้ เพดานขาดทุน kill switch คิดจากกำไรขาดทุนของบอทตัวเอง
 # → บอทหนึ่งขาดทุนหนักไม่ทำให้บอทอื่นหยุด · ผลรวม allocation เกินทุนจริงได้บน demo — บัญชีจริงห้ามทำแบบนี้
 # MAGIC + 3 = บอท "gamble" เดิม (เลิกใช้ 2026-10-15 แยกเป็น g_* ตามหมวด) — ห้ามนำเลขนี้กลับมาใช้
-_G = {"tf": "M15", "profile": "gamble", "allocation": 1000.0}
+_G = {"tf": "M15", "profile": "test_free", "allocation": 1000.0}
 LIVE_INSTANCES: dict[str, dict] = {
     "main":   {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
-    "lab_m5": {"strategies": ["lr_xau", "lr_nas", "ec_xau"], "tf": "M5", "profile": "demo_1k", "magic": MAGIC + 1,
+    "lab_m5": {"strategies": ["lr_xau", "lr_nas", "ec_xau"], "tf": "M5", "profile": "test_free", "magic": MAGIC + 1,
                "allocation": 1000.0},
-    "lab_m1": {"strategies": ["bb_xau"], "tf": "M1", "profile": "demo_1k", "magic": MAGIC + 2, "allocation": 1000.0},
+    "lab_m1": {"strategies": ["bb_xau"], "tf": "M1", "profile": "test_free", "magic": MAGIC + 2, "allocation": 1000.0},
     # บอทวัดใจ แยกตามหมวดเทคนิค → เห็นกำไรขาดทุนแต่ละแนวแยกกัน และมี kill switch ของตัวเอง
     # warmup 12,000 แท่ง M15 ≈ 125 วัน: regime classifier ต้องใช้ ~100 วัน · EMA50(H4) ต้องใช้ ~35 วัน
     "g_session": {**_G, "strategies": ["g_bo_x", "g_bo_n"], "magic": MAGIC + 4},
@@ -88,7 +93,8 @@ LIVE_INSTANCES: dict[str, dict] = {
     # กลุ่มควบคุม: เข้าแบบไม่มีสมอง ต้นทุนเดียวกัน — กลยุทธ์ที่ไม่ชนะกลุ่มนี้บน demo = ไม่มี edge
     "bench_rand": {**_G, "strategies": ["b_rnd_x", "b_rnd_n"], "magic": MAGIC + 8},
     "bench_long": {**_G, "strategies": ["b_lng_x", "b_lng_n"], "magic": MAGIC + 9},
-    "bench_m5":   {**_G, "tf": "M5", "strategies": ["b_rnd5_x"], "magic": MAGIC + 10},
+    # กลุ่มควบคุมของแล็บ M5: เข้า "จังหวะเดียวกับกลยุทธ์" แต่สุ่มทิศ → แยกได้ว่าทิศที่กลยุทธ์เลือกมีค่าไหม
+    "bench_m5":   {**_G, "tf": "M5", "strategies": ["b_lr5_x", "b_lr5_n", "b_ec5_x"], "magic": MAGIC + 10},
 }
 
 
@@ -101,13 +107,16 @@ GOLD_SESSION = SessionWindow(tz="UTC", range_start="00:00", range_end="07:00",
 NAS_SESSION = SessionWindow(tz="America/New_York", range_start="09:30", range_end="10:00",
                             trade_end="12:00", flat_time="15:45")
 
+ALL_DAY = ScalpWindow(0, 24)
+
 # ห้องทดลองสแกลป์ (research/hypotheses_v3_scalp.md) — **ตกทั้ง 4 ตัวใน backtest** (−0.016 ถึง −0.205R)
 # รันบน demo ตามคำขอเพื่อดูผลจริงกับตา · พารามิเตอร์ = ชุดที่ walk-forward เลือกในหน้าต่างล่าสุด
 LAB_CONFIGS: list = [
-    RsiReversionConfig(tag="lr_xau", symbol="XAUUSD", rsi_th=5.0, sl_atr=2.0, max_hold=24),
-    RsiReversionConfig(tag="lr_nas", symbol="NAS100", rsi_th=5.0, sl_atr=2.0, max_hold=12),
-    EmaCrossConfig(tag="ec_xau", symbol="XAUUSD", fast=12, slow=26, sl_atr=1.0, tp_r=2.0),
-    BollingerFadeConfig(tag="bb_xau", symbol="XAUUSD", k=2.0, sl_atr=2.0, max_hold=15),
+    # 2026-10-15: เปิด 24 ชม. ตามคำขอ (เดิม 07–20 UTC / เอเชียเท่านั้น) เพื่อศึกษาไม้แพ้ให้มากขึ้น
+    RsiReversionConfig(tag="lr_xau", symbol="XAUUSD", rsi_th=5.0, sl_atr=2.0, max_hold=24, window=ALL_DAY),
+    RsiReversionConfig(tag="lr_nas", symbol="NAS100", rsi_th=5.0, sl_atr=2.0, max_hold=12, window=ALL_DAY),
+    EmaCrossConfig(tag="ec_xau", symbol="XAUUSD", fast=12, slow=26, sl_atr=1.0, tp_r=2.0, window=ALL_DAY),
+    BollingerFadeConfig(tag="bb_xau", symbol="XAUUSD", k=2.0, sl_atr=2.0, max_hold=15, window=ALL_DAY),
 ]
 
 # บอทวัดใจ: ทุกกลยุทธ์ M15 ที่เคยสร้าง (research/RESULTS.md, RESULTS_v2.md — ตกทั้งหมด) เข้าทุกครั้งที่เงื่อนไขครบ
@@ -133,7 +142,13 @@ BENCH_CONFIGS: list = [
     RandomConfig(tag="b_rnd_n", symbol="NAS100", window=_NW, prob_per_bar=0.08, side_mode="random", seed=12),
     RandomConfig(tag="b_lng_x", symbol="XAUUSD", window=_XW, prob_per_bar=0.05, side_mode="long", seed=13),
     RandomConfig(tag="b_lng_n", symbol="NAS100", window=_NW, prob_per_bar=0.08, side_mode="long", seed=14),
-    RandomConfig(tag="b_rnd5_x", symbol="XAUUSD", window=_M5W, prob_per_bar=0.02, side_mode="random", seed=15),
+    # จังหวะเข้าเดียวกับ lr_xau / lr_nas / ec_xau แต่สุ่มทิศ (24 ชม. เหมือนกัน)
+    RsiReversionConfig(tag="b_lr5_x", symbol="XAUUSD", rsi_th=5.0, sl_atr=2.0, max_hold=24, window=ALL_DAY,
+                       side_mode="random", seed=15),
+    RsiReversionConfig(tag="b_lr5_n", symbol="NAS100", rsi_th=5.0, sl_atr=2.0, max_hold=12, window=ALL_DAY,
+                       side_mode="random", seed=16),
+    EmaCrossConfig(tag="b_ec5_x", symbol="XAUUSD", fast=12, slow=26, sl_atr=1.0, tp_r=2.0, window=ALL_DAY,
+                   side_mode="random", seed=17),
 ]
 
 STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
