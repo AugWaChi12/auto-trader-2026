@@ -106,7 +106,7 @@
 
   <div class="mid">
     <div class="left">
-      <div class="card"><h3><span>XAUUSD · M5</span><span class="num" id="px">–</span></h3><canvas id="chart"></canvas></div>
+      <div class="card"><h3><span>XAUUSD · M1</span><span class="num" id="px">–</span></h3><canvas id="chart"></canvas></div>
       <div class="card"><h3><span>🎯 บอทหลัก — xau_momo</span><span id="mainState" class="muted"></span></h3><div id="mainbot" class="mainbot"></div></div>
     </div>
     <div class="right">
@@ -275,7 +275,7 @@ async function refresh() {
 }
 
 async function refreshChart() {
-  try { chartData = await (await fetch("/api/bars?symbol=XAUUSD&tf=M5&n=110", { cache: "no-store" })).json(); } catch { return; }
+  try { chartData = await (await fetch("/api/bars?symbol=XAUUSD&tf=M1&n=110", { cache: "no-store" })).json(); } catch { return; }
   if (chartData.bid) $("px").textContent = chartData.bid.toFixed(2);
   drawChart();
 }
