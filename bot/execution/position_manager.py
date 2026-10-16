@@ -13,10 +13,11 @@ position_manager.py — บริหารไม้หลังเข้า: เ
 from __future__ import annotations
 
 import logging
+from typing import Callable
 
 from ..core.indicators import ATR
 from ..core.interfaces import IAccount, IOrderExecutor
-from ..core.types import Bar, Position, RejectReason, Side
+from ..core.types import Bar, Position, RejectReason, Side, SymbolSpec
 from ..strategy.base import ManagementPlan
 
 log = logging.getLogger(__name__)
@@ -24,10 +25,11 @@ log = logging.getLogger(__name__)
 
 class PositionManager:
     def __init__(self, plans: dict[str, ManagementPlan], account: IAccount, executor: IOrderExecutor,
-                 atr_period: int = 14) -> None:
+                 atr_period: int = 14, spec: Callable[[str], SymbolSpec] | None = None) -> None:
         self.plans = plans
         self.account = account
         self.executor = executor
+        self._spec = spec
         self._atr: dict[str, ATR] = {}
         self._atr_period = atr_period
 
@@ -62,6 +64,14 @@ class PositionManager:
             if plan.trail_atr_mult and atr and pos.role != "partial" and mfe_r >= plan.trail_start_r:
                 trail = bar.close - side * plan.trail_atr_mult * atr
                 new_sl = self._tighter(pos, new_sl, trail)
+
+            if plan.lock_tiers and self._spec is not None and pos.role != "partial":
+                # ล็อกกำไรแบบไต่: SL = จุดที่ยังเหลือกำไร keep $ (ฝั่ง server ปิดให้ทันทีระหว่างแท่งถ้าราคาย้อน)
+                per_price = pos.volume * self._spec(pos.symbol).contract_size
+                keep = plan.lock_keep((pos.best_price - pos.entry_price) * side * per_price)
+                if keep is not None:
+                    new_sl = self._tighter(pos, new_sl, pos.entry_price + side * keep / per_price)
+                    pos.moved_to_be = True
 
             new_tp = pos.tp
             if plan.tp_extend_at is not None and pos.tp is not None and pos.role != "partial":

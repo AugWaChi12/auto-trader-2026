@@ -60,7 +60,7 @@ class Engine:
         self.risk = risk
         self.guard = guard
         self._last_bar_close = last_bar_close
-        self.manager = PositionManager({s.tag: s.plan for s in strategies}, account, executor)
+        self.manager = PositionManager({s.tag: s.plan for s in strategies}, account, executor, spec=market.spec)
         self.stats = EngineStats()
         self._by_symbol: dict[str, list[Strategy]] = {}
         for s in strategies:
@@ -138,10 +138,10 @@ class Engine:
     def _split(self, sig: EnterSignal, volume: float, entry: float, group: str) -> list[OrderRequest]:
         plan = next(s.plan for s in self._by_symbol[sig.symbol] if s.tag == sig.tag)
         spec = self.market.spec(sig.symbol)
-        if plan.tp_usd or plan.sl_usd:
+        if plan.tp_usd or plan.sl_usd or plan.lock_tiers:
             # กำไร/ขาดทุน $X ต่อไม้ ไม่ว่าขนาดไม้เท่าไร: ระยะราคา = X / (lot × contract)
             per_price = volume * spec.contract_size
-            tp = entry + int(sig.side) * plan.tp_usd / per_price if plan.tp_usd else sig.tp
+            tp = entry + int(sig.side) * plan.tp_usd / per_price if plan.tp_usd else (None if plan.lock_tiers else sig.tp)
             sl = entry - int(sig.side) * plan.sl_usd / per_price if plan.sl_usd else sig.sl
             return [OrderRequest(sig.symbol, sig.side, volume, sl, tp, sig.tag, group, "single")]
         if plan.partial_r is not None:

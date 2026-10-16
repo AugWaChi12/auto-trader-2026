@@ -213,3 +213,35 @@ def test_engine_sl_usd_sets_dollar_stop_by_actual_volume() -> None:
     pos = broker.positions()[0]
     assert (pos.entry_price - pos.sl) * pos.volume * XAU.contract_size == pytest.approx(9.0, abs=1e-6)
     assert (pos.tp - pos.entry_price) * pos.volume * XAU.contract_size == pytest.approx(6.0, abs=1e-6)
+
+
+def test_position_manager_ratchets_dollar_profit_lock() -> None:
+    """ล็อกกำไรแบบไต่: เคยถึง +$X → SL อยู่ที่จุดที่ยังเหลือกำไรตามสัดส่วนของขั้น และขยับขึ้นอย่างเดียว"""
+    from bot.execution.position_manager import PositionManager
+    from bot.core.types import OrderRequest
+    broker = SimBroker({"XAUUSD": XAU}, 10_000.0, M15)
+    plan = ManagementPlan(partial_r=None, sl_usd=0.9, lock_tiers=((0.6, 0.5), (3.0, 0.8)))
+    pm = PositionManager({"t": plan}, broker, broker, spec=lambda s: XAU)
+    t = datetime(2025, 1, 6, 8, tzinfo=UTC)
+    b = Bar(t, 2000, 2000.5, 1999.5, 2000)
+    broker.on_bar("XAUUSD", b)
+    broker.send(OrderRequest("XAUUSD", Side.BUY, 0.01, 1990.0, None, "t", "g", "single"))
+    pos = broker.positions()[0]
+    usd = lambda price: (price - pos.entry_price) * pos.volume * XAU.contract_size  # noqa: E731
+    for i, (hi, close, keep) in enumerate([(pos.entry_price + 0.4, pos.entry_price, None),      # ยังไม่ถึง $0.6
+                                           (pos.entry_price + 2.0, pos.entry_price + 1.8, 1.0),  # สูงสุด $2 → ล็อก 50%
+                                           (pos.entry_price + 4.0, pos.entry_price + 3.9, 3.2),  # สูงสุด $4 → ล็อก 80%
+                                           (pos.entry_price + 3.8, pos.entry_price + 3.5, 3.2)]):  # ย่อลง → SL ไม่ถอย
+        b = Bar(t + (i + 1) * M15, close, hi, close - 0.1, close)
+        broker.on_bar("XAUUSD", b)
+        pm.on_bar("XAUUSD", b)
+        if keep is None:
+            assert pos.sl == 1990.0
+        else:
+            assert usd(pos.sl) == pytest.approx(keep, abs=1e-6)
+
+
+def test_engine_lock_tiers_leaves_tp_open() -> None:
+    eng, broker = _engine(ManagementPlan(partial_r=None, sl_usd=9.0, lock_tiers=((0.6, 0.5),)))
+    _feed(eng, broker, warmup() + asian_range_then(date(2025, 1, 20), [(2000, 2006, 1999, 2006)]))
+    assert broker.positions()[0].tp is None

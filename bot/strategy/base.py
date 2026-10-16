@@ -47,6 +47,18 @@ class ManagementPlan:
     tp_usd: float | None = None
     # SL เป็นขาดทุนดอลลาร์ต่อไม้ (Engine คำนวณจากขนาดไม้จริง) — ทับ SL ของกลยุทธ์หลังคำนวณขนาดไม้แล้ว
     sl_usd: float | None = None
+    # ล็อกกำไรแบบไต่ (ดอลลาร์ต่อไม้): ((กำไรสูงสุดที่เคยถึง $, สัดส่วนที่เก็บไว้), ...) เรียงจากน้อยไปมาก
+    # เช่น ((0.6, 0.5), (3.0, 0.8)) → เคยถึง +$0.6 ล็อก 50% ของจุดสูงสุด, เคยถึง +$3 ล็อก 80%
+    # ตั้งแล้ว = ไม่มี TP ตายตัว (ปล่อยกำไรวิ่ง) และไม่ตัดด้วยเวลา/สัญญาณออกของกลยุทธ์ระหว่างล็อกอยู่
+    lock_tiers: tuple[tuple[float, float], ...] = ()
+
+    def lock_keep(self, peak_usd: float) -> float | None:
+        """กำไร $ ที่ต้องล็อกไว้ เมื่อกำไรสูงสุดที่เคยถึง = peak_usd (None = ยังไม่ถึงขั้นแรก)"""
+        keep = None
+        for at, frac in self.lock_tiers:
+            if peak_usd >= at:
+                keep = peak_usd * frac
+        return keep
 
 
 @dataclass(frozen=True)

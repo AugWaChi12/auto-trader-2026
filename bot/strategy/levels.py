@@ -59,7 +59,9 @@ def hold_exits(strategy, bar: Bar, account, max_hold: timedelta, bar_duration: t
     now = bar.time + bar_duration
     if now.weekday() == 4 and now.hour >= 20:
         return [ExitSignal(strategy.symbol, strategy.tag, "weekend")]
-    if any(now - p.open_time >= max_hold for p in positions):
+    # ไม้ที่ล็อกกำไรแบบไต่อยู่ (plan.lock_tiers) ปล่อยวิ่งต่อ ไม่ตัดด้วยเวลา — SL ที่ล็อกไว้คุมเอง
+    locking = bool(getattr(getattr(strategy, "plan", None), "lock_tiers", ()))
+    if any(now - p.open_time >= max_hold and not (locking and p.moved_to_be) for p in positions):
         return [ExitSignal(strategy.symbol, strategy.tag, "time_stop")]
     return []
 

@@ -132,7 +132,12 @@ ALL_DAY = ScalpWindow(0, 24)
 M1_TRAIL_PLAN = ManagementPlan(partial_r=0.5, partial_frac=1.0, be_offset_r=0.1, trail_atr_mult=1.0, trail_start_r=0.5,
                                tp_extend_at=0.7, tp_extend_r=0.5)
 # 2026-10-16: เพิ่ม SL −$0.9 ต่อไม้ ตามคำขอ (เดิม SL ตาม ATR ≈ $2–4)
-M1_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, tp_usd=0.6, sl_usd=0.9)
+M1_FIXED_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, tp_usd=0.6, sl_usd=0.9)
+# 2026-10-16: ล็อกกำไรแบบไต่ตามคำขอ — ไม่มี TP ตายตัว · เคยถึง +$0.6 ล็อก 50% ของจุดสูงสุด, +$1.5 → 65%, +$3 → 80% · SL −$0.9
+# ทดสอบ (research/m1_small_tp_test.py, ทอง M1 0.01 lot): ดีกว่า TP $0.6/SL $0.9 ทุกตัว แต่ยังขาดทุน
+#   bb_xau −$70 → −$46/วัน · lr1_x −$48 → −$36 · ec1_x −$14 → −$11 · c_lr1_x −$48 → −$35
+M1_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, sl_usd=0.9,
+                         lock_tiers=((0.6, 0.5), (1.5, 0.65), (3.0, 0.8)))
 
 # ห้องทดลองสแกลป์ (research/hypotheses_v3_scalp.md) — **ตกทั้ง 4 ตัวใน backtest** (−0.016 ถึง −0.205R)
 # รันบน demo ตามคำขอเพื่อดูผลจริงกับตา · พารามิเตอร์ = ชุดที่ walk-forward เลือกในหน้าต่างล่าสุด

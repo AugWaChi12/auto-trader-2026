@@ -32,7 +32,14 @@ FIXED_MIN_LOT = RiskConfig(risk_per_trade=1e-9, min_lot_max_risk=1.0, daily_loss
 LOT = 0.01
 TAGS = ["bb_xau", "lr1_x", "ec1_x", "c_lr1_x"]          # ทอง M1 (ฝั่งที่ขาดทุนเป็นเงินมากที่สุด)
 NO_EXTEND = ManagementPlan(partial_r=None, trail_atr_mult=None)
-VARIANTS = [("ล็อก+ขยับ (เดิม)", None), ("TP +$0.6 (SL ATR)", 0.6), ("TP +$0.6 / SL −$0.9", "0.6/0.9")]
+VARIANTS = [("ล็อก+ขยับ (เดิม)", None), ("TP +$0.6 / SL −$0.9", "0.6/0.9"),
+            # ล็อกกำไรแบบไต่ (ไม่มี TP ตายตัว) · SL −$0.9
+            ("ไต่ A: 0.6→50% 1.5→65% 3→80%", ManagementPlan(partial_r=None, trail_atr_mult=None, sl_usd=0.9,
+                                                       lock_tiers=((0.6, 0.5), (1.5, 0.65), (3.0, 0.8)))),
+            ("ไต่ B: 0.4→40% 1→60% 2.5→80%", ManagementPlan(partial_r=None, trail_atr_mult=None, sl_usd=0.9,
+                                                       lock_tiers=((0.4, 0.4), (1.0, 0.6), (2.5, 0.8)))),
+            ("ไต่ A + SL ATR", ManagementPlan(partial_r=None, trail_atr_mult=None,
+                                              lock_tiers=((0.6, 0.5), (1.5, 0.65), (3.0, 0.8))))]
 
 
 def job(args: tuple) -> dict:
@@ -40,6 +47,8 @@ def job(args: tuple) -> dict:
     cfg = next(c for c in C.LAB_CONFIGS + C.M1_CONFIGS if c.tag == tag)
     if tp_usd is None:                       # แบบเดิมก่อนเปลี่ยน: ล็อก +0.5R → trail → ขยับ TP
         cfg = replace(cfg, plan=C.M1_TRAIL_PLAN)
+    elif isinstance(tp_usd, ManagementPlan):
+        cfg = replace(cfg, plan=tp_usd)
     elif tp_usd == "0.6/0.9":
         cfg = replace(cfg, plan=ManagementPlan(partial_r=None, trail_atr_mult=None, tp_usd=0.6, sl_usd=0.9))  # Engine ทับ TP/SL เอง
     elif tp_usd is not None:
