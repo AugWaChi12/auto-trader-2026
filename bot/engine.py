@@ -73,6 +73,8 @@ class Engine:
             self.stats.events.append((now, ev))
             if ev == "kill" or (ev == "day_halt" and self.risk.cfg.close_on_daily_halt):
                 self.close_all("halt")
+            elif ev == "day_target":
+                self.close_all("target")
 
         self.manager.on_bar(symbol, bar)
 

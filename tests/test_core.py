@@ -221,3 +221,27 @@ def test_carry_schedule_by_year() -> None:
     b.close(1, "end")
     one_night_2024 = 0.0365 * 2 / 365 * 2000 * 100            # คืน 31 ธ.ค. เท่านั้นที่คิดอัตราปี 2024
     assert b.closed[0].pnl == pytest.approx((2000 - 2000.20) * 100 - one_night_2024, rel=1e-6)
+
+
+def test_fixed_lot_overrides_risk_sizing_per_symbol() -> None:
+    b = broker_with_price()
+    rm = RiskManager(RiskConfig(fixed_lots=(("XAUUSD", 0.04),)), b)
+    sig = EnterSignal("XAUUSD", Side.BUY, sl=1995.0, tp=None, tag="t", key="k")
+    assert rm.size(sig, 2000.0, XAU).volume == pytest.approx(0.04)
+    tiny = broker_with_price(balance=100.0)                     # margin 0.04 lot = $80 > 50% ของ $100
+    assert not RiskManager(RiskConfig(fixed_lots=(("XAUUSD", 0.04),)), tiny).size(sig, 2000.0, XAU).ok
+
+
+def test_daily_profit_target_halts_for_the_day_then_resets() -> None:
+    b = broker_with_price(2000.0)
+    rm = RiskManager(RiskConfig(daily_profit_target=120.0, daily_loss_limit=1.0, max_drawdown=1.0), b)
+    rm.on_time(T0)
+    b.send(OrderRequest("XAUUSD", Side.BUY, 0.5, 1900.0, None, "t", "g"))     # 0.5 lot = $50 ต่อราคา $1
+    b.on_bar("XAUUSD", bar(T0 + M15, 2002, 2003, 2001, 2002))               # +2.0 − สเปรด 0.2 = +$90
+    assert rm.on_time(T0 + M15) == []
+    b.on_bar("XAUUSD", bar(T0 + 2 * M15, 2003, 2003.5, 2002.5, 2003))       # +$140
+    assert rm.on_time(T0 + 2 * M15) == ["day_target"]
+    assert rm.can_open(_sig(), T0 + 2 * M15) == "daily_target"
+    assert rm.on_time(T0 + 3 * M15) == []                                   # ไม่ยิงซ้ำในวันเดียวกัน
+    rm.on_time(T0 + timedelta(days=1))
+    assert rm.can_open(_sig(), T0 + timedelta(days=1)) == ""

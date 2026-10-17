@@ -182,7 +182,7 @@ class LiveRunner:
               "magic": self.magic, "equity": self.broker.equity(), "allocation": self.broker.allocation,
               "last_bars": {s: t.isoformat() for s, t in self._last_time.items()},
               "algo_trading": self.broker.algo_trading_enabled(), "killed": self.risk.killed,
-              "kill_reason": self.risk.kill_reason, "halted_today": self.risk.halted_today,
+              "kill_reason": self.risk.kill_reason, "halted_today": self.risk.halted_today, "target_hit": self.risk.target_hit,
               "profile": self.profile, "strategies": {s.tag: s.status() for s in self.strategies}}
         atomic_write(self._heartbeat_path, json.dumps(hb, indent=1))
         if now - self._last_heartbeat_log >= timedelta(minutes=30):

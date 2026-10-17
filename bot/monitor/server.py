@@ -215,6 +215,7 @@ class Collector:
         return {
             "now": datetime.now(UTC).isoformat(),
             "bot": hbs.get("main", {}), "bots": hbs, "per_bot": per_bot,
+            "research": {b["bot"]: b for b in C.load_m5_bots()},
             "account": {"login": acc.login, "server": acc.server, "balance": acc.balance, "equity": acc.equity,
                         "margin": acc.margin, "free_margin": acc.margin_free, "currency": acc.currency,
                         "demo": acc.trade_mode == mt5.ACCOUNT_TRADE_MODE_DEMO,

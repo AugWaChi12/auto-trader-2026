@@ -245,3 +245,18 @@ def test_engine_lock_tiers_leaves_tp_open() -> None:
     eng, broker = _engine(ManagementPlan(partial_r=None, sl_usd=9.0, lock_tiers=((0.6, 0.5),)))
     _feed(eng, broker, warmup() + asian_range_then(date(2025, 1, 20), [(2000, 2006, 1999, 2006)]))
     assert broker.positions()[0].tp is None
+
+
+def test_m5_bots_build_from_research_assignments() -> None:
+    """บอท M5 ทุกตัวสร้างกลยุทธ์ได้จาก bot/m5_bots.json ด้วยตัวสร้างเดียวกับงานวิจัย (catalog)"""
+    from bot import config as C
+    bots = C.load_m5_bots()
+    assert bots, "ยังไม่มี bot/m5_bots.json — รัน research/m5_lab.py --assign"
+    for b in bots:
+        inst = C.LIVE_INSTANCES[b["bot"]]
+        assert inst["tf"] == "M5" and inst["profile"] == "m5_fixed"
+        (s,) = C.build_strategies(inst["strategies"], timeframe="M5")
+        assert s.tag == b["bot"] and s.symbol == b["symbol"]
+    assert dict(C.RISK_PROFILES["m5_fixed"].fixed_lots)["XAUUSD"] == 0.04
+    assert C.RISK_PROFILES["m5_fixed"].daily_profit_target == 120.0
+    assert C.LIVE_INSTANCES["main"]["tf"] == "M15" and C.LIVE_INSTANCES["main"]["strategies"] == ["xau_momo"]

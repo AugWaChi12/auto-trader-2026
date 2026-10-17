@@ -1,0 +1,159 @@
+{
+ "generated": "2026-10-17T05:33:00.371074+00:00",
+ "meta": {
+  "tf": "M5",
+  "lots": {
+   "XAUUSD": 0.04,
+   "NAS100": 0.73
+  },
+  "target": 120.0,
+  "data": [
+   "2025-05-19 13:50:00+00:00",
+   "2026-10-15 04:40:00+00:00"
+  ],
+  "holdout_from": "2026-08-15 04:40:00+00:00",
+  "wf_days": 191,
+  "holdout_days": 44,
+  "backtests": 4176
+ },
+ "bots": [
+  {
+   "bot": "m5_1",
+   "family": "donchian",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "entry_n": 12,
+    "stop_atr": 1.0
+   },
+   "plan": "native",
+   "wf_usd_day": 13.6,
+   "holdout_usd_day": -26.99,
+   "random_usd_day": -6.42
+  },
+  {
+   "bot": "m5_2",
+   "family": "momo",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "entry_time": "11:00",
+    "min_move_adr": 0.35,
+    "sl_adr": 0.5
+   },
+   "plan": "trail",
+   "wf_usd_day": 8.87,
+   "holdout_usd_day": 25.98,
+   "random_usd_day": -0.03
+  },
+  {
+   "bot": "m5_3",
+   "family": "ema",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "fast": 9,
+    "slow": 21,
+    "sl_atr": 1.5,
+    "tp_r": 4.0,
+    "max_hold": 96
+   },
+   "plan": "native",
+   "wf_usd_day": 8.56,
+   "holdout_usd_day": 15.69,
+   "random_usd_day": -3.38
+  },
+  {
+   "bot": "m5_4",
+   "family": "ema",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "fast": 20,
+    "slow": 50,
+    "sl_atr": 3.0,
+    "tp_r": 1.0,
+    "max_hold": 96
+   },
+   "plan": "native",
+   "wf_usd_day": 2.92,
+   "holdout_usd_day": -3.28,
+   "random_usd_day": -14.55
+  },
+  {
+   "bot": "m5_5",
+   "family": "momo",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "entry_time": "12:00",
+    "min_move_adr": 0.35,
+    "sl_adr": 0.3
+   },
+   "plan": "native",
+   "wf_usd_day": 0.18,
+   "holdout_usd_day": -4.85,
+   "random_usd_day": 0.44
+  },
+  {
+   "bot": "m5_6",
+   "family": "orb",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "sl_mode": "opposite",
+    "tp_r": 1.0,
+    "buffer_adr": 0.0
+   },
+   "plan": "trail",
+   "wf_usd_day": -0.69,
+   "holdout_usd_day": 19.23,
+   "random_usd_day": null
+  },
+  {
+   "bot": "m5_7",
+   "family": "orb",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "sl_mode": "opposite",
+    "tp_r": 1.0,
+    "buffer_adr": 0.0
+   },
+   "plan": "native",
+   "wf_usd_day": -1.21,
+   "holdout_usd_day": -9.77,
+   "random_usd_day": null
+  },
+  {
+   "bot": "m5_8",
+   "family": "levels",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "max_bars": 1,
+    "buffer_atr": 0.1,
+    "tp_r": 2.0
+   },
+   "plan": "trail",
+   "wf_usd_day": -2.08,
+   "holdout_usd_day": -2.3,
+   "random_usd_day": 0.42
+  },
+  {
+   "bot": "m5_9",
+   "family": "levels",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "max_bars": 1,
+    "buffer_atr": 0.5,
+    "tp_r": 3.0
+   },
+   "plan": "native",
+   "wf_usd_day": -2.15,
+   "holdout_usd_day": -4.13,
+   "random_usd_day": -3.17
+  }
+ ]
+}

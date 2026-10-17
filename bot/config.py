@@ -78,6 +78,11 @@ RISK_PROFILES: dict[str, RiskConfig] = {
     "test_free":  RiskConfig(risk_per_trade=0.0025, min_lot_max_risk=0.15, daily_loss_limit=1.0, max_drawdown=1.0,
                              max_open_groups=20, max_groups_per_symbol=10, close_on_daily_halt=False,
                              account_floor=600.0),
+    # บอท M5 ที่วิจัยตัวเอง (2026-10-17 ตามคำขอ): ไม้ตายตัว ทอง 0.04 lot · NAS 0.73 lot (แกว่งเป็นเงินเท่าทอง 0.04)
+    # ได้ +$120 ในวันนั้น → ปิดทุกไม้ หยุดถึงวันใหม่ (UTC) · ไม่มีเพดานขาดทุนรายวัน · equity จริง < $600 → หยุดเปิดไม้
+    "m5_fixed":   RiskConfig(fixed_lots=(("XAUUSD", 0.04), ("NAS100", 0.73)), daily_profit_target=120.0,
+                             daily_loss_limit=1.0, max_drawdown=1.0, max_open_groups=20, max_groups_per_symbol=10,
+                             close_on_daily_halt=False, account_floor=600.0),
 }
 NEWS_BLACKOUT_MIN = 30
 
@@ -97,21 +102,14 @@ LOG_DIR = ROOT / "logs"
 #
 # magic ที่เลิกใช้แล้ว ห้ามนำกลับมา: +1 lab_m5, +3 gamble, +4..+7 g_session/g_sweep/g_vol/g_trend,
 #                                   +8..+10 bench_rand/bench_long/bench_m5  (2026-10-15)
+#                                   +2, +11..+18 บอท M1 ชุดเดิม (2026-10-17 → ย้ายไป M5 ใช้ +21..+29)
 _T = {"tf": "M1", "profile": "test_free", "allocation": 1000.0}
 LIVE_INSTANCES: dict[str, dict] = {
     # ทดสอบไปข้างหน้า — ห้ามแตะ
     "main":    {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
-    # M1 สายซิ่ง 24 ชม. — ทุกตัวใช้ M1_PLAN (ล็อกกำไรที่ +0.5R, trail SL, ขยับ TP)
-    "lab_m1":  {**_T, "strategies": ["bb_xau"], "magic": MAGIC + 2},
-    "m1_rsi":  {**_T, "strategies": ["lr1_x", "lr1_n"], "magic": MAGIC + 11},
-    "m1_ema":  {**_T, "strategies": ["ec1_x", "ec1_n"], "magic": MAGIC + 12},
-    "m1_bb":   {**_T, "strategies": ["bb1_n"], "magic": MAGIC + 13},
-    "m1_brk":  {**_T, "strategies": ["br1_x", "br1_n"], "magic": MAGIC + 14},
-    "m1_trend": {**_T, "strategies": ["pb1_x", "pb1_n"], "magic": MAGIC + 15, "warmup": 6000},   # EMA50(H1) ต้องใช้ 50 ชม.
-    # กลุ่มควบคุม M1: จังหวะเข้าเดียวกับกลยุทธ์ แต่สุ่มทิศ
-    "c1_rsi":  {**_T, "strategies": ["c_lr1_x", "c_lr1_n"], "magic": MAGIC + 16},
-    "c1_bb":   {**_T, "strategies": ["c_bb1_x", "c_bb1_n"], "magic": MAGIC + 17},
-    "c1_brk":  {**_T, "strategies": ["c_br1_x", "c_br1_n"], "magic": MAGIC + 18},
+    # บอท M5 วิจัยตัวเอง 9 ตัว: งานของแต่ละตัวอยู่ใน bot/m5_bots.json (เขียนโดย research/m5_lab.py --assign)
+    **{f"m5_{i}": {"strategies": [f"m5_{i}"], "tf": "M5", "profile": "m5_fixed", "magic": MAGIC + 20 + i,
+                   "allocation": 1000.0, "warmup": 6000} for i in range(1, 10)},
 }
 
 
@@ -231,6 +229,20 @@ STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
 ]
 
 
+M5_BOTS_FILE = ROOT / "bot" / "m5_bots.json"
+# ล็อกกำไรแบบไต่ของบอท M5 (ดอลลาร์ ที่ทอง 0.04 lot ≈ 0.5 / 1 / 2 ATR ของ M5)
+M5_RATCHET_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, lock_tiers=((8.0, 0.5), (17.0, 0.65), (34.0, 0.8)))
+M5_PLANS: dict[str, ManagementPlan | None] = {"native": None, "trail": M1_TRAIL_PLAN, "ratchet": M5_RATCHET_PLAN}
+
+
+def load_m5_bots() -> list[dict]:
+    import json
+    try:
+        return json.loads(M5_BOTS_FILE.read_text(encoding="utf-8"))["bots"]
+    except (OSError, ValueError, KeyError):
+        return []
+
+
 def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = None,
                      timeframe: str = TIMEFRAME) -> list[Strategy]:
     out: list[Strategy] = []
@@ -246,4 +258,9 @@ def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = 
         if tags is None and (c in LAB_CONFIGS or c in GAMBLE_CONFIGS or c in BENCH_CONFIGS or c in M1_CONFIGS):
             continue                       # แล็บต้องเรียกชื่อตรงๆ เท่านั้น ไม่ติดไปกับ backtest ปกติ
         out.append(builders[type(c)](c, timeframe))
+    if tags:
+        from .strategy.catalog import build
+        for b in load_m5_bots():
+            if b["bot"] in tags:
+                out.append(build(b["family"], b["symbol"], b["params"], M5_PLANS[b["plan"]], timeframe, b["bot"]))
     return out

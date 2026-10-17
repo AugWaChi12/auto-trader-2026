@@ -1,0 +1,2070 @@
+{
+ "meta": {
+  "tf": "M5",
+  "lots": {
+   "XAUUSD": 0.04,
+   "NAS100": 0.73
+  },
+  "target": 120.0,
+  "data": [
+   "2025-05-19 13:50:00+00:00",
+   "2026-10-15 04:40:00+00:00"
+  ],
+  "holdout_from": "2026-08-15 04:40:00+00:00",
+  "wf_days": 191,
+  "holdout_days": 44,
+  "backtests": 4176
+ },
+ "slots": [
+  {
+   "family": "donchian",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 489,
+    "usd_day": 13.6,
+    "usd_trade": 5.32,
+    "win": 32.1,
+    "pf": 1.15,
+    "t": 1.1,
+    "ci95_day": [
+     -10.7,
+     37.9
+    ]
+   },
+   "holdout": {
+    "n": 64,
+    "usd_day": -26.99,
+    "usd_trade": -18.38,
+    "win": 26.6,
+    "pf": 0.67,
+    "t": -1.4,
+    "ci95_day": [
+     -64.8,
+     10.8
+    ]
+   },
+   "windows_positive": "3/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "entry_n": 48,
+       "stop_atr": 4.0
+      },
+      "plan": "native"
+     },
+     "train_score": 1.4
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "entry_n": 96,
+       "stop_atr": 1.0
+      },
+      "plan": "native"
+     },
+     "train_score": 1.34
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "entry_n": 96,
+       "stop_atr": 4.0
+      },
+      "plan": "native"
+     },
+     "train_score": 11.21
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "entry_n": 96,
+       "stop_atr": 4.0
+      },
+      "plan": "native"
+     },
+     "train_score": 9.48
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "entry_n": 96,
+       "stop_atr": 4.0
+      },
+      "plan": "native"
+     },
+     "train_score": 9.86
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "entry_n": 192,
+     "stop_atr": 4.0
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "entry_n": 12,
+     "stop_atr": 1.0
+    },
+    "plan": "native"
+   },
+   "live_score": -1.33,
+   "wf_random": {
+    "n": 682,
+    "usd_day": -6.42,
+    "usd_trade": -1.8,
+    "win": 22.6,
+    "pf": 0.94,
+    "t": -0.51,
+    "ci95_day": [
+     -30.9,
+     18.0
+    ]
+   }
+  },
+  {
+   "family": "momo",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 91,
+    "usd_day": 8.87,
+    "usd_trade": 18.66,
+    "win": 56.0,
+    "pf": 1.47,
+    "t": 1.57,
+    "ci95_day": [
+     -2.2,
+     19.9
+    ]
+   },
+   "holdout": {
+    "n": 21,
+    "usd_day": 25.98,
+    "usd_trade": 53.9,
+    "win": 76.2,
+    "pf": 2.65,
+    "t": 2.06,
+    "ci95_day": [
+     1.2,
+     50.7
+    ]
+   },
+   "windows_positive": "4/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "entry_time": "13:00",
+       "min_move_adr": 0.2,
+       "sl_adr": 0.5
+      },
+      "plan": "native"
+     },
+     "train_score": 8.71
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "entry_time": "14:00",
+       "min_move_adr": 0.5,
+       "sl_adr": 0.5
+      },
+      "plan": "trail"
+     },
+     "train_score": 14.17
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "entry_time": "13:00",
+       "min_move_adr": 0.5,
+       "sl_adr": 0.3
+      },
+      "plan": "native"
+     },
+     "train_score": 31.92
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "entry_time": "14:00",
+       "min_move_adr": 0.35,
+       "sl_adr": 0.5
+      },
+      "plan": "trail"
+     },
+     "train_score": 18.34
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "entry_time": "11:00",
+       "min_move_adr": 0.35,
+       "sl_adr": 0.5
+      },
+      "plan": "trail"
+     },
+     "train_score": 46.15
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "entry_time": "11:00",
+     "min_move_adr": 0.35,
+     "sl_adr": 0.5
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "entry_time": "11:00",
+     "min_move_adr": 0.35,
+     "sl_adr": 0.5
+    },
+    "plan": "trail"
+   },
+   "live_score": 42.99,
+   "wf_random": {
+    "n": 91,
+    "usd_day": -0.03,
+    "usd_trade": -0.06,
+    "win": 49.5,
+    "pf": 1.0,
+    "t": -0.0,
+    "ci95_day": [
+     -11.3,
+     11.2
+    ]
+   }
+  },
+  {
+   "family": "ema",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 692,
+    "usd_day": 8.56,
+    "usd_trade": 2.37,
+    "win": 49.0,
+    "pf": 1.12,
+    "t": 0.93,
+    "ci95_day": [
+     -9.5,
+     26.7
+    ]
+   },
+   "holdout": {
+    "n": 133,
+    "usd_day": 15.69,
+    "usd_trade": 5.14,
+    "win": 63.9,
+    "pf": 1.42,
+    "t": 1.43,
+    "ci95_day": [
+     -5.8,
+     37.1
+    ]
+   },
+   "windows_positive": "3/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "fast": 9,
+       "slow": 21,
+       "sl_atr": 1.0,
+       "tp_r": 4.0,
+       "max_hold": 96
+      },
+      "plan": "trail"
+     },
+     "train_score": 0.27
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "fast": 5,
+       "slow": 13,
+       "sl_atr": 2.0,
+       "tp_r": 4.0,
+       "max_hold": 96
+      },
+      "plan": "native"
+     },
+     "train_score": 1.97
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "fast": 20,
+       "slow": 50,
+       "sl_atr": 3.0,
+       "tp_r": 2.0,
+       "max_hold": 96
+      },
+      "plan": "native"
+     },
+     "train_score": 9.24
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "fast": 20,
+       "slow": 50,
+       "sl_atr": 1.5,
+       "tp_r": 2.0,
+       "max_hold": 24
+      },
+      "plan": "trail"
+     },
+     "train_score": 1.58
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "fast": 20,
+       "slow": 50,
+       "sl_atr": 1.5,
+       "tp_r": 4.0,
+       "max_hold": 24
+      },
+      "plan": "trail"
+     },
+     "train_score": 4.12
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "fast": 20,
+     "slow": 50,
+     "sl_atr": 2.0,
+     "tp_r": 3.0,
+     "max_hold": 24
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "fast": 9,
+     "slow": 21,
+     "sl_atr": 1.5,
+     "tp_r": 4.0,
+     "max_hold": 96
+    },
+    "plan": "native"
+   },
+   "live_score": 3.05,
+   "wf_random": {
+    "n": 679,
+    "usd_day": -3.38,
+    "usd_trade": -0.95,
+    "win": 49.0,
+    "pf": 0.95,
+    "t": -0.37,
+    "ci95_day": [
+     -21.3,
+     14.6
+    ]
+   }
+  },
+  {
+   "family": "ema",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 521,
+    "usd_day": 2.92,
+    "usd_trade": 1.07,
+    "win": 49.5,
+    "pf": 1.04,
+    "t": 0.35,
+    "ci95_day": [
+     -13.3,
+     19.1
+    ]
+   },
+   "holdout": {
+    "n": 175,
+    "usd_day": -3.28,
+    "usd_trade": -0.82,
+    "win": 26.3,
+    "pf": 0.96,
+    "t": -0.22,
+    "ci95_day": [
+     -32.5,
+     25.9
+    ]
+   },
+   "windows_positive": "3/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "fast": 20,
+       "slow": 50,
+       "sl_atr": 3.0,
+       "tp_r": 4.0,
+       "max_hold": 96
+      },
+      "plan": "trail"
+     },
+     "train_score": 2.12
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "fast": 12,
+       "slow": 26,
+       "sl_atr": 3.0,
+       "tp_r": 1.0,
+       "max_hold": 96
+      },
+      "plan": "native"
+     },
+     "train_score": 1.9
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "fast": 20,
+       "slow": 50,
+       "sl_atr": 3.0,
+       "tp_r": 4.0,
+       "max_hold": 96
+      },
+      "plan": "native"
+     },
+     "train_score": 6.23
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "fast": 12,
+       "slow": 26,
+       "sl_atr": 3.0,
+       "tp_r": 1.5,
+       "max_hold": 24
+      },
+      "plan": "native"
+     },
+     "train_score": 2.95
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "fast": 12,
+       "slow": 26,
+       "sl_atr": 3.0,
+       "tp_r": 3.0,
+       "max_hold": 96
+      },
+      "plan": "native"
+     },
+     "train_score": 7.83
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "fast": 12,
+     "slow": 26,
+     "sl_atr": 1.5,
+     "tp_r": 4.0,
+     "max_hold": 96
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "fast": 20,
+     "slow": 50,
+     "sl_atr": 3.0,
+     "tp_r": 1.0,
+     "max_hold": 96
+    },
+    "plan": "native"
+   },
+   "live_score": 6.41,
+   "wf_random": {
+    "n": 506,
+    "usd_day": -14.55,
+    "usd_trade": -5.5,
+    "win": 48.0,
+    "pf": 0.81,
+    "t": -1.87,
+    "ci95_day": [
+     -29.8,
+     0.7
+    ]
+   }
+  },
+  {
+   "family": "momo",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 107,
+    "usd_day": 0.18,
+    "usd_trade": 0.32,
+    "win": 57.0,
+    "pf": 1.01,
+    "t": 0.03,
+    "ci95_day": [
+     -12.1,
+     12.4
+    ]
+   },
+   "holdout": {
+    "n": 16,
+    "usd_day": -4.85,
+    "usd_trade": -13.21,
+    "win": 50.0,
+    "pf": 0.74,
+    "t": -0.47,
+    "ci95_day": [
+     -25.0,
+     15.3
+    ]
+   },
+   "windows_positive": "3/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "entry_time": "11:00",
+       "min_move_adr": 0.35,
+       "sl_adr": 0.8
+      },
+      "plan": "trail"
+     },
+     "train_score": 2.8
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "entry_time": "14:00",
+       "min_move_adr": 0.2,
+       "sl_adr": 0.3
+      },
+      "plan": "trail"
+     },
+     "train_score": 6.46
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "entry_time": "11:00",
+       "min_move_adr": 0.35,
+       "sl_adr": 0.8
+      },
+      "plan": "trail"
+     },
+     "train_score": 6.4
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "entry_time": "11:00",
+       "min_move_adr": 0.2,
+       "sl_adr": 0.8
+      },
+      "plan": "trail"
+     },
+     "train_score": 5.47
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "entry_time": "12:00",
+       "min_move_adr": 0.2,
+       "sl_adr": 0.8
+      },
+      "plan": "trail"
+     },
+     "train_score": 6.06
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "entry_time": "12:00",
+     "min_move_adr": 0.35,
+     "sl_adr": 0.8
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "entry_time": "12:00",
+     "min_move_adr": 0.35,
+     "sl_adr": 0.3
+    },
+    "plan": "native"
+   },
+   "live_score": 14.67,
+   "wf_random": {
+    "n": 107,
+    "usd_day": 0.44,
+    "usd_trade": 0.78,
+    "win": 53.3,
+    "pf": 1.02,
+    "t": 0.07,
+    "ci95_day": [
+     -11.2,
+     12.1
+    ]
+   }
+  },
+  {
+   "family": "volx",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   },
+   "holdout": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": null,
+     "train_score": -Infinity
+    }
+   ],
+   "pre_holdout": null,
+   "live": {
+    "params": {
+     "box_n": 12,
+     "sl_atr": 1.5,
+     "tp_r": 3.0,
+     "max_hold_h": 24
+    },
+    "plan": "trail"
+   },
+   "live_score": 8.61,
+   "wf_random": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   }
+  },
+  {
+   "family": "volx",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   },
+   "holdout": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": null,
+     "train_score": -Infinity
+    }
+   ],
+   "pre_holdout": null,
+   "live": null,
+   "live_score": -Infinity,
+   "wf_random": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   }
+  },
+  {
+   "family": "orb",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 105,
+    "usd_day": -0.69,
+    "usd_trade": -1.25,
+    "win": 59.0,
+    "pf": 0.96,
+    "t": -0.16,
+    "ci95_day": [
+     -9.1,
+     7.7
+    ]
+   },
+   "holdout": {
+    "n": 29,
+    "usd_day": 19.23,
+    "usd_trade": 28.89,
+    "win": 62.1,
+    "pf": 1.67,
+    "t": 1.24,
+    "ci95_day": [
+     -11.0,
+     49.5
+    ]
+   },
+   "windows_positive": "3/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "sl_mode": "mid",
+       "tp_r": 1.0,
+       "buffer_adr": 0.05
+      },
+      "plan": "trail"
+     },
+     "train_score": 6.59
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "sl_mode": "opposite",
+       "tp_r": null,
+       "buffer_adr": 0.05
+      },
+      "plan": "ratchet"
+     },
+     "train_score": 3.55
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "sl_mode": "mid",
+       "tp_r": null,
+       "buffer_adr": 0.05
+      },
+      "plan": "trail"
+     },
+     "train_score": 8.31
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "sl_mode": "mid",
+       "tp_r": 1.0,
+       "buffer_adr": 0.0
+      },
+      "plan": "trail"
+     },
+     "train_score": 3.19
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "sl_mode": "opposite",
+       "tp_r": null,
+       "buffer_adr": 0.05
+      },
+      "plan": "trail"
+     },
+     "train_score": 27.02
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "sl_mode": "opposite",
+     "tp_r": null,
+     "buffer_adr": 0.05
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "sl_mode": "opposite",
+     "tp_r": 1.0,
+     "buffer_adr": 0.0
+    },
+    "plan": "trail"
+   },
+   "live_score": 26.34,
+   "wf_random": null
+  },
+  {
+   "family": "orb",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 135,
+    "usd_day": -1.21,
+    "usd_trade": -1.71,
+    "win": 53.3,
+    "pf": 0.96,
+    "t": -0.2,
+    "ci95_day": [
+     -13.3,
+     10.8
+    ]
+   },
+   "holdout": {
+    "n": 30,
+    "usd_day": -9.77,
+    "usd_trade": -14.18,
+    "win": 60.0,
+    "pf": 0.38,
+    "t": -1.8,
+    "ci95_day": [
+     -20.4,
+     0.9
+    ]
+   },
+   "windows_positive": "3/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "sl_mode": "mid",
+       "tp_r": 1.0,
+       "buffer_adr": 0.0
+      },
+      "plan": "trail"
+     },
+     "train_score": -0.81
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "sl_mode": "opposite",
+       "tp_r": 1.0,
+       "buffer_adr": 0.02
+      },
+      "plan": "native"
+     },
+     "train_score": 5.51
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "sl_mode": "opposite",
+       "tp_r": 1.0,
+       "buffer_adr": 0.05
+      },
+      "plan": "native"
+     },
+     "train_score": 4.63
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "sl_mode": "mid",
+       "tp_r": 1.0,
+       "buffer_adr": 0.05
+      },
+      "plan": "native"
+     },
+     "train_score": 14.58
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "sl_mode": "opposite",
+       "tp_r": 1.0,
+       "buffer_adr": 0.02
+      },
+      "plan": "native"
+     },
+     "train_score": -0.28
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "sl_mode": "mid",
+     "tp_r": null,
+     "buffer_adr": 0.05
+    },
+    "plan": "ratchet"
+   },
+   "live": {
+    "params": {
+     "sl_mode": "opposite",
+     "tp_r": 1.0,
+     "buffer_adr": 0.0
+    },
+    "plan": "native"
+   },
+   "live_score": -1.77,
+   "wf_random": null
+  },
+  {
+   "family": "levels",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 43,
+    "usd_day": -2.08,
+    "usd_trade": -9.26,
+    "win": 34.9,
+    "pf": 0.55,
+    "t": -1.47,
+    "ci95_day": [
+     -4.8,
+     0.7
+    ]
+   },
+   "holdout": {
+    "n": 19,
+    "usd_day": -2.3,
+    "usd_trade": -5.28,
+    "win": 31.6,
+    "pf": 0.45,
+    "t": -1.04,
+    "ci95_day": [
+     -6.7,
+     2.1
+    ]
+   },
+   "windows_positive": "2/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "max_bars": 2,
+       "buffer_atr": 0.25,
+       "tp_r": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": -1.67
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "max_bars": 1,
+       "buffer_atr": 0.1,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": -3.14
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "max_bars": 1,
+       "buffer_atr": 0.1,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": -1.79
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.1,
+     "tp_r": 3.0
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.1,
+     "tp_r": 2.0
+    },
+    "plan": "trail"
+   },
+   "live_score": -0.78,
+   "wf_random": {
+    "n": 43,
+    "usd_day": 0.42,
+    "usd_trade": 1.89,
+    "win": 39.5,
+    "pf": 1.1,
+    "t": 0.23,
+    "ci95_day": [
+     -3.2,
+     4.1
+    ]
+   }
+  },
+  {
+   "family": "levels",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 70,
+    "usd_day": -2.15,
+    "usd_trade": -5.87,
+    "win": 62.9,
+    "pf": 0.69,
+    "t": -1.08,
+    "ci95_day": [
+     -6.0,
+     1.7
+    ]
+   },
+   "holdout": {
+    "n": 26,
+    "usd_day": -4.13,
+    "usd_trade": -6.93,
+    "win": 38.5,
+    "pf": 0.56,
+    "t": -1.08,
+    "ci95_day": [
+     -11.7,
+     3.4
+    ]
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "max_bars": 3,
+       "buffer_atr": 0.5,
+       "tp_r": 1.5
+      },
+      "plan": "ratchet"
+     },
+     "train_score": 4.02
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "max_bars": 3,
+       "buffer_atr": 0.5,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": 3.18
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "max_bars": 3,
+       "buffer_atr": 0.1,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": 10.04
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.1,
+     "tp_r": 1.5
+    },
+    "plan": "ratchet"
+   },
+   "live": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.5,
+     "tp_r": 3.0
+    },
+    "plan": "native"
+   },
+   "live_score": 2.31,
+   "wf_random": {
+    "n": 73,
+    "usd_day": -3.17,
+    "usd_trade": -8.32,
+    "win": 60.3,
+    "pf": 0.61,
+    "t": -1.47,
+    "ci95_day": [
+     -7.4,
+     1.1
+    ]
+   }
+  },
+  {
+   "family": "pullback",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 189,
+    "usd_day": -2.56,
+    "usd_trade": -2.59,
+    "win": 42.9,
+    "pf": 0.9,
+    "t": -0.56,
+    "ci95_day": [
+     -11.5,
+     6.4
+    ]
+   },
+   "holdout": {
+    "n": 44,
+    "usd_day": -5.23,
+    "usd_trade": -5.17,
+    "win": 59.1,
+    "pf": 0.47,
+    "t": -1.8,
+    "ci95_day": [
+     -10.9,
+     0.5
+    ]
+   },
+   "windows_positive": "4/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 50,
+       "pullback_ema": 20,
+       "sl_atr": 2.0,
+       "tp_r": 2.0
+      },
+      "plan": "native"
+     },
+     "train_score": 3.03
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 20,
+       "pullback_ema": 20,
+       "sl_atr": 2.0,
+       "tp_r": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": 6.58
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 240,
+       "trend_ema": 20,
+       "pullback_ema": 20,
+       "sl_atr": 1.5,
+       "tp_r": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": 3.41
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 20,
+       "pullback_ema": 20,
+       "sl_atr": 1.5,
+       "tp_r": 1.5
+      },
+      "plan": "ratchet"
+     },
+     "train_score": 2.31
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "trend_tf_min": 240,
+       "trend_ema": 20,
+       "pullback_ema": 20,
+       "sl_atr": 1.0,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": 5.17
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "trend_tf_min": 240,
+     "trend_ema": 20,
+     "pullback_ema": 20,
+     "sl_atr": 2.0,
+     "tp_r": 1.5
+    },
+    "plan": "ratchet"
+   },
+   "live": {
+    "params": {
+     "trend_tf_min": 60,
+     "trend_ema": 50,
+     "pullback_ema": 10,
+     "sl_atr": 1.5,
+     "tp_r": 1.5
+    },
+    "plan": "native"
+   },
+   "live_score": 4.84,
+   "wf_random": null
+  },
+  {
+   "family": "pullback",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 190,
+    "usd_day": -6.01,
+    "usd_trade": -6.05,
+    "win": 28.9,
+    "pf": 0.66,
+    "t": -2.13,
+    "ci95_day": [
+     -11.5,
+     -0.5
+    ]
+   },
+   "holdout": {
+    "n": 44,
+    "usd_day": -4.06,
+    "usd_trade": -4.02,
+    "win": 45.5,
+    "pf": 0.4,
+    "t": -2.28,
+    "ci95_day": [
+     -7.5,
+     -0.6
+    ]
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 240,
+       "trend_ema": 50,
+       "pullback_ema": 10,
+       "sl_atr": 1.5,
+       "tp_r": 1.5
+      },
+      "plan": "ratchet"
+     },
+     "train_score": 1.36
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 20,
+       "pullback_ema": 10,
+       "sl_atr": 1.0,
+       "tp_r": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": 2.45
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 50,
+       "pullback_ema": 20,
+       "sl_atr": 2.0,
+       "tp_r": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": 3.95
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 50,
+       "pullback_ema": 10,
+       "sl_atr": 1.5,
+       "tp_r": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": -0.51
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "trend_tf_min": 240,
+       "trend_ema": 50,
+       "pullback_ema": 20,
+       "sl_atr": 1.0,
+       "tp_r": 2.0
+      },
+      "plan": "trail"
+     },
+     "train_score": 1.45
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "trend_tf_min": 240,
+     "trend_ema": 50,
+     "pullback_ema": 20,
+     "sl_atr": 1.0,
+     "tp_r": 3.0
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "trend_tf_min": 60,
+     "trend_ema": 50,
+     "pullback_ema": 10,
+     "sl_atr": 2.0,
+     "tp_r": 3.0
+    },
+    "plan": "native"
+   },
+   "live_score": 1.43,
+   "wf_random": null
+  },
+  {
+   "family": "bb",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 1336,
+    "usd_day": -17.25,
+    "usd_trade": -2.47,
+    "win": 56.9,
+    "pf": 0.87,
+    "t": -1.99,
+    "ci95_day": [
+     -34.3,
+     -0.2
+    ]
+   },
+   "holdout": {
+    "n": 81,
+    "usd_day": -3.24,
+    "usd_trade": -1.74,
+    "win": 51.9,
+    "pf": 0.83,
+    "t": -0.74,
+    "ci95_day": [
+     -11.9,
+     5.4
+    ]
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "k": 3.0,
+       "sl_atr": 2.0,
+       "tp_r": 1.0,
+       "max_hold": 36
+      },
+      "plan": "native"
+     },
+     "train_score": -0.72
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "k": 3.0,
+       "sl_atr": 3.0,
+       "tp_r": 1.0,
+       "max_hold": 36
+      },
+      "plan": "trail"
+     },
+     "train_score": 1.74
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "k": 2.5,
+       "sl_atr": 2.0,
+       "tp_r": 1.0,
+       "max_hold": 36
+      },
+      "plan": "native"
+     },
+     "train_score": -0.56
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "k": 2.0,
+       "sl_atr": 2.0,
+       "tp_r": 2.0,
+       "max_hold": 36
+      },
+      "plan": "trail"
+     },
+     "train_score": 1.08
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "k": 2.0,
+       "sl_atr": 1.5,
+       "tp_r": 2.0,
+       "max_hold": 36
+      },
+      "plan": "trail"
+     },
+     "train_score": -0.22
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "k": 3.0,
+     "sl_atr": 1.0,
+     "tp_r": 1.0,
+     "max_hold": 12
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "k": 3.0,
+     "sl_atr": 2.0,
+     "tp_r": null,
+     "max_hold": 12
+    },
+    "plan": "ratchet"
+   },
+   "live_score": 0.27,
+   "wf_random": {
+    "n": 1310,
+    "usd_day": -18.84,
+    "usd_trade": -2.75,
+    "win": 57.3,
+    "pf": 0.85,
+    "t": -2.12,
+    "ci95_day": [
+     -36.3,
+     -1.4
+    ]
+   }
+  },
+  {
+   "family": "rsi2",
+   "symbol": "XAUUSD",
+   "wf": {
+    "n": 2521,
+    "usd_day": -17.38,
+    "usd_trade": -1.32,
+    "win": 60.1,
+    "pf": 0.87,
+    "t": -2.18,
+    "ci95_day": [
+     -33.0,
+     -1.7
+    ]
+   },
+   "holdout": {
+    "n": 302,
+    "usd_day": 5.99,
+    "usd_trade": 0.86,
+    "win": 59.3,
+    "pf": 1.11,
+    "t": 0.72,
+    "ci95_day": [
+     -10.3,
+     22.3
+    ]
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "rsi_th": 15.0,
+       "sl_atr": 1.0,
+       "max_hold": 24,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.38
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "rsi_th": 20.0,
+       "sl_atr": 3.0,
+       "max_hold": 48,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.08
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 3.0,
+       "max_hold": 48,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -0.51
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 3.0,
+       "max_hold": 6,
+       "tp_r": null
+      },
+      "plan": "trail"
+     },
+     "train_score": 2.33
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "rsi_th": 10.0,
+       "sl_atr": 2.0,
+       "max_hold": 6,
+       "tp_r": 2.0
+      },
+      "plan": "native"
+     },
+     "train_score": -0.3
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "rsi_th": 5.0,
+     "sl_atr": 1.5,
+     "max_hold": 6,
+     "tp_r": null
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "rsi_th": 10.0,
+     "sl_atr": 3.0,
+     "max_hold": 6,
+     "tp_r": 1.0
+    },
+    "plan": "trail"
+   },
+   "live_score": -0.74,
+   "wf_random": {
+    "n": 2600,
+    "usd_day": -21.18,
+    "usd_trade": -1.56,
+    "win": 58.2,
+    "pf": 0.84,
+    "t": -2.69,
+    "ci95_day": [
+     -36.6,
+     -5.8
+    ]
+   }
+  },
+  {
+   "family": "donchian",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 1034,
+    "usd_day": -18.42,
+    "usd_trade": -3.41,
+    "win": 30.1,
+    "pf": 0.86,
+    "t": -1.63,
+    "ci95_day": [
+     -40.6,
+     3.8
+    ]
+   },
+   "holdout": {
+    "n": 417,
+    "usd_day": -10.66,
+    "usd_trade": -1.11,
+    "win": 33.3,
+    "pf": 0.93,
+    "t": -0.5,
+    "ci95_day": [
+     -52.4,
+     31.1
+    ]
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "entry_n": 96,
+       "stop_atr": 1.0
+      },
+      "plan": "native"
+     },
+     "train_score": -0.87
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "entry_n": 96,
+       "stop_atr": 4.0
+      },
+      "plan": "native"
+     },
+     "train_score": 3.68
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "entry_n": 48,
+       "stop_atr": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": 2.35
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "entry_n": 12,
+       "stop_atr": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": -1.22
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "entry_n": 12,
+       "stop_atr": 4.0
+      },
+      "plan": "native"
+     },
+     "train_score": 0.16
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "entry_n": 12,
+     "stop_atr": 3.0
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "entry_n": 12,
+     "stop_atr": 3.0
+    },
+    "plan": "native"
+   },
+   "live_score": -1.24,
+   "wf_random": {
+    "n": 1334,
+    "usd_day": -29.34,
+    "usd_trade": -4.21,
+    "win": 22.5,
+    "pf": 0.8,
+    "t": -2.57,
+    "ci95_day": [
+     -51.7,
+     -7.0
+    ]
+   }
+  },
+  {
+   "family": "rsi2",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 2054,
+    "usd_day": -22.06,
+    "usd_trade": -2.06,
+    "win": 59.2,
+    "pf": 0.78,
+    "t": -3.89,
+    "ci95_day": [
+     -33.2,
+     -11.0
+    ]
+   },
+   "holdout": {
+    "n": 237,
+    "usd_day": -13.63,
+    "usd_trade": -2.51,
+    "win": 64.1,
+    "pf": 0.76,
+    "t": -1.47,
+    "ci95_day": [
+     -31.8,
+     4.5
+    ]
+   },
+   "windows_positive": "1/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "rsi_th": 10.0,
+       "sl_atr": 1.5,
+       "max_hold": 48,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.44
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 1.0,
+       "max_hold": 24,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.6
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "rsi_th": 20.0,
+       "sl_atr": 3.0,
+       "max_hold": 48,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -0.96
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 1.5,
+       "max_hold": 12,
+       "tp_r": null
+      },
+      "plan": "native"
+     },
+     "train_score": -0.89
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 3.0,
+       "max_hold": 6,
+       "tp_r": null
+      },
+      "plan": "native"
+     },
+     "train_score": -1.45
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "rsi_th": 5.0,
+     "sl_atr": 3.0,
+     "max_hold": 12,
+     "tp_r": 1.0
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "rsi_th": 5.0,
+     "sl_atr": 3.0,
+     "max_hold": 6,
+     "tp_r": null
+    },
+    "plan": "native"
+   },
+   "live_score": -1.49,
+   "wf_random": {
+    "n": 2127,
+    "usd_day": -25.83,
+    "usd_trade": -2.32,
+    "win": 56.2,
+    "pf": 0.75,
+    "t": -4.39,
+    "ci95_day": [
+     -37.4,
+     -14.3
+    ]
+   }
+  },
+  {
+   "family": "bb",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 2106,
+    "usd_day": -23.81,
+    "usd_trade": -2.16,
+    "win": 58.2,
+    "pf": 0.82,
+    "t": -3.09,
+    "ci95_day": [
+     -38.9,
+     -8.7
+    ]
+   },
+   "holdout": {
+    "n": 260,
+    "usd_day": -13.86,
+    "usd_trade": -2.32,
+    "win": 43.5,
+    "pf": 0.88,
+    "t": -0.94,
+    "ci95_day": [
+     -42.7,
+     15.0
+    ]
+   },
+   "windows_positive": "0/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "k": 3.0,
+       "sl_atr": 1.0,
+       "tp_r": null,
+       "max_hold": 36
+      },
+      "plan": "trail"
+     },
+     "train_score": -0.43
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "k": 3.0,
+       "sl_atr": 2.0,
+       "tp_r": null,
+       "max_hold": 36
+      },
+      "plan": "native"
+     },
+     "train_score": 0.15
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "k": 1.5,
+       "sl_atr": 2.0,
+       "tp_r": null,
+       "max_hold": 36
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.57
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "k": 2.5,
+       "sl_atr": 2.0,
+       "tp_r": null,
+       "max_hold": 36
+      },
+      "plan": "native"
+     },
+     "train_score": -0.7
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "k": 2.0,
+       "sl_atr": 3.0,
+       "tp_r": null,
+       "max_hold": 12
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.64
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "k": 2.5,
+     "sl_atr": 2.0,
+     "tp_r": null,
+     "max_hold": 36
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "k": 2.0,
+     "sl_atr": 3.0,
+     "tp_r": null,
+     "max_hold": 12
+    },
+    "plan": "ratchet"
+   },
+   "live_score": -1.49,
+   "wf_random": {
+    "n": 2231,
+    "usd_day": -15.34,
+    "usd_trade": -1.32,
+    "win": 58.5,
+    "pf": 0.88,
+    "t": -2.06,
+    "ci95_day": [
+     -29.9,
+     -0.8
+    ]
+   }
+  }
+ ]
+}

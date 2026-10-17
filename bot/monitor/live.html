@@ -70,7 +70,7 @@
   .dot { display: inline-block; width: .55em; height: .55em; border-radius: 50%; margin-right: .4em; }
   .rank { color: var(--muted); width: 1.4em; }
 
-  .vs { display: grid; grid-template-columns: auto 1fr auto; gap: .6vh .8vw; align-items: center; }
+  .vs { display: grid; grid-template-columns: auto 1fr auto auto; gap: .6vh .8vw; align-items: center; }
   .vs .bar { height: 1.1em; background: var(--track); border-radius: 6px; position: relative; overflow: hidden; }
   .vs .bar i { position: absolute; top: 0; bottom: 0; border-radius: 6px; }
   .vs .bar .zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--muted); }
@@ -113,7 +113,7 @@
       <div class="card"><h3><span>🏆 อันดับบอท</span><span class="muted">กำไรรวม</span></h3><div id="board"></div></div>
       <div class="card"><h3><span>📌 ไม้ที่กำลังเทรด</span><span id="openSum" class="num"></span></h3>
         <div class="openlist" id="openList"></div><div class="more" id="openMore"></div></div>
-      <div class="card"><h3><span>⚖️ กลยุทธ์ vs กลุ่มควบคุม (สุ่มทิศ)</span><span class="muted">$ ต่อไม้</span></h3><div id="vs" class="vs"></div></div>
+      <div class="card"><h3><span>🔬 งานวิจัยของบอท · วันนี้ vs เป้า $120</span><span class="muted">วิจัยคาด $/วัน</span></h3><div id="vs" class="vs"></div></div>
     </div>
   </div>
 
@@ -205,16 +205,19 @@ function board(d) {
 }
 
 function vs(d) {
-  const pb = d.per_bot || {};
-  const sum = (pred) => Object.entries(pb).filter(([n]) => pred(n)).reduce((a, [, s]) => ({ n: a.n + (s.trades || 0), pnl: a.pnl + (s.total || 0) }), { n: 0, pnl: 0 });
-  const strat = sum(n => n !== "main" && !n.startsWith("c1_")), ctrl = sum(n => n.startsWith("c1_"));
-  const per = (x) => x.n ? x.pnl / x.n : 0;
-  const a = per(strat), b = per(ctrl), m = Math.max(Math.abs(a), Math.abs(b), 0.01);
-  const bar = (v) => { const w = Math.abs(v) / m * 50; return `<div class="bar"><i style="${v >= 0 ? `left:50%;width:${w}%;background:var(--up)` : `right:50%;width:${w}%;background:var(--down)`}"></i><span class="zero"></span></div>`; };
-  $("vs").innerHTML = `<span>กลยุทธ์ <span class="muted">(${strat.n} ไม้)</span></span>${bar(a)}<b class="num ${cls(a)}">${money(a)}</b>
-    <span>สุ่มทิศ <span class="muted">(${ctrl.n} ไม้)</span></span>${bar(b)}<b class="num ${cls(b)}">${money(b)}</b>
-    <span class="muted" style="grid-column:1/-1;font-size:.8em">${strat.n < 200 || ctrl.n < 200 ? "ข้อมูลยังน้อย — ต้องหลายร้อยไม้ถึงจะเทียบได้" :
-      a > b ? "กลยุทธ์ทำได้ดีกว่าการสุ่ม (ยังต้องดูต่อเนื่อง)" : "กลยุทธ์ยังไม่ดีกว่าการสุ่มทิศ"}</span>`;
+  // ทุกบอท M5: งานที่วิจัยได้ (ตระกูล·ตลาด) · กำไรวันนี้เทียบเป้า $120 · ผล walk-forward ที่วิจัยคาดไว้ต่อวัน
+  const R = d.research || {}, pb = d.per_bot || {};
+  const names = Object.keys(R).sort((a, z) => (R[z].wf_usd_day ?? -1e9) - (R[a].wf_usd_day ?? -1e9));
+  if (!names.length) { $("vs").innerHTML = '<span class="muted" style="grid-column:1/-1">ยังไม่มีงานวิจัย (bot/m5_bots.json)</span>'; return; }
+  const LBL = { rsi2: "RSI2", ema: "EMA×", bb: "BB สวน", donchian: "Donchian", pullback: "ย่อเทรนด์", volx: "ทะลุเงียบ",
+                levels: "กวาดระดับ", orb: "ORB", momo: "โมเมนตัม" };
+  $("vs").innerHTML = names.slice(0, 9).map(n => {
+    const r = R[n], s = pb[n] || {}, today = (s.today || 0) + (s.floating || 0), hit = d.bots?.[n]?.target_hit;
+    const w = Math.max(0, Math.min(today / 120, 1)) * 100;
+    return `<span title="${esc(r.family)} ${esc(JSON.stringify(r.params))} · ${esc(r.plan)}">${esc(n)} <span class="muted">${LBL[r.family] || esc(r.family)}·${r.symbol === "XAUUSD" ? "ทอง" : "NAS"}</span></span>
+      <div class="bar"><i style="left:0;width:${w}%;background:${hit ? "var(--gold)" : "var(--up)"}"></i></div>
+      <b class="num ${cls(today)}">${hit ? "🎯 " : ""}${money(today)}</b><span class="num muted">${money(r.wf_usd_day)}</span>`;
+  }).join("");
 }
 
 function held(iso) {

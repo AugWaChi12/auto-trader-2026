@@ -43,6 +43,10 @@ class RiskConfig:
     min_lot_max_risk: float = 0.0
     # ถ้า equity จริงของบัญชีต่ำกว่านี้ → ไม่เปิดไม้ใหม่ (0 = ปิด) — กันบอททดสอบผลาญบัญชีจนบอทหลักเทรดไม่ได้
     account_floor: float = 0.0
+    # ขนาดไม้ตายตัวต่อ symbol (("XAUUSD", 0.04), ...) — ทับการคิดจาก % ความเสี่ยง (ยังเช็ก margin)
+    fixed_lots: tuple[tuple[str, float], ...] = ()
+    # เป้ากำไรรายวัน (USD): equity ≥ ต้นวัน + ค่านี้ → ปิดทุกไม้แล้วหยุดทั้งวัน (0 = ปิด)
+    daily_profit_target: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -67,6 +71,7 @@ class RiskManager:
         self.day_start_equity = 0.0
         self.peak_equity = 0.0
         self.halted_today = False
+        self.target_hit = False
         self.killed = False
         self.kill_reason = ""
 
@@ -80,12 +85,18 @@ class RiskManager:
             self._day = day
             self.day_start_equity = equity
             self.halted_today = False
+            self.target_hit = False
         self.peak_equity = max(self.peak_equity, equity)
 
         if not self.halted_today and equity <= self.day_start_equity * (1 - self.cfg.daily_loss_limit):
             self.halted_today = True
             events.append("day_halt")
             log.warning("%s daily loss limit hit: equity %.2f (start %.2f)", now, equity, self.day_start_equity)
+        if (self.cfg.daily_profit_target > 0 and not self.halted_today
+                and equity >= self.day_start_equity + self.cfg.daily_profit_target):
+            self.halted_today = self.target_hit = True
+            events.append("day_target")
+            log.warning("%s daily profit target hit: equity %.2f (start %.2f)", now, equity, self.day_start_equity)
         if not self.killed and equity <= self.peak_equity * (1 - self.cfg.max_drawdown):
             self.killed = True
             self.kill_reason = f"drawdown {1 - equity / self.peak_equity:.1%} from peak {self.peak_equity:.2f}"
@@ -96,7 +107,8 @@ class RiskManager:
     # ------------------------------------------------------------------ จำสถานะข้ามการรีสตาร์ท (live)
     def to_state(self) -> dict:
         return {"day": self._day.isoformat() if self._day else None, "day_start_equity": self.day_start_equity,
-                "peak_equity": self.peak_equity, "halted_today": self.halted_today, "killed": self.killed,
+                "peak_equity": self.peak_equity, "halted_today": self.halted_today, "target_hit": self.target_hit,
+                "killed": self.killed,
                 "kill_reason": self.kill_reason}
 
     def load_state(self, st: dict) -> None:
@@ -108,6 +120,7 @@ class RiskManager:
             self._day = date.fromisoformat(st["day"])
             self.day_start_equity = float(st.get("day_start_equity", 0.0))
             self.halted_today = bool(st.get("halted_today", False))
+            self.target_hit = bool(st.get("target_hit", False))
 
     # ------------------------------------------------------------------ อนุญาตเข้าไหม
     def can_open(self, sig: EnterSignal, now: datetime) -> str:
@@ -115,7 +128,7 @@ class RiskManager:
         if self.killed:
             return "killed"
         if self.halted_today:
-            return "daily_halt"
+            return "daily_target" if self.target_hit else "daily_halt"
         if self.cfg.account_floor > 0 and self.real_equity is not None and self.real_equity() < self.cfg.account_floor:
             return "account_floor"
         if self.news and self.news.in_blackout(now):
@@ -136,12 +149,17 @@ class RiskManager:
         if stop_dist <= 0:
             return SizeDecision(0.0, "zero_stop")
         equity = self.account.equity()
+        margin_per_lot = entry * spec.contract_size * spec.margin_rate
+        fixed = dict(self.cfg.fixed_lots).get(sig.symbol)
+        if fixed:
+            if margin_per_lot * fixed > self.account.free_margin() * self.cfg.max_margin_use:
+                return SizeDecision(0.0, f"margin (fixed {fixed} lot)")
+            return SizeDecision(spec.round_volume_down(fixed))
         risk_money = min(equity, self.account.balance()) * self.cfg.risk_per_trade
         loss_per_lot = (stop_dist + spec.slippage) * spec.contract_size + spec.commission_per_lot
         volume = spec.round_volume_down(risk_money / loss_per_lot)
 
         # จำกัดด้วย margin
-        margin_per_lot = entry * spec.contract_size * spec.margin_rate
         if margin_per_lot > 0:
             max_by_margin = spec.round_volume_down(self.account.free_margin() * self.cfg.max_margin_use / margin_per_lot)
             volume = min(volume, max_by_margin)
