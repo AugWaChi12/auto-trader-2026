@@ -17,7 +17,7 @@
           padding: .35em .9em; font-weight: 700; box-shadow: 0 6px 18px rgba(20, 30, 60, .18); white-space: nowrap; }
   .title { font-size: 1.4em; }
   .demo { background: rgba(255, 224, 138, .95); }
-  .navl { pointer-events: auto; color: var(--ink); text-decoration: none; } .navl:hover { background: #fff3a6; }
+  .navl { pointer-events: auto; color: var(--ink); text-decoration: none; font: inherit; font-weight: 700; cursor: pointer; } .navl:hover { background: #fff3a6; }
   .spacer { flex: 1; }
   .num { font-variant-numeric: tabular-nums; }
   .up { color: var(--up); } .down { color: var(--down); }
@@ -66,6 +66,7 @@
   <span class="chip demo">DEMO · ไม่ใช่เงินจริง</span>
   <a class="chip navl" href="/">🏠 หน้าหลัก</a>
   <a class="chip navl" href="/settings">⚙️ ตั้งค่า</a>
+  <button class="chip navl" id="spinBtn" type="button">⏸️ กล้องหยุด</button>
   <span class="chip num" id="tfchip">–</span>
   <span class="spacer"></span>
   <span class="chip num" id="btc">BTC –</span>
@@ -120,9 +121,20 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(-1, 2.6, 1.5); controls.enableDamping = true; controls.dampingFactor = .06;
 controls.minDistance = 14; controls.maxDistance = 60; controls.maxPolarAngle = Math.PI * .47; controls.minPolarAngle = Math.PI * .18;
 controls.autoRotateSpeed = .25;
+// หมุนกล้องอัตโนมัติ: ปิดเป็นค่าเริ่มต้น · กดปุ่มบนแถบเพื่อเปิด (จำค่าไว้ในเบราว์เซอร์นี้)
+let spin = false;
+try { spin = localStorage.getItem("village.spin") === "1"; } catch {}
 let idleSince = performance.now();
 controls.addEventListener("start", () => { controls.autoRotate = false; idleSince = Infinity; });
 controls.addEventListener("end", () => { idleSince = performance.now(); });
+function setSpin(on) {
+  spin = on; if (!on) controls.autoRotate = false;
+  try { localStorage.setItem("village.spin", on ? "1" : "0"); } catch {}
+  $("spinBtn").textContent = on ? "🔄 กล้องหมุน" : "⏸️ กล้องหยุด";
+  $("spinBtn").title = on ? "กดเพื่อหยุดกล้อง" : "กดเพื่อให้กล้องส่ายช้าๆ เองตอนไม่มีคนจับ";
+}
+$("spinBtn").onclick = () => setSpin(!spin);
+setSpin(spin);
 
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -640,7 +652,7 @@ const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
   updateSky();
-  if (performance.now() - idleSince > 12000) controls.autoRotate = true;
+  if (spin && performance.now() - idleSince > 12000) controls.autoRotate = true;
   if (controls.autoRotate) controls.autoRotateSpeed = .35 * Math.sin(t * .05);   // ส่ายกล้องช้าๆ ไปมาตอนไม่มีคนจับ
   controls.update();
   beltTex.offset.x -= dt * .6;
