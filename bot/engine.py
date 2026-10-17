@@ -118,8 +118,9 @@ class Engine:
             if not self.risk.cfg.widen_stops:
                 self._log(now, sig, "stops_level", f"SL {abs(entry - sig.sl):.2f} < {spec.min_stop}")
                 return
-            # ขยาย SL ออกไปที่ระยะขั้นต่ำ (+5% กันราคาขยับระหว่างส่ง) — เสี่ยงต่อไม้มากขึ้นตามระยะที่ขยาย
-            sig = replace(sig, sl=entry - int(sig.side) * spec.min_stop * 1.05)
+            # ขยาย SL ออกไปที่ระยะขั้นต่ำ +25% — ราคาขยับระหว่างแท่งปิดถึงตอนส่ง (BTC $20+ ใน 1 วิ) ถ้าเผื่อน้อย
+            # โบรกจะปฏิเสธ (เจอจริง: เผื่อ 5% แล้วเหลือห่าง $199.8 < $200) · เสี่ยงต่อไม้มากขึ้นตามระยะที่ขยาย
+            sig = replace(sig, sl=entry - int(sig.side) * spec.min_stop * 1.25)
         decision = self.risk.size(sig, entry, spec)
         if not decision.ok:
             self._log(now, sig, "size", decision.reason)

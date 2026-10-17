@@ -127,7 +127,10 @@ class Mt5Broker(IMarketData, IAccount, IOrderExecutor):
                 name=canonical, point=info.point, contract_size=info.trade_contract_size,
                 volume_min=info.volume_min, volume_step=info.volume_step, volume_max=info.volume_max,
                 min_spread=base.min_spread, slippage=base.slippage,
-                commission_per_lot=base.commission_per_lot, margin_rate=base.margin_rate)
+                commission_per_lot=base.commission_per_lot, margin_rate=base.margin_rate,
+                swap_long_rate=base.swap_long_rate, swap_short_rate=base.swap_short_rate,
+                # ระยะ SL ขั้นต่ำของโบรก — เคยหายตรงนี้ → Engine ไม่รู้ว่าต้องขยาย SL → โบรกปฏิเสธทุกไม้ BTC (17 ต.ค.)
+                min_stop=max(base.min_stop, info.trade_stops_level * info.point))
             log.info("symbol %s → %s contract=%s min_lot=%s", canonical, name, info.trade_contract_size, info.volume_min)
 
     def algo_trading_enabled(self) -> bool:

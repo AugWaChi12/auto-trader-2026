@@ -207,3 +207,12 @@ def test_atomic_write_retries_then_succeeds(tmp_path: Path, monkeypatch) -> None
     monkeypatch.setattr(fio.time, "sleep", lambda s: None)
     assert fio.atomic_write(tmp_path / "x.json", "{}")
     assert (tmp_path / "x.json").read_text() == "{}" and calls["n"] == 3
+
+
+def test_connect_keeps_broker_min_stop_distance(tmp_path: Path) -> None:
+    """spec ที่สร้างตอน connect ต้องมีระยะ SL ขั้นต่ำของโบรก — ไม่งั้น Engine ไม่ขยาย SL แล้วโบรกปฏิเสธทุกไม้ (บั๊ก 17 ต.ค.)"""
+    mt5 = FakeMT5()
+    mt5.symbol_info = lambda name: NS(point=0.01, digits=2, trade_contract_size=100.0, volume_min=0.01, volume_step=0.01,
+                                      volume_max=100.0, trade_stops_level=20000, filling_mode=2)
+    b = broker(mt5, tmp_path)
+    assert b.spec("XAUUSD").min_stop == pytest.approx(200.0)
