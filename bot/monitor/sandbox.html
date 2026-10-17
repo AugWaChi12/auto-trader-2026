@@ -59,7 +59,13 @@
   .card .x { position: absolute; right: .7em; top: .4em; cursor: pointer; font-weight: 800; font-size: 1.2em; }
   /* โหมดไลฟ์ (?stream=1) — สำหรับ TikTok LIVE Studio จับภาพหน้าต่างนี้ */
   html.stream, html.stream * { cursor: none !important; }
-  html.stream .help, html.stream .navl, html.stream #feed .chip:nth-child(n+4) { display: none; }
+  html.stream .help, html.stream .navl, html.stream #feed .chip:nth-child(n+3), html.stream .legend,
+  html.stream #eq, html.stream #clock, html.stream #tfchip, html.stream #spinBtn { display: none; }
+  html.stream .hud { flex-wrap: nowrap; gap: 1.5vw; }
+  html.stream .hud .title { font-size: 1.05em; } html.stream .hud .title span { display: none; }
+  html.stream .tag3d.icon { padding: .1em .35em; font-size: 1.05em; border-width: 1.5px; border-radius: 999px; }
+  html.stream .bubble.hot { font-size: .78em; padding: .15em .6em; }
+  html.stream .feed { bottom: 6.5vh !important; }
   .disclaimer { display: none; position: fixed; left: 50%; bottom: 1.4vh; transform: translateX(-50%); z-index: 4; pointer-events: none;
                 background: rgba(29, 36, 51, .82); color: #fff; padding: .35em 1em; border-radius: 999px; font-weight: 700; font-size: .85em; white-space: nowrap; }
   html.stream .disclaimer { display: block; }
@@ -282,7 +288,7 @@ function buildMountain(bars) {
     const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .8), mat(0x22c46a, { side: THREE.DoubleSide })); cloth.position.set(.65, 2, 0); priceFlag.add(cloth);
     priceFlag.userData.cloth = cloth; priceTag = tag("", "tag3d price"); priceTag.position.set(0, 3.1, 0); priceFlag.add(priceTag);
     scene.add(shadowy(priceFlag));
-    hiTag = tag("", "tag3d"); scene.add(hiTag);
+    hiTag = tag("", "tag3d"); hiTag.visible = !STREAM; scene.add(hiTag);
   }
   priceFlag.position.copy(last); priceFlag.userData.cloth.material.color.set(up ? 0x22c46a : 0xff5a50);
   priceTag.element.textContent = "BTC " + bars[bars.length - 1].toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -308,7 +314,7 @@ const gates = GATES.map(([x, icon, name, tip]) => {
   const g = new THREE.Group(), m = mat(0xfffdf6, { emissive: 0xfff3a6, emissiveIntensity: 0 });
   for (const sx of [-1.1, 1.1]) { const leg = new THREE.Mesh(new RoundedBoxGeometry(.35, 2.4, 1.9, 2, .1), m); leg.position.set(sx, 1.2, 0); g.add(leg); }
   const top = new THREE.Mesh(new RoundedBoxGeometry(2.9, .7, 2.1, 2, .2), m); top.position.y = 2.6; g.add(top);
-  const t = tag(`${icon} ${name}`, "tag3d"); t.element.title = tip; t.position.set(0, 3.5, 0); g.add(t);
+  const t = tag(STREAM ? icon : `${icon} ${name}`, "tag3d" + (STREAM ? " icon" : "")); t.element.title = tip; t.position.set(0, 3.5, 0); g.add(t);
   g.position.set(x, BR.y + .2, BR.z); scene.add(shadowy(g)); g.userData = { m, t }; return g;
 });
 const tower = new THREE.Group();
@@ -323,7 +329,7 @@ const tower = new THREE.Group();
   const ant = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1.6, 6), INK); ant.position.y = 12.4; tower.add(ant);
   const beacon = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff5a50, emissive: 0xff3b30, emissiveIntensity: 2 }));
   beacon.position.y = 13.2; tower.add(beacon); tower.userData.beacon = beacon;
-  const t = tag("🏦 MT5 โบรก", "tag3d big"); t.position.set(0, 14.4, 0); tower.add(t);
+  const t = tag(STREAM ? "🏦" : "🏦 MT5 โบรก", "tag3d big" + (STREAM ? " icon" : "")); t.position.set(0, 14.4, 0); tower.add(t);
   tower.position.set(BR.x1 + 2.6, 0, BR.z); scene.add(shadowy(tower));
 }
 
@@ -412,7 +418,7 @@ function sign(text, x, z, h = 2.4) {
   const g = new THREE.Group();
   const post = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, h, 8), mat(0x8a5a36)); post.position.y = h / 2; g.add(post);
   const board = new THREE.Mesh(new RoundedBoxGeometry(1.5, .7, .12, 2, .05), mat(0xc98b4a)); board.position.y = h; g.add(board);
-  const t = tag(text, "tag3d big"); t.position.y = h + .9; g.add(t);
+  const t = tag(STREAM ? text.split(" ")[0] : text, "tag3d big" + (STREAM ? " icon" : "")); t.position.y = h + .9; g.add(t);
   g.position.set(x, 0, z); scene.add(shadowy(g)); return g;
 }
 const tradeZone = new THREE.Group();
@@ -564,13 +570,15 @@ function labelRobot(r) {
   // ป้ายเดียวต่อหุ่น: ตัวที่มีเรื่อง (ถือไม้ / เล็ง / ถึงเป้า / ออฟไลน์ / main) = ป้ายคำพูดเหนือหัวรวมชื่อ · ตัวอื่น = ป้ายชื่อเล็กใต้เท้า
   const u = r.obj.userData, pb = r.pb || {}, st = r.st || {}, today = (pb.today || 0) + (pb.floating || 0);
   const name = r.name === "main" ? "★ main" : r.name;
-  const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.mode === "off" || r.name === "main";
+  const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main" || (!STREAM && r.mode === "off");
   const what = r.disabled ? "⏹ ปิดโดยผู้ใช้" : r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
     r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
-  u.bubble.element.innerHTML = `<b>${esc(name)}</b> · ${esc(what)}`;
+  const short = r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${money(r.float)}` : r.mode === "aim" ? "🎯"
+    : r.mode === "target" ? `🎯 ${money(today)}` : "";
+  u.bubble.element.innerHTML = STREAM ? `<b>${esc(name)}</b> ${esc(short)}` : `<b>${esc(name)}</b> · ${esc(what)}`;
   u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : r.mode === "off" ? "off" : "");
   u.bubble.visible = talk;
-  u.plate.visible = !talk;
+  u.plate.visible = !talk && !STREAM;
   u.plate.element.className = "plate";
   u.plate.element.innerHTML = `<b>${esc(name)}</b>` + (today ? ` <span class="m ${today > 0 ? "up" : "down"}">${money(today)}</span>` : "");
 }
@@ -740,6 +748,12 @@ window.__village = { robots: () => robots, parcels, coins, makeParcel, makeCoin,
                      push: (p) => parcels.push(p), coin: (c) => coins.push(c) };   // ใช้ทดสอบแอนิเมชันจาก console
 $("loading").remove();
 refresh(); refreshBars(); setInterval(refresh, 5000); setInterval(refreshBars, 10000);
+// อัปเดตหน้าเองเมื่อไฟล์หน้าเปลี่ยน (สำคัญตอนไลฟ์: รีโหลดในหน้าต่างเดิม ตัวจับภาพไม่หลุด)
+let pageV = null;
+setInterval(async () => {
+  try { const { v } = await (await fetch("/api/version?page=/sandbox", { cache: "no-store" })).json();
+        if (pageV === null) pageV = v; else if (v && v !== pageV) location.reload(); } catch {}
+}, 10000);
 frame();
 </script>
 <script>

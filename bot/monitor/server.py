@@ -406,6 +406,11 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 n = max(20, min(int(q.get("n", ["150"])[0]), 500))
                 d = col.bars(q.get("symbol", ["XAUUSD"])[0], q.get("tf", ["M5"])[0], n)
                 self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/version":
+                # หน้าเว็บเช็กทุก 10 วิ — ไฟล์หน้าเปลี่ยน = รีโหลดตัวเอง (หน้าต่างไลฟ์ไม่ต้องปิด LIVE Studio จึงจับภาพต่อได้)
+                page = PAGES.get(parse_qs(url.query).get("page", ["/sandbox"])[0])
+                v = int(page.stat().st_mtime) if page else 0
+                self._send(json.dumps({"v": v}).encode(), "application/json")
             elif url.path == "/api/stream":
                 from .stream import STREAMER
                 d = STREAMER.status() if STREAMER else {"error": "ไลฟ์ได้เฉพาะบน Windows"}
