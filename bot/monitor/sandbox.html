@@ -35,6 +35,7 @@
   /* ป้ายลอยในฉาก 3D */
   .bubble { position: relative; background: #fffdf6; border: 2px solid #1d2433; border-radius: 12px; padding: .2em .7em; font-weight: 700;
             font-size: .74em; white-space: nowrap; max-width: 8.4vw; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 14px rgba(0,0,0,.16); }
+  .bubble.hot { max-width: 18vw; font-size: .8em; }
   .bubble.win { background: #e2fbe9; } .bubble.lose { background: #ffe4e1; } .bubble.aim { background: #fff4c2; } .bubble.off { opacity: .55; }
   .plate { background: rgba(255, 253, 246, .9); border: 1.5px solid #1d2433; border-radius: 8px; padding: .05em .45em; text-align: center;
            line-height: 1.2; box-shadow: 0 3px 8px rgba(0,0,0,.15); font-size: .78em; white-space: nowrap; }
@@ -426,6 +427,7 @@ function pickPoint(zone, r) {
   return new THREE.Vector3(ZONES.trade.cx + Math.cos(a) * rad, .3, ZONES.trade.cz + Math.sin(a) * rad);
 }
 const _d = new THREE.Vector3();
+let moveDt = 0;
 function walk(r, dt) {
   if (r.name === "main" || !r.target) return false;
   const zone = zoneFor(r), nTrade = robots.filter(x => x.mode === "trade").length;
@@ -526,16 +528,18 @@ function sync(d) {
   if (cardFor) showCard(cardFor);
 }
 function labelRobot(r) {
+  // ป้ายเดียวต่อหุ่น: ตัวที่มีเรื่อง (ถือไม้ / เล็ง / ถึงเป้า / ออฟไลน์ / main) = ป้ายคำพูดเหนือหัวรวมชื่อ · ตัวอื่น = ป้ายชื่อเล็กใต้เท้า
   const u = r.obj.userData, pb = r.pb || {}, st = r.st || {}, today = (pb.today || 0) + (pb.floating || 0);
-  u.bubble.element.textContent = r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? "🎯 ถึงเป้า $120 พักแล้ว!" :
-    r.mode === "trade" ? `ถือ ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
-  u.bubble.element.className = "bubble " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : r.mode === "off" ? "off" : "");
-  const hot = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main";
-  u.plate.element.className = "plate" + (hot ? " hot" : "");
-  u.plate.element.innerHTML = `<b>${r.name === "main" ? "★ main" : esc(r.name)}</b>` + (hot || today
-    ? ` <span class="m ${today > 0 ? "up" : today < 0 ? "down" : ""}">${money(today)}</span>` : "")
-    + (hot ? `<br><span class="f">${esc((FAM[r.fam] || FAM.volx)[1])}</span>` : "");
-  u.bubble.visible = hot || r.mode === "off";   // ตัวที่เดินเล่น/พักไม่ต้องพูด ลดป้ายรก — คลิกดูรายละเอียดได้
+  const name = r.name === "main" ? "★ main" : r.name;
+  const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.mode === "off" || r.name === "main";
+  const what = r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
+    r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
+  u.bubble.element.innerHTML = `<b>${esc(name)}</b> · ${esc(what)}`;
+  u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : r.mode === "off" ? "off" : "");
+  u.bubble.visible = talk;
+  u.plate.visible = !talk;
+  u.plate.element.className = "plate";
+  u.plate.element.innerHTML = `<b>${esc(name)}</b>` + (today ? ` <span class="m ${today > 0 ? "up" : "down"}">${money(today)}</span>` : "");
 }
 function toast(text) {
   const el = document.createElement("div"); el.className = "chip"; el.textContent = text;
@@ -605,7 +609,7 @@ function showCard(name, cx, cy) {
 const tmpC = new THREE.Color(), GREY = new THREE.Color(0x8b93a3);
 function animateRobot(r, t, dt) {
   const u = r.obj.userData, mode = r.mode || "off", trade = mode === "trade", win = r.float >= 0;
-  const walking = walk(r, dt);
+  const walking = walk(r, moveDt);
   r.stride = (r.stride || 0) + (walking ? dt * 9 : 0);
   const swing = walking ? Math.sin(r.stride) * .55 : 0;
   u.legs[0].rotation.x += (swing - u.legs[0].rotation.x) * .3; u.legs[1].rotation.x += (-swing - u.legs[1].rotation.x) * .3;
@@ -650,7 +654,8 @@ function animateRobot(r, t, dt) {
 // ------------------------------------------------------------------ วนลูป
 const clock = new THREE.Clock();
 function frame() {
-  const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
+  const raw = clock.getDelta(), dt = Math.min(raw, .05), t = clock.elapsedTime;
+  moveDt = Math.min(raw, .5);   // การเดินใช้เวลาจริง — เบราว์เซอร์วาดช้า/แท็บอยู่เบื้องหลัง หุ่นก็ยังไปถึงที่หมายตรงเวลา
   updateSky();
   if (spin && performance.now() - idleSince > 12000) controls.autoRotate = true;
   if (controls.autoRotate) controls.autoRotateSpeed = .35 * Math.sin(t * .05);   // ส่ายกล้องช้าๆ ไปมาตอนไม่มีคนจับ
