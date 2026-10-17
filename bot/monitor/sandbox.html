@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot Village</title>
+<style>
+  :root { --ink: #1d2433; --paper: #fffdf6; --up: #22b864; --down: #f0554c; --gold: #f2b632; --muted: #6b7489; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #8fd3ff; }
+  body { font-family: "Leelawadee UI", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif; color: var(--ink);
+         font-size: clamp(11px, 1vw, 16px); }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; cursor: default; }
+  .hud { position: fixed; left: 1.2vw; right: 1.2vw; top: 1.2vh; display: flex; gap: .8vw; align-items: center; pointer-events: none; }
+  .chip { background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; padding: .35em .9em; font-weight: 700;
+          box-shadow: 0 4px 0 var(--ink); white-space: nowrap; }
+  .title { font-size: 1.45em; }
+  .demo { background: #ffe08a; }
+  .spacer { flex: 1; }
+  .num { font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .legend { position: fixed; left: 1.2vw; top: 8.5vh; display: flex; gap: .5vw; pointer-events: none; flex-wrap: wrap; max-width: 62vw; }
+  .legend .chip { font-size: .78em; font-weight: 650; padding: .25em .7em; box-shadow: 0 3px 0 var(--ink); border-width: 2px; }
+  .legend i { display: inline-block; width: .8em; height: .8em; border-radius: 50%; border: 2px solid var(--ink); margin-right: .35em; vertical-align: -.1em; }
+  .feed { position: fixed; right: 1.2vw; top: 8.5vh; width: 30vw; display: flex; flex-direction: column; align-items: flex-end; gap: .5vh; pointer-events: none; }
+  .feed .chip { font-size: .85em; font-weight: 650; padding: .3em .8em; animation: pop .35s ease-out; box-shadow: 0 3px 0 var(--ink); border-width: 2px; }
+  @keyframes pop { from { transform: translateY(12px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+  .card { position: fixed; display: none; width: min(380px, 34vw); background: var(--paper); border: 3px solid var(--ink); border-radius: 16px;
+          box-shadow: 0 6px 0 var(--ink); padding: 1em 1.1em; font-size: .92em; line-height: 1.5; z-index: 5; }
+  .card h4 { margin: 0 0 .4em; font-size: 1.2em; }
+  .card .k { color: var(--muted); }
+  .card .x { position: absolute; right: .7em; top: .4em; cursor: pointer; font-weight: 800; font-size: 1.2em; }
+  .help { position: fixed; left: 50%; bottom: 1vh; transform: translateX(-50%); font-size: .8em; color: #1d2433cc; font-weight: 650; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hud">
+  <span class="chip title">🤖 หมู่บ้านบอท <span style="font-weight:600;font-size:.7em">Sandbox</span></span>
+  <span class="chip demo">DEMO · ไม่ใช่เงินจริง</span>
+  <span class="spacer"></span>
+  <span class="chip num" id="btc">BTC –</span>
+  <span class="chip num" id="eq">Equity –</span>
+  <span class="chip num" id="today">วันนี้ –</span>
+  <span class="chip num" id="clock">–</span>
+</div>
+<div class="help">คลิกที่หุ่นยนต์เพื่อดูรายละเอียด · ภูเขาด้านหลัง = ราคา BTC 3 ชั่วโมงล่าสุด</div>
+<div class="legend">
+  <span class="chip"><i style="background:#b9c0cc"></i>พัก / นอกเวลา</span>
+  <span class="chip"><i style="background:#5ab8ff"></i>เฝ้าราคา</span>
+  <span class="chip"><i style="background:#ffd23f"></i>เล็งเป้า (ใกล้เข้าไม้)</span>
+  <span class="chip"><i style="background:#22b864"></i>ถือไม้ กำไร</span>
+  <span class="chip"><i style="background:#f0554c"></i>ถือไม้ ขาดทุน</span>
+  <span class="chip">🎯 ได้ +$120 พักทั้งวัน</span>
+  <span class="chip">📦 ออเดอร์วิ่งผ่าน 🛡️ กันซ้ำ → ⚖️ ความเสี่ยง → 🏦 MT5</span>
+</div>
+<div class="feed" id="feed"></div>
+<div class="card" id="card"><span class="x" id="cardx">×</span><div id="cardbody"></div></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const cv = $("cv"), g = cv.getContext("2d");
+const TZ = "Asia/Bangkok";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const money = (v) => (v >= 0 ? "+" : "−") + "$" + Math.abs(v || 0).toFixed(2);
+const FAM = {   // สีตัว + ชื่อเล่นของแต่ละตระกูลกลยุทธ์
+  levels: ["#ff9f43", "นักล่าแนวรับ"], momo: ["#ee5a9b", "นักวิ่งเช้า"], pullback: ["#4bc0c8", "รอย่อ"], bb: ["#a17cff", "สวนขอบ"],
+  donchian: ["#3d8bfd", "ทะลุกรอบ"], orb: ["#ffb8b8", "เปิดตลาด"], ema: ["#2ecc71", "เส้นตัด"], rsi2: ["#f6d743", "สวนสุดโต่ง"],
+  volx: ["#9aa5b1", "รอตลาดเงียบ"], main: ["#f2b632", "บอทหลัก (ทอง)"],
+};
+
+let W = 0, H = 0, S = 1, DPR = 1;
+function resize() {
+  DPR = window.devicePixelRatio || 1; W = innerWidth; H = innerHeight; S = Math.min(W / 1920, H / 1080);
+  cv.width = W * DPR; cv.height = H * DPR; g.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener("resize", resize); resize();
+
+// ------------------------------------------------------------------ ข้อมูล
+let D = null, bars = [], robots = [], parcels = [], effects = [], seenOpen = null, seenTrades = null, lastErr = 0;
+async function refresh() {
+  try {
+    const d = await (await fetch("/api", { cache: "no-store" })).json();
+    if (d.error) throw new Error(d.error);
+    D = d; sync(d);
+  } catch (e) { if (Date.now() - lastErr > 60000) { lastErr = Date.now(); toast("⚠️ ต่อ monitor ไม่ได้ — กำลังลองใหม่"); } }
+}
+async function refreshBars() {
+  try { const r = await (await fetch("/api/bars?symbol=BTCUSD&tf=M1&n=180", { cache: "no-store" })).json(); if (r.bars) { bars = r.bars.map(b => b[4]); if (r.bid) $("btc").textContent = "BTC " + r.bid.toLocaleString("en-US", { maximumFractionDigits: 0 }); } } catch {}
+}
+
+function sync(d) {
+  const names = ["main", ...Object.keys(d.research || {}).sort((a, z) => a.localeCompare(z, undefined, { numeric: true }))];
+  if (robots.length !== names.length || robots.some((r, i) => r.name !== names[i]))
+    robots = names.map((n, i) => ({ name: n, i, x: 0, y: 0, jump: 0, look: 0, rain: 0, blink: Math.random() * 4 }));
+  for (const r of robots) {
+    const hb = d.bots?.[r.name] || {}, st = Object.values(hb.strategies || {})[0] || {}, pb = d.per_bot?.[r.name] || {};
+    const pos = (d.open || []).filter(o => o.bot === r.name);
+    r.hb = hb; r.st = st; r.pb = pb; r.pos = pos; r.res = d.research?.[r.name];
+    r.fam = r.name === "main" ? "main" : (r.res?.family || "volx");
+    r.float = pos.reduce((a, o) => a + o.profit, 0);
+    r.mode = !hb.alive ? "off" : hb.target_hit ? "target" : hb.killed ? "off" : pos.length ? "trade"
+      : (st.proximity || 0) >= 0.7 ? "aim" : /นอก|รอข้อมูล|ผ่านจุดตัดสิน|ไม่เข้าเกณฑ์|พัก/.test(st.state || "") ? "rest" : "watch";
+  }
+  // เหตุการณ์: ไม้เปิดใหม่ → พัสดุออเดอร์วิ่งไป MT5 · ไม้ปิด → เหรียญ / เมฆฝน
+  const openNow = new Set((d.open || []).map(o => o.ticket));
+  if (seenOpen) for (const o of d.open || []) if (!seenOpen.has(o.ticket)) {
+    const r = robots.find(x => x.name === o.bot); if (!r) continue;
+    r.jump = 1; parcels.push({ r, t: 0, side: o.side });
+    toast(`📦 ${o.bot} ส่งออเดอร์ ${o.side} ${o.volume} ${o.symbol === "BTCUSD" ? "BTC" : o.symbol === "XAUUSD" ? "lot ทอง" : "lot"} @ ${o.open_price.toLocaleString()}`);
+  }
+  seenOpen = openNow;
+  const tr = d.trades || [];
+  if (seenTrades) for (const t of tr) if (!seenTrades.has(t.ticket)) {
+    const r = robots.find(x => x.name === t.bot); if (!r) continue;
+    if (t.profit > 0) { for (let k = 0; k < 14; k++) effects.push({ kind: "coin", r, t: -k * 0.04, dx: (Math.random() - .5) * 2 }); r.jump = 1; }
+    else r.rain = 6;
+    toast(`${t.profit > 0 ? "🎉" : "🌧️"} ${t.bot} ปิดไม้ ${money(t.profit)}`);
+  }
+  seenTrades = new Set(tr.map(t => t.ticket));
+
+  const acc = d.account || {};
+  $("eq").textContent = "Equity $" + (acc.equity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const today = Object.values(d.per_bot || {}).reduce((a, s) => a + (s.today || 0) + (s.floating || 0), 0);
+  $("today").innerHTML = `วันนี้ <span class="${today >= 0 ? "up" : "down"}">${money(today)}</span>`;
+  if (cardFor) showCard(cardFor);
+}
+
+function toast(text) {
+  const el = document.createElement("div"); el.className = "chip"; el.textContent = text;
+  $("feed").prepend(el); while ($("feed").children.length > 5) $("feed").lastChild.remove();
+}
+
+// ------------------------------------------------------------------ ฉาก
+function thaiHour() { const p = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":"); return +p[0] + p[1] / 60; }
+function sky(t) {
+  const h = thaiHour(), day = h >= 6.5 && h < 18, dusk = (h >= 17 && h < 19.2) || (h >= 5.5 && h < 7);
+  const top = day ? "#6ec6ff" : dusk ? "#ff9e7a" : "#1b2350", bot = day ? "#d6f1ff" : dusk ? "#ffd6a5" : "#43407a";
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, top); gr.addColorStop(.75, bot); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  if (!day && !dusk) { g.fillStyle = "#fff"; for (let k = 0; k < 70; k++) { const x = (k * 937) % W, y = (k * 521) % (H * .45); g.globalAlpha = .4 + .6 * Math.abs(Math.sin(t * .8 + k)); g.fillRect(x, y, 2 * S + 1, 2 * S + 1); } g.globalAlpha = 1; }
+  // ดวงอาทิตย์ / ดวงจันทร์ เคลื่อนตามเวลาไทย
+  const f = day ? (h - 6.5) / 11.5 : ((h + 24 - 18) % 24) / 12.5;
+  const sx = W * (.12 + .76 * f), sy = H * (.34 - .22 * Math.sin(Math.PI * f));
+  g.fillStyle = day ? "#ffe066" : "#f4f1de"; circle(sx, sy, 46 * S); g.fill();
+  if (!day) { g.fillStyle = top; circle(sx + 18 * S, sy - 10 * S, 40 * S); g.fill(); }
+  for (let k = 0; k < 4; k++) cloud(((t * (8 + k * 3) * S + k * W / 3.3) % (W + 300 * S)) - 150 * S, H * (.12 + .07 * k), (.8 + .25 * k) * S, day ? "#ffffffd9" : "#ffffff40");
+}
+function cloud(x, y, s, col) { g.fillStyle = col; for (const [dx, dy, r] of [[0, 0, 30], [30, -12, 36], [64, 0, 28], [32, 8, 30]]) { circle(x + dx * s, y + dy * s, r * s); g.fill(); } }
+function circle(x, y, r) { g.beginPath(); g.arc(x, y, Math.max(r, .5), 0, Math.PI * 2); }
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+
+function mountains() {
+  const top = H * .2, base = H * .62, x0 = W * .04, x1 = W * .96;
+  if (bars.length < 2) return;
+  const lo = Math.min(...bars), hi = Math.max(...bars), span = (hi - lo) || 1;
+  const pts = bars.map((v, k) => [x0 + (x1 - x0) * k / (bars.length - 1), base - (v - lo) / span * (base - top) * .9 - H * .03]);
+  // ชั้นหลัง (เงา) + ชั้นหน้า (ราคา)
+  for (const [off, col] of [[H * .05, "#7aa6c2"], [0, "#5f8f6e"]]) {
+    g.beginPath(); g.moveTo(x0, base + off);
+    pts.forEach(([x, y], k) => g.lineTo(x, y + off + (off ? Math.sin(k * .3) * 8 * S : 0)));
+    g.lineTo(x1, base + off); g.closePath(); g.fillStyle = col; g.fill();
+  }
+  g.strokeStyle = "#ffffffcc"; g.lineWidth = 3 * S; g.beginPath(); pts.forEach(([x, y], k) => k ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
+  // ธงราคาปัจจุบันบนยอดขวาสุด
+  const [px, py] = pts[pts.length - 1], up = bars[bars.length - 1] >= bars[0];
+  g.strokeStyle = "#1d2433"; g.lineWidth = 3 * S; g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 44 * S); g.stroke();
+  g.fillStyle = up ? "#22b864" : "#f0554c"; g.beginPath(); g.moveTo(px, py - 44 * S); g.lineTo(px - 34 * S, py - 34 * S); g.lineTo(px, py - 24 * S); g.fill();
+  label(`BTC ${bars[bars.length - 1].toLocaleString("en-US", { maximumFractionDigits: 0 })}`, px - 8 * S, py - 54 * S, 15, "right");
+  label(`สูงสุด ${hi.toLocaleString("en-US", { maximumFractionDigits: 0 })}`, x0 + 6 * S, top - 6 * S, 12, "left", "#1d2433aa");
+}
+
+function ground() {
+  const gy = H * .62;
+  g.fillStyle = "#7ccf6a"; g.fillRect(0, gy, W, H - gy);
+  g.fillStyle = "#6bbd5a"; for (let k = 0; k < 40; k++) { circle((k * 173) % W, gy + 20 * S + (k * 71) % (H * .3), 14 * S); g.fill(); }
+  // สายพานออเดอร์: 📡 → 🛡️ → ⚖️ → 🏦
+  const by = BY(), bx0 = BX0(), bx1 = BX1();
+  rr(bx0, by - 10 * S, bx1 - bx0, 20 * S, 10 * S); g.fillStyle = "#3b4256"; g.fill();
+  g.fillStyle = "#596180"; const t = performance.now() / 1000;
+  for (let x = bx0 + ((t * 40 * S) % (30 * S)); x < bx1 - 10 * S; x += 30 * S) g.fillRect(x, by - 3 * S, 14 * S, 6 * S);
+  GATES.forEach(([f, icon, name]) => {
+    const x = bx0 + (bx1 - bx0) * f, glow = parcels.some(p => Math.abs(parcelX(p) - x) < 30 * S);
+    rr(x - 34 * S, by - 62 * S, 68 * S, 52 * S, 12 * S); g.fillStyle = glow ? "#fff6a8" : "#fffdf6"; g.fill();
+    g.lineWidth = 3 * S; g.strokeStyle = "#1d2433"; g.stroke();
+    emoji(icon, x, by - 34 * S, 26); label(name, x, by - 70 * S, 12, "center");
+  });
+  // หอ MT5
+  const tx = W * .945, ty = by;
+  rr(tx - 40 * S, ty - 110 * S, 80 * S, H * .86 - ty + 110 * S, 10 * S); g.fillStyle = "#e9ecf5"; g.fill(); g.lineWidth = 3 * S; g.strokeStyle = "#1d2433"; g.stroke();
+  g.fillStyle = "#c9d0e2"; for (let wy = ty + 30 * S; wy < H * .82; wy += 34 * S) { rr(tx - 22 * S, wy, 16 * S, 18 * S, 3 * S); g.fill(); rr(tx + 6 * S, wy, 16 * S, 18 * S, 3 * S); g.fill(); }
+  emoji("🏦", tx, ty - 72 * S, 40); label("MT5", tx, ty - 24 * S, 16, "center"); label("โบรก", tx, ty - 6 * S, 12, "center");
+  // เสาสะพาน
+  g.fillStyle = "#3b4256"; for (const f of [.02, .5, .98]) g.fillRect(bx0 + (bx1 - bx0) * f - 4 * S, by + 10 * S, 8 * S, H * .62 - by - 10 * S);
+}
+const GATES = [[.30, "🛡️", "กันส่งซ้ำ"], [.52, "⚖️", "ด่านความเสี่ยง"], [.74, "📏", "ขนาดไม้"]];
+
+function label(text, x, y, size, align = "left", col = "#1d2433") {
+  g.font = `700 ${size * S + 4}px "Leelawadee UI", "Segoe UI", sans-serif`; g.textAlign = align; g.textBaseline = "alphabetic"; g.fillStyle = col; g.fillText(text, x, y);
+}
+function emoji(e, x, y, size) { g.font = `${size * S + 6}px "Segoe UI Emoji", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(e, x, y); }
+
+// ------------------------------------------------------------------ หุ่นยนต์
+const LIGHT = { off: "#8b93a3", rest: "#b9c0cc", watch: "#5ab8ff", aim: "#ffd23f", target: "#f2b632" };
+function layout() {
+  const n = robots.length - 1, gy = H * .86;
+  robots.forEach(r => {
+    if (r.name === "main") { r.x = W * .075; r.y = H * .8; return; }
+    r.x = W * .17 + (W * .73) * (r.i - .5) / Math.max(n, 1); r.y = gy;
+  });
+}
+function drawRobot(r, t) {
+  const s = S * (r.name === "main" ? 1.15 : 1), [col] = FAM[r.fam] || FAM.volx;
+  const mode = r.mode || "off", trade = mode === "trade";
+  const bob = mode === "off" ? 0 : Math.sin(t * (trade ? 6 : mode === "aim" ? 4 : 2) + r.i) * (trade ? 4 : 2.5) * s;
+  r.jump = Math.max(0, r.jump - 0.02);
+  const jy = -Math.sin(r.jump * Math.PI) * 60 * s;
+  const x = r.x, y = r.y + bob + jy;
+  g.save(); if (mode === "off") g.globalAlpha = .45;
+  // เงา
+  g.fillStyle = "#00000022"; g.beginPath(); g.ellipse(x, r.y + 6 * s, 46 * s, 10 * s, 0, 0, Math.PI * 2); g.fill();
+  // ขา
+  g.fillStyle = "#3b4256"; rr(x - 26 * s, y - 34 * s, 16 * s, 34 * s, 6 * s); g.fill(); rr(x + 10 * s, y - 34 * s, 16 * s, 34 * s, 6 * s); g.fill();
+  // ตัว
+  rr(x - 44 * s, y - 104 * s, 88 * s, 74 * s, 18 * s); g.fillStyle = col; g.fill(); g.lineWidth = 3.5 * s; g.strokeStyle = "#1d2433"; g.stroke();
+  // แบตเตอรี่ = ความใกล้เข้าไม้
+  const prox = Math.max(0, Math.min(r.st?.proximity || 0, 1));
+  rr(x - 28 * s, y - 62 * s, 56 * s, 18 * s, 5 * s); g.fillStyle = "#fffdf6"; g.fill(); g.lineWidth = 2.5 * s; g.stroke();
+  if (trade) { g.fillStyle = r.float >= 0 ? "#22b864" : "#f0554c"; rr(x - 25 * s, y - 59 * s, 50 * s, 12 * s, 3 * s); g.fill(); }
+  else if (prox > 0) { g.fillStyle = prox >= .7 ? "#ffd23f" : "#5ab8ff"; rr(x - 25 * s, y - 59 * s, 50 * prox * s, 12 * s, 3 * s); g.fill(); }
+  // หัว
+  const hx = x, hy = y - 140 * s;
+  rr(hx - 40 * s, hy - 30 * s, 80 * s, 60 * s, 16 * s); g.fillStyle = col; g.fill(); g.lineWidth = 3.5 * s; g.stroke();
+  rr(hx - 30 * s, hy - 20 * s, 60 * s, 38 * s, 10 * s); g.fillStyle = "#1d2433"; g.fill();
+  // ตา: มองไปทางภูเขาราคา / หลับ / เบิกกว้างตอนเล็ง
+  r.blink -= 1 / 60; const blink = r.blink < 0; if (r.blink < -0.12) r.blink = 2 + Math.random() * 4;
+  const eye = mode === "aim" ? "#ffd23f" : trade ? (r.float >= 0 ? "#7dffb0" : "#ff9d97") : "#9fe3ff";
+  const lookX = Math.sin(t * .7 + r.i) * 4 * s, lookY = mode === "watch" || mode === "aim" ? -4 * s : 0;
+  if (mode === "rest" || mode === "off" || mode === "target") {
+    g.strokeStyle = eye; g.lineWidth = 3 * s;
+    for (const ex of [-13, 13]) { g.beginPath(); g.moveTo(hx + (ex - 7) * s, hy); g.lineTo(hx + (ex + 7) * s, hy); g.stroke(); }
+    if (mode !== "target") label("z", hx + 44 * s + Math.sin(t) * 3 * s, hy - 30 * s - (t * 12 % 20) * s, 14, "center", "#1d2433aa");
+  } else for (const ex of [-13, 13]) {
+    g.fillStyle = eye; const rad = (mode === "aim" ? 8 : 6) * s;
+    if (blink) g.fillRect(hx + ex * s - rad, hy - 1.5 * s, rad * 2, 3 * s); else { circle(hx + ex * s + lookX, hy + lookY, rad); g.fill(); }
+  }
+  // เสาอากาศ (ไฟสถานะ)
+  g.strokeStyle = "#1d2433"; g.lineWidth = 3 * s; g.beginPath(); g.moveTo(hx, hy - 30 * s); g.lineTo(hx, hy - 50 * s); g.stroke();
+  const lc = trade ? (r.float >= 0 ? "#22b864" : "#f0554c") : LIGHT[mode];
+  g.fillStyle = lc; circle(hx, hy - 56 * s, 9 * s * (mode === "aim" ? 1 + .25 * Math.sin(t * 10) : 1)); g.fill(); g.lineWidth = 2.5 * s; g.stroke();
+  // ถือไม้: ธง BUY/SELL + กำไรลอย
+  if (trade) {
+    const side = r.pos[0].side, fx = x + 52 * s, fy = y - 70 * s;
+    g.strokeStyle = "#1d2433"; g.lineWidth = 3 * s; g.beginPath(); g.moveTo(fx, fy + 30 * s); g.lineTo(fx, fy - 60 * s); g.stroke();
+    g.fillStyle = side === "BUY" ? "#22b864" : "#f0554c";
+    g.beginPath(); g.moveTo(fx, fy - 60 * s); g.lineTo(fx + 46 * s, fy - 48 * s + Math.sin(t * 5) * 3 * s); g.lineTo(fx, fy - 34 * s); g.fill();
+    label(side === "BUY" ? "▲" : "▼", fx + 15 * s, fy - 41 * s, 11, "center", "#fff");
+    if (r.float < 0) { g.fillStyle = "#7ec8ff"; circle(hx - 46 * s, hy - 8 * s + (t * 30 % 18) * s, 5 * s); g.fill(); }   // เหงื่อ
+    else { emoji("✨", hx + 50 * s, hy - 30 * s + Math.sin(t * 4) * 4 * s, 14); }
+  }
+  if (mode === "target") { emoji("🥳", hx + 46 * s, hy - 40 * s, 22); emoji("🎯", hx - 50 * s, hy - 10 * s, 18); }
+  g.restore();
+  // เมฆฝนหลังปิดไม้ขาดทุน
+  if (r.rain > 0) {
+    r.rain -= 1 / 60; cloud(hx - 50 * s, hy - 120 * s, .9 * s, "#6c7486e6");
+    g.strokeStyle = "#5ab8ff"; g.lineWidth = 2 * s;
+    for (let k = 0; k < 6; k++) { const rx = hx - 40 * s + k * 16 * s, ry = hy - 100 * s + ((t * 140 + k * 20) % 60) * s; g.beginPath(); g.moveTo(rx, ry); g.lineTo(rx - 3 * s, ry + 10 * s); g.stroke(); }
+  }
+  // ป้ายชื่อ + กำไรวันนี้
+  const today = (r.pb?.today || 0) + (r.pb?.floating || 0);
+  const pw = Math.min(150 * s, slot() * .96);
+  rr(x - pw / 2, r.y + 14 * s, pw, 46 * s, 10 * s); g.fillStyle = "#fffdf6"; g.fill(); g.lineWidth = 2.5 * s; g.strokeStyle = "#1d2433"; g.stroke();
+  const name = r.name === "main" ? "★ main" : r.name;
+  g.font = `700 ${12 * S + 4}px "Leelawadee UI", sans-serif`; const nw = g.measureText(name + " ").width;
+  g.font = `800 ${11 * S + 4}px "Leelawadee UI", sans-serif`; const mw = g.measureText(money(today)).width;
+  label(name, x - (nw + mw) / 2, r.y + 33 * s, 12, "left");
+  label(money(today), x - (nw + mw) / 2 + nw, r.y + 33 * s, 11, "left", today > 0 ? "#168a4a" : today < 0 ? "#c4362e" : "#6b7489");
+  g.font = `700 ${9.5 * S + 4}px "Leelawadee UI", sans-serif`;
+  label(fit(r.name === "main" ? "บอทหลัก · ทอง M15" : (FAM[r.fam] || FAM.volx)[1], pw - 12 * s), x, r.y + 52 * s, 9.5, "center", "#6b7489");
+  // คำพูด
+  bubble(r, hx, hy - 76 * s, s);
+  r.hit = { x0: x - 56 * s, x1: x + 56 * s, y0: hy - 70 * s, y1: r.y + 56 * s };
+}
+function bubble(r, x, y, s) {
+  const st = r.st || {}, trade = r.mode === "trade";
+  let text = r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? "ถึงเป้า $120 พักแล้ว!" :
+    trade ? `ถือ ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
+  g.font = `700 ${11 * s + 4}px "Leelawadee UI", sans-serif`;
+  text = fit(text, slot() * .94 - 22 * s);
+  const w = g.measureText(text).width + 22 * s, h = 30 * s;
+  rr(x - w / 2, y - h, w, h, 12 * s); g.fillStyle = trade ? (r.float >= 0 ? "#e3fbe9" : "#ffe6e4") : "#fffdf6"; g.fill();
+  g.lineWidth = 2.5 * s; g.strokeStyle = "#1d2433"; g.stroke();
+  g.fillStyle = g.fillStyle; g.beginPath(); g.moveTo(x - 8 * s, y - 1); g.lineTo(x, y + 10 * s); g.lineTo(x + 8 * s, y - 1); g.fillStyle = trade ? (r.float >= 0 ? "#e3fbe9" : "#ffe6e4") : "#fffdf6"; g.fill(); g.stroke();
+  g.fillStyle = "#1d2433"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, x, y - h / 2 + 1);
+}
+function slot() { return W * .73 / Math.max(robots.length - 1, 1); }   // ความกว้างต่อหุ่น 1 ตัว
+function fit(text, maxW) {   // ตัดข้อความให้พอดีความกว้าง (ใช้ฟอนต์ที่ตั้งไว้ล่าสุด)
+  if (g.measureText(text).width <= maxW) return text;
+  while (text.length > 1 && g.measureText(text + "…").width > maxW) text = text.slice(0, -1);
+  return text + "…";
+}
+function island(t) {   // เกาะทองของ main
+  const x = W * .075, y = H * .8;
+  g.fillStyle = "#f2b632"; g.beginPath(); g.ellipse(x, y + 4 * S, 90 * S, 22 * S, 0, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 3 * S; g.strokeStyle = "#1d2433"; g.stroke();
+  emoji("🪙", x - 70 * S, y - 6 * S + Math.sin(t * 2) * 3 * S, 18); emoji("🪙", x + 72 * S, y - 4 * S + Math.cos(t * 2) * 3 * S, 16);
+}
+
+// ------------------------------------------------------------------ ออเดอร์วิ่ง + เอฟเฟกต์
+const BY = () => H * .44, BX0 = () => W * .16, BX1 = () => W * .9;
+function parcelX(p) { return p.t < .25 ? p.r.x : BX0() + (BX1() - BX0()) * Math.min((p.t - .25) / .7, 1); }
+function drawParcels() {
+  parcels = parcels.filter(p => (p.t += 1 / 60 / 5) < 1.05);
+  for (const p of parcels) {
+    let x, y;
+    if (p.t < .25) { const k = p.t / .25; x = p.r.x + (BX0() - p.r.x) * k * k; y = p.r.y - 150 * S + (BY() - 20 * S - (p.r.y - 150 * S)) * k - Math.sin(k * Math.PI) * 90 * S; }
+    else { x = parcelX(p); y = BY() - 20 * S; }
+    if (p.t > .95) { x = W * .945; y = BY() - 20 * S - (p.t - .95) * 900 * S; }
+    emoji("📦", x, y, 24); label(p.side, x, y - 20 * S, 10, "center", p.side === "BUY" ? "#168a4a" : "#c4362e");
+  }
+}
+function drawEffects() {
+  effects = effects.filter(e => (e.t += 1 / 60) < 1.6);
+  for (const e of effects) {
+    if (e.t < 0) continue;
+    const k = Math.min(e.t / 1.2, 1), sx = W * .945, sy = BY() - 90 * S, tx = e.r.x + e.dx * 30 * S, ty = e.r.y - 120 * S;
+    emoji("🪙", sx + (tx - sx) * k, sy + (ty - sy) * k - Math.sin(k * Math.PI) * 160 * S, 20);
+  }
+}
+
+// ------------------------------------------------------------------ การ์ดรายละเอียด
+let cardFor = null;
+cv.addEventListener("click", (ev) => {
+  const r = robots.find(r => r.hit && ev.clientX >= r.hit.x0 && ev.clientX <= r.hit.x1 && ev.clientY >= r.hit.y0 && ev.clientY <= r.hit.y1);
+  if (r) { cardFor = r.name; showCard(r.name, ev.clientX, ev.clientY); } else hideCard();
+});
+cv.addEventListener("mousemove", (ev) => { cv.style.cursor = robots.some(r => r.hit && ev.clientX >= r.hit.x0 && ev.clientX <= r.hit.x1 && ev.clientY >= r.hit.y0 && ev.clientY <= r.hit.y1) ? "pointer" : "default"; });
+$("cardx").onclick = hideCard;
+function hideCard() { cardFor = null; $("card").style.display = "none"; }
+function showCard(name, cx, cy) {
+  const r = robots.find(x => x.name === name); if (!r) return;
+  const st = r.st || {}, pb = r.pb || {}, res = r.res, pos = r.pos || [];
+  $("cardbody").innerHTML = `<h4>${name === "main" ? "★ main" : esc(name)} — ${esc((FAM[r.fam] || FAM.volx)[1])}</h4>
+    <div><span class="k">ตลาด</span> ${esc(st.symbol || "–")} · <span class="k">สถานะ</span> ${esc(st.state || "–")}</div>
+    <div><span class="k">กำลังดู</span> ${esc(st.detail || "–")}</div>
+    <div><span class="k">ความใกล้เข้าไม้</span> ${Math.round((st.proximity || 0) * 100)}% ${st.side ? "· ฝั่ง " + esc(st.side) : ""}</div>
+    ${pos.map(o => `<div><b>ถือ ${o.side}</b> ${o.volume} @ ${o.open_price.toLocaleString()} → ${o.price.toLocaleString()} · <b class="${o.profit >= 0 ? "up" : "down"}">${money(o.profit)}</b></div>`).join("")}
+    <div><span class="k">วันนี้</span> <b class="${(pb.today || 0) + (pb.floating || 0) >= 0 ? "up" : "down"}">${money((pb.today || 0) + (pb.floating || 0))}</b> · <span class="k">รวม</span> ${money(pb.total || 0)} · ${pb.trades || 0} ไม้ ${pb.win_rate == null ? "" : "· ชนะ " + pb.win_rate + "%"}</div>
+    ${res ? `<div><span class="k">งานวิจัยคาด</span> ${money(res.wf_usd_day)}/วัน · <span class="k">วิธีออก</span> ${esc(res.plan)}</div>
+    <div class="k" style="font-size:.85em">${esc(JSON.stringify(res.params))}</div>` : ""}
+    ${r.hb?.target_hit ? "<div>🎯 ถึงเป้า +$120 วันนี้แล้ว — พักถึงวันใหม่</div>" : ""}`;
+  const c = $("card"); c.style.display = "block";
+  if (cx != null) { c.style.left = Math.min(cx + 16, innerWidth - c.offsetWidth - 16) + "px"; c.style.top = Math.max(16, Math.min(cy - c.offsetHeight / 2, innerHeight - c.offsetHeight - 16)) + "px"; }
+}
+
+// ------------------------------------------------------------------ วนวาด
+function frame(ms) {
+  const t = ms / 1000;
+  sky(t); mountains(); ground(); layout();
+  if (robots.some(r => r.name === "main")) island(t);
+  for (const r of robots) drawRobot(r, t);
+  drawParcels(); drawEffects();
+  if (!D) label("กำลังเรียกหุ่นยนต์…", W / 2, H * .8, 22, "center");
+  requestAnimationFrame(frame);
+}
+setInterval(() => { $("clock").textContent = new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date()) + " น."; }, 1000);
+refresh(); refreshBars(); setInterval(refresh, 5000); setInterval(refreshBars, 10000);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

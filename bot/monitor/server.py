@@ -28,7 +28,8 @@ from ..live.mt5_broker import decode_comment
 log = logging.getLogger("monitor")
 HERE = Path(__file__).parent
 PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html",
-         "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html", "/live": HERE / "live.html"}
+         "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html", "/live": HERE / "live.html",
+         "/sandbox": HERE / "sandbox.html"}
 TECHNIQUES = C.ROOT / "research" / "techniques.json"
 RADAR_STATS = C.ROOT / "research" / "out" / "radar_stats.json"
 TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
