@@ -58,7 +58,7 @@
   #ctlNote { margin-top: .5em; font-weight: 650; font-size: .9em; }
   .card .x { position: absolute; right: .7em; top: .4em; cursor: pointer; font-weight: 800; font-size: 1.2em; }
   /* โหมดไลฟ์ (?stream=1) — สำหรับ TikTok LIVE Studio จับภาพหน้าต่างนี้ */
-  html.stream, html.stream * { cursor: none !important; }
+  /* เมาส์ต้องเห็นเสมอ (ผู้ใช้ต้องกดได้) — ถ้าไม่อยากให้ลูกศรติดไลฟ์ ปิดที่ตัวเลือก cursor ของ Window capture ใน LIVE Studio */
   html.stream .help, html.stream .navl, html.stream #feed .chip:nth-child(n+3), html.stream .legend,
   html.stream #eq, html.stream #clock, html.stream #tfchip, html.stream #spinBtn { display: none; }
   html.stream .hud { flex-wrap: nowrap; gap: 1.5vw; }
