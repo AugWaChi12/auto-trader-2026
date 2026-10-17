@@ -36,8 +36,9 @@
   .bubble { position: relative; background: #fffdf6; border: 2px solid #1d2433; border-radius: 12px; padding: .2em .7em; font-weight: 700;
             font-size: .74em; white-space: nowrap; max-width: 8.4vw; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 14px rgba(0,0,0,.16); }
   .bubble.win { background: #e2fbe9; } .bubble.lose { background: #ffe4e1; } .bubble.aim { background: #fff4c2; } .bubble.off { opacity: .55; }
-  .plate { background: rgba(255, 253, 246, .95); border: 2px solid #1d2433; border-radius: 10px; padding: .15em .6em; text-align: center;
-           line-height: 1.25; box-shadow: 0 6px 14px rgba(0,0,0,.18); }
+  .plate { background: rgba(255, 253, 246, .9); border: 1.5px solid #1d2433; border-radius: 8px; padding: .05em .45em; text-align: center;
+           line-height: 1.2; box-shadow: 0 3px 8px rgba(0,0,0,.15); font-size: .78em; white-space: nowrap; }
+  .plate.hot { font-size: .9em; border-width: 2px; }
   .plate b { font-size: .92em; } .plate .m { font-weight: 800; font-size: .86em; } .plate .f { color: var(--muted); font-size: .72em; font-weight: 650; }
   .tag3d { background: rgba(255, 253, 246, .92); border: 2px solid #1d2433; border-radius: 10px; padding: .15em .6em; font-weight: 750;
            font-size: .8em; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,.15); }
@@ -114,9 +115,9 @@ const labels = new CSS2DRenderer(); $("labels").appendChild(labels.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
-camera.position.set(3, 11.5, 37);
+camera.position.set(1, 11, 30);
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 4, -2.5); controls.enableDamping = true; controls.dampingFactor = .06;
+controls.target.set(-1, 2.6, 1.5); controls.enableDamping = true; controls.dampingFactor = .06;
 controls.minDistance = 14; controls.maxDistance = 60; controls.maxPolarAngle = Math.PI * .47; controls.minPolarAngle = Math.PI * .18;
 controls.autoRotateSpeed = .25;
 let idleSince = performance.now();
@@ -289,10 +290,12 @@ function makeRobot(name, fam) {
   const lightM = new THREE.MeshStandardMaterial({ color: 0x4fb3ff, emissive: 0x4fb3ff, emissiveIntensity: 2.2 });
   const batM = new THREE.MeshStandardMaterial({ color: 0x4fb3ff, emissive: 0x4fb3ff, emissiveIntensity: 1.2 });
   const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
-  for (const sx of [-.32, .32]) {   // ขา + เท้า
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, .8, 12), METAL); leg.position.set(sx, .45, 0); rig.add(leg);
-    const foot = new THREE.Mesh(new RoundedBoxGeometry(.5, .2, .7, 2, .08), dark); foot.position.set(sx, .1, .1); rig.add(foot);
-  }
+  const legs = [-.32, .32].map(sx => {   // ขา + เท้า หมุนรอบสะโพก (เดิน)
+    const hip = new THREE.Group(); hip.position.set(sx, .9, 0); rig.add(hip);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, .8, 12), METAL); leg.position.y = -.45; hip.add(leg);
+    const foot = new THREE.Mesh(new RoundedBoxGeometry(.5, .2, .7, 2, .08), dark); foot.position.set(0, -.8, .1); hip.add(foot);
+    return hip;
+  });
   const torso = new THREE.Mesh(new RoundedBoxGeometry(1.5, 1.2, 1.1, 4, .28), body); torso.position.y = 1.5; rig.add(torso);
   const panel = new THREE.Mesh(new RoundedBoxGeometry(1, .34, .08, 2, .05), mat(0xfffdf6)); panel.position.set(0, 1.45, .56); rig.add(panel);
   const bat = new THREE.Mesh(new THREE.BoxGeometry(.9, .22, .04), batM); bat.position.set(0, 1.45, .61); rig.add(bat);
@@ -332,7 +335,8 @@ function makeRobot(name, fam) {
   const bubble = tag("…", "bubble"); bubble.position.set(0, 4.35, 0); g.add(bubble);
   const plate = tag("", "plate"); plate.position.set(0, -.55, .8); g.add(plate);
   shadowy(g);
-  g.userData = { name, rig, head, eyes, eyeM, lightM, batM, bat, flag, cloth, hat, arms, rain, drops, bubble, plate, body, ring, ringM, glow, glowM,
+  g.scale.setScalar(.82);
+  g.userData = { legs, name, rig, head, eyes, eyeM, lightM, batM, bat, flag, cloth, hat, arms, rain, drops, bubble, plate, body, ring, ringM, glow, glowM,
                  bodyColor: new THREE.Color(color) };
   return g;
 }
@@ -350,6 +354,98 @@ const goldIsland = new THREE.Group();
   goldIsland.position.set(-19, 2.2, 1); scene.add(shadowy(goldIsland));
 }
 
+
+// ------------------------------------------------------------------ โซนในหมู่บ้าน + การเดิน
+// ลานเฝ้าราคา (เดินเล่นรอสัญญาณ) · จุดเตรียมเข้า (ใกล้เข้าไม้) · โซนเทรด (ถือไม้) · บ้านพัก (นอกเวลา/ถึงเป้า/ออฟไลน์)
+const ZONES = {
+  plaza: { x0: -15, x1: 1.5, z0: 1.5, z1: 9.5 },
+  gate: { cx: 3.2, cz: 9.6 },
+  trade: { cx: 9.6, cz: 3.6, r: 3.6 },
+  house: { cx: -9.5, cz: -1.2 },
+};
+function sign(text, x, z, h = 2.4) {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, h, 8), mat(0x8a5a36)); post.position.y = h / 2; g.add(post);
+  const board = new THREE.Mesh(new RoundedBoxGeometry(1.5, .7, .12, 2, .05), mat(0xc98b4a)); board.position.y = h; g.add(board);
+  const t = tag(text, "tag3d big"); t.position.y = h + .9; g.add(t);
+  g.position.set(x, 0, z); scene.add(shadowy(g)); return g;
+}
+const tradeZone = new THREE.Group();
+{
+  const { cx, cz, r } = ZONES.trade;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(r, r + .3, .3, 48), mat(0x2b3550, { roughness: .4, metalness: .3 }));
+  base.position.y = .15; base.receiveShadow = true; tradeZone.add(base);
+  const inner = new THREE.Mesh(new THREE.CircleGeometry(r - .5, 48), new THREE.MeshStandardMaterial({ color: 0x1d2433, emissive: 0x2fd17a, emissiveIntensity: .08 }));
+  inner.rotation.x = -Math.PI / 2; inner.position.y = .31; tradeZone.add(inner);
+  const edgeM = new THREE.MeshStandardMaterial({ color: 0x2fd17a, emissive: 0x2fd17a, emissiveIntensity: 1.2 });
+  const edge = new THREE.Mesh(new THREE.TorusGeometry(r - .1, .07, 8, 64), edgeM); edge.rotation.x = Math.PI / 2; edge.position.y = .33; tradeZone.add(edge);
+  for (let k = 0; k < 8; k++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(.06, .02, r - .8), new THREE.MeshBasicMaterial({ color: 0x2fd17a, transparent: true, opacity: .35 }));
+    b.position.set(Math.sin(k * Math.PI / 4) * (r - .8) / 2, .33, Math.cos(k * Math.PI / 4) * (r - .8) / 2); b.rotation.y = k * Math.PI / 4; tradeZone.add(b);
+  }
+  tradeZone.position.set(cx, 0, cz); tradeZone.userData = { edgeM, inner }; scene.add(tradeZone);
+  sign("⚡ โซนเทรด", cx + r + .4, cz - 1.6, 2.8);
+}
+{
+  const { cx, cz } = ZONES.gate;
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(1.8, 40), new THREE.MeshStandardMaterial({ color: 0xffcf33, emissive: 0xffcf33, emissiveIntensity: .25, transparent: true, opacity: .55 }));
+  pad.rotation.x = -Math.PI / 2; pad.position.set(cx, .03, cz); scene.add(pad);
+  sign("🎯 เตรียมเข้า", cx - 2.3, cz + .9, 1.6);
+}
+{
+  const { cx, cz } = ZONES.house, h = new THREE.Group();
+  const walls = new THREE.Mesh(new RoundedBoxGeometry(3.4, 2.2, 2.6, 2, .12), mat(0xf6e7c8)); walls.position.y = 1.1; h.add(walls);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.6, 4), mat(0xd35b4a, { flatShading: true })); roof.position.y = 3; roof.rotation.y = Math.PI / 4; h.add(roof);
+  const door = new THREE.Mesh(new RoundedBoxGeometry(.8, 1.3, .1, 2, .08), mat(0x8a5a36)); door.position.set(0, .7, 1.31); h.add(door);
+  for (const wx of [-1.05, 1.05]) { const w = new THREE.Mesh(new THREE.BoxGeometry(.6, .55, .08), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffc94a, emissiveIntensity: .5 })); w.position.set(wx, 1.35, 1.31); h.add(w); }
+  const chim = new THREE.Mesh(new THREE.BoxGeometry(.4, .9, .4), mat(0x9a6b45)); chim.position.set(.9, 3.3, -.4); h.add(chim);
+  h.position.set(cx, 0, cz - 1.6); scene.add(shadowy(h));
+  sign("💤 บ้านพัก", cx - 2.4, cz + .6, 2);
+}
+sign("👀 ลานเฝ้าราคา", -12.5, 11, 1.6);
+
+function zoneFor(r) { return { trade: "trade", aim: "gate", watch: "plaza" }[r.mode] || "house"; }
+function pickPoint(zone, r) {
+  if (zone === "plaza") { const z = ZONES.plaza; return new THREE.Vector3(z.x0 + Math.random() * (z.x1 - z.x0), 0, z.z0 + Math.random() * (z.z1 - z.z0)); }
+  if (zone === "gate") { const z = ZONES.gate; return new THREE.Vector3(z.cx + (Math.random() - .5) * 2.4, 0, z.cz + (Math.random() - .5) * 1.6); }
+  if (zone === "house") { const z = ZONES.house; return new THREE.Vector3(z.cx + (Math.random() - .5) * 4.5, 0, z.cz + .6 + Math.random() * 1.6); }
+  const busy = robots.filter(x => x.mode === "trade" && x.name !== "main"), k = Math.max(busy.indexOf(r), 0), n = Math.max(busy.length, 1);
+  const a = -Math.PI / 2 + (k / n) * Math.PI * 2, rad = n === 1 ? 0 : ZONES.trade.r * .55;
+  return new THREE.Vector3(ZONES.trade.cx + Math.cos(a) * rad, .3, ZONES.trade.cz + Math.sin(a) * rad);
+}
+const _d = new THREE.Vector3();
+function walk(r, dt) {
+  if (r.name === "main" || !r.target) return false;
+  const zone = zoneFor(r), nTrade = robots.filter(x => x.mode === "trade").length;
+  if (zone !== r.zone || (zone === "trade" && r.tradeN !== nTrade)) {   // เปลี่ยนโซน → เดินไปที่ใหม่
+    r.zone = zone; r.tradeN = nTrade; r.target = pickPoint(zone, r); r.wait = 0;
+  }
+  const p = r.obj.position;
+  _d.set(r.target.x - p.x, 0, r.target.z - p.z);
+  const dist = _d.length();
+  const onStage = Math.hypot(p.x - ZONES.trade.cx, p.z - ZONES.trade.cz) < ZONES.trade.r;
+  p.y += ((onStage ? .3 : 0) - p.y) * .25;   // ขึ้นแท่นโซนเทรด
+  if (dist > .08) {
+    const speed = zone === "trade" || zone === "gate" ? 3.2 : r.mode === "off" ? 1 : 1.8;   // รีบไปโซนเทรด / เดินเล่นช้าๆ
+    _d.multiplyScalar(Math.min(speed * dt, dist) / dist); p.add(_d);
+    const want = Math.atan2(r.target.x - p.x, r.target.z - p.z);
+    let diff = want - r.obj.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); r.obj.rotation.y += diff * Math.min(dt * 8, 1);
+    return true;
+  }
+  const face = zone === "plaza" ? Math.sin(performance.now() / 4000 + r.seed) * .6 : zone === "house" ? .2 : 0;   // ถึงแล้ว: หันหาราคา/กล้อง
+  let diff = face - r.obj.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); r.obj.rotation.y += diff * Math.min(dt * 3, 1);
+  r.wait -= dt;
+  if (r.wait < 0 && zone !== "trade") { r.target = pickPoint(zone, r); r.wait = 2 + Math.random() * 5; }
+  return false;
+}
+function separate() {   // ไม่เดินชนกัน
+  const list = robots.filter(r => r.name !== "main");
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i].obj.position, b = list[j].obj.position, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+    if (d > 0 && d < 1.7) { const push = (1.7 - d) * .5, ux = dx / d, uz = dz / d; a.x -= ux * push; a.z -= uz * push; b.x += ux * push; b.z += uz * push; }
+  }
+}
+
 // ------------------------------------------------------------------ ข้อมูล
 let D = null, robots = [], parcels = [], coins = [], seenOpen = null, seenTrades = null, lastErr = 0;
 async function refresh() {
@@ -365,10 +461,9 @@ async function refreshBars() {
 }
 
 function placeRobots() {
-  const n = robots.length - 1;
   robots.forEach(r => {
-    r.home = r.name === "main" ? new THREE.Vector3(-19, 2.2, 1) : new THREE.Vector3(-14 + 28 * (r.i - .5) / Math.max(n, 1), 0, 4.5);
-    r.obj.position.copy(r.home); r.obj.rotation.y = r.name === "main" ? .5 : 0;
+    if (r.name === "main") { r.obj.position.set(-19, 2.2, 1); r.obj.rotation.y = .5; return; }
+    r.obj.position.copy(pickPoint("plaza", r)); r.target = r.obj.position.clone(); r.wait = Math.random() * 3; r.zone = null;
   });
 }
 
@@ -423,8 +518,12 @@ function labelRobot(r) {
   u.bubble.element.textContent = r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? "🎯 ถึงเป้า $120 พักแล้ว!" :
     r.mode === "trade" ? `ถือ ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
   u.bubble.element.className = "bubble " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : r.mode === "off" ? "off" : "");
-  u.plate.element.innerHTML = `<b>${r.name === "main" ? "★ main" : esc(r.name)}</b> <span class="m ${today > 0 ? "up" : today < 0 ? "down" : ""}">${money(today)}</span><br>
-    <span class="f">${esc((FAM[r.fam] || FAM.volx)[1])}</span>`;
+  const hot = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main";
+  u.plate.element.className = "plate" + (hot ? " hot" : "");
+  u.plate.element.innerHTML = `<b>${r.name === "main" ? "★ main" : esc(r.name)}</b>` + (hot || today
+    ? ` <span class="m ${today > 0 ? "up" : today < 0 ? "down" : ""}">${money(today)}</span>` : "")
+    + (hot ? `<br><span class="f">${esc((FAM[r.fam] || FAM.volx)[1])}</span>` : "");
+  u.bubble.visible = hot || r.mode === "off";   // ตัวที่เดินเล่น/พักไม่ต้องพูด ลดป้ายรก — คลิกดูรายละเอียดได้
 }
 function toast(text) {
   const el = document.createElement("div"); el.className = "chip"; el.textContent = text;
@@ -494,6 +593,10 @@ function showCard(name, cx, cy) {
 const tmpC = new THREE.Color(), GREY = new THREE.Color(0x8b93a3);
 function animateRobot(r, t, dt) {
   const u = r.obj.userData, mode = r.mode || "off", trade = mode === "trade", win = r.float >= 0;
+  const walking = walk(r, dt);
+  r.stride = (r.stride || 0) + (walking ? dt * 9 : 0);
+  const swing = walking ? Math.sin(r.stride) * .55 : 0;
+  u.legs[0].rotation.x += (swing - u.legs[0].rotation.x) * .3; u.legs[1].rotation.x += (-swing - u.legs[1].rotation.x) * .3;
   r.jump = Math.max(0, r.jump - dt * .9);
   const speed = trade ? 6 : mode === "aim" ? 4.5 : mode === "watch" ? 2 : 1;
   u.rig.position.y = (mode === "off" ? 0 : Math.abs(Math.sin(t * speed + r.seed)) * (trade ? .18 : .08)) + Math.sin(r.jump * Math.PI) * 2.2;
@@ -521,12 +624,13 @@ function animateRobot(r, t, dt) {
     const p = u.cloth.geometry.attributes.position; for (let k = 0; k < p.count; k++) { const x = p.getX(k); p.setZ(k, Math.sin(x * 5 + t * 8) * .08 * (x + .5)); } p.needsUpdate = true;
   } else u.arms[1].rotation.z += (Math.sin(t * speed * .5 + r.seed) * .12 - u.arms[1].rotation.z) * .1;
   u.arms[0].rotation.z = -Math.sin(t * speed * .5 + r.seed) * .12 + (mode === "target" ? -2.4 + Math.sin(t * 6) * .3 : 0);
+  if (walking) { u.arms[0].rotation.x = -swing * .8; if (!trade) u.arms[1].rotation.x = swing * .8; u.rig.position.y += Math.abs(Math.sin(r.stride)) * .12; }
+  else { u.arms[0].rotation.x *= .85; u.arms[1].rotation.x *= .85; }
   u.hat.visible = mode === "target";
   u.ring.visible = u.glow.visible = trade;
   if (trade) { const c = win ? 0x22c46a : 0xff5a50; u.ringM.color.set(c); u.glowM.color.set(c);
     u.ringM.opacity = .55 + .35 * (.5 + .5 * Math.sin(t * 4)); u.ring.scale.setScalar(1 + .1 * Math.sin(t * 4));
     u.glowM.opacity = .1 + .1 * (.5 + .5 * Math.sin(t * 2)); }
-  if (r.home && r.name !== "main") r.obj.position.z += ((r.home.z + (trade ? 2.2 : 0)) - r.obj.position.z) * .05;   // ก้าวออกจากแถวตอนถือไม้
   r.rain = Math.max(0, r.rain - dt); u.rain.visible = r.rain > 0;
   if (u.rain.visible) u.drops.forEach((d, k) => { d.position.y = -.5 - ((t * 3 + k * .37) % 1.8); });
 }
@@ -546,6 +650,10 @@ function frame() {
   const main = robots.find(r => r.name === "main"); if (main) main.obj.position.y = goldIsland.position.y;
   if (priceFlag) priceFlag.userData.cloth.rotation.y = Math.sin(t * 3) * .2;
   for (const r of robots) animateRobot(r, t, dt);
+  separate();
+  const anyTrade = robots.some(r => r.mode === "trade" && r.name !== "main");
+  tradeZone.userData.edgeM.emissiveIntensity = anyTrade ? 1.6 + Math.sin(t * 4) * .8 : .6;
+  tradeZone.userData.inner.material.emissiveIntensity = anyTrade ? .25 + Math.sin(t * 4) * .1 : .06;
   parcels = parcels.filter(p => { const alive = stepParcel(p, dt); if (!alive) { scene.remove(p.m); p.m.traverse(o => o.element?.remove()); } return alive; });
   coins = coins.filter(c => stepCoin(c, dt));
   gates.forEach(g => { const near = parcels.some(p => Math.abs(p.m.position.x - g.position.x) < 1.6 && p.t > .2);
