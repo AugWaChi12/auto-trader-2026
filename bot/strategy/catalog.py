@@ -46,7 +46,7 @@ def build(family: str, symbol: str, params: dict, plan: ManagementPlan | None, t
           mode: str = "rule") -> Strategy:
     cfg_cls, strat_cls, _ = FAMILIES[family]
     kw = dict(params)
-    gold = symbol == "XAUUSD"
+    gold = symbol != "NAS100"          # ทอง / BTC ใช้กรอบเวลา UTC · NAS ใช้เวลานิวยอร์ก
     if family in ("rsi2", "ema", "bb"):
         kw.update(window=ALL_DAY, side_mode=mode)
     elif family in ("donchian", "volx"):

@@ -50,6 +50,9 @@ class KeyLevels:
         return {k: v for k, v in (("PDL", self.pdl), ("PWL", self.pwl)) if v is not None}
 
 
+ALWAYS_OPEN = {"BTCUSD"}          # คริปโต: เทรดได้ 7 วัน ไม่มีปิดตลาดสุดสัปดาห์
+
+
 def hold_exits(strategy, bar: Bar, account, max_hold: timedelta, bar_duration: timedelta) -> list:  # noqa: ANN001
     """time stop + ปิดก่อนสุดสัปดาห์ (ศุกร์ 20:00 UTC) — ใช้ร่วมกันทุก setup ที่ถือข้ามวันได้"""
     from ..core.types import ExitSignal
@@ -57,7 +60,7 @@ def hold_exits(strategy, bar: Bar, account, max_hold: timedelta, bar_duration: t
     if not positions:
         return []
     now = bar.time + bar_duration
-    if now.weekday() == 4 and now.hour >= 20:
+    if now.weekday() == 4 and now.hour >= 20 and strategy.symbol not in ALWAYS_OPEN:
         return [ExitSignal(strategy.symbol, strategy.tag, "weekend")]
     # ไม้ที่ล็อกกำไรแบบไต่อยู่ (plan.lock_tiers) ปล่อยวิ่งต่อ ไม่ตัดด้วยเวลา — SL ที่ล็อกไว้คุมเอง
     locking = bool(getattr(getattr(strategy, "plan", None), "lock_tiers", ()))

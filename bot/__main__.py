@@ -167,7 +167,9 @@ def cmd_radar_stats(a: argparse.Namespace) -> None:
 
 
 def cmd_monitor(a: argparse.Namespace) -> None:
+    from .live.awake import keep_awake
     from .monitor.server import serve
+    keep_awake(display=True)   # หน้า monitor เปิดโชว์ → ไม่ให้จอดับ
     serve(a.port, not a.no_browser, "/charts" if a.charts else "")
 
 

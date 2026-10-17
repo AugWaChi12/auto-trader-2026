@@ -35,6 +35,7 @@ from bot.data.store import bars_path, load_bars, load_spec  # noqa: E402
 from bot.risk.news import NewsCalendar  # noqa: E402
 from bot.risk.risk_manager import RiskConfig  # noqa: E402
 from bot.strategy.catalog import build  # noqa: E402
+from bot.strategy.levels import ALWAYS_OPEN  # noqa: E402
 
 import logging  # noqa: E402
 logging.disable(logging.WARNING)   # ข้อความ "ถึงเป้ารายวัน" ของ backtest เป็นพันบรรทัด
@@ -43,9 +44,11 @@ TF = "M5"
 DATA = ROOT / "data" / "mt5"
 OUT = ROOT / "research" / "out"
 ASSIGN = ROOT / "bot" / "m5_bots.json"
-LOTS = {"XAUUSD": 0.04, "NAS100": 0.73}          # NAS: ATR M5 ≈ 23 จุด × 0.73 = $17 ≈ ทอง 4.2 × 100 × 0.04
+# ทุกตลาดแกว่งเป็นเงินเท่ากันต่อ 1 ATR ของ M5 (≈ $17): ทอง 4.2 × 100 × 0.04 · NAS 23 × 0.73 · BTC 97 × 0.17
+LOTS = {"XAUUSD": 0.04, "NAS100": 0.73, "BTCUSD": 0.17}
 TARGET = 120.0
 N_BOTS = 9
+MIN_SLOTS = {"BTCUSD": 3}       # จำนวนบอทขั้นต่ำต่อตลาด (ตามคำขอผู้ใช้)
 TRAIN_M, TEST_M, HOLDOUT_M = 6, 2, 2
 MIN_TRAIN_TRADES = 40
 
@@ -77,7 +80,7 @@ FAMILIES: dict[str, tuple] = {
     "momo": (_grid(entry_time=["11:00", "12:00", "13:00", "14:00"], min_move_adr=[0.2, 0.35, 0.5],
                    sl_adr=[0.3, 0.5, 0.8]), True),
 }
-SYMBOLS = ["XAUUSD", "NAS100"]
+SYMBOLS = ["XAUUSD", "NAS100", "BTCUSD"]
 
 
 def make(family: str, symbol: str, params: dict, plan: str, mode: str = "rule", tag: str = "s"):
@@ -139,8 +142,8 @@ def select(results: dict, family: str, symbol: str, a: pd.Timestamp, b: pd.Times
     return best, best_s
 
 
-def days(a: pd.Timestamp, b: pd.Timestamp) -> float:
-    return max((b - a).days * 5 / 7, 1)
+def days(a: pd.Timestamp, b: pd.Timestamp, symbol: str = "XAUUSD") -> float:
+    return max((b - a).days * (1 if symbol in ALWAYS_OPEN else 5 / 7), 1)   # วันที่ตลาดเปิด (BTC เปิด 7 วัน)
 
 
 def summarize(x: np.ndarray, n_days: float) -> dict:
@@ -165,14 +168,19 @@ def main() -> None:
     with ProcessPoolExecutor(24) as ex:
         results = {k: (t, p) for k, t, p in ex.map(run, jobs, chunksize=8)}
 
-    bars0 = _market("XAUUSD")[0]
-    start, end = pd.Timestamp(bars0[0].time), pd.Timestamp(bars0[-1].time)
-    wins, hold = windows(start, end)
-    wf_days, hold_days = sum(days(w[2], w[3]) for w in wins), days(hold, end)
+    span = {}
+    for s in SYMBOLS:              # แต่ละตลาดมีข้อมูลยาวไม่เท่ากัน (BTC เริ่ม พ.ย. 2025) → หน้าต่างของตัวเอง
+        b = _market(s)[0]
+        st, en = pd.Timestamp(b[0].time), pd.Timestamp(b[-1].time)
+        w, h = windows(st, en)
+        span[s] = {"start": st, "end": en, "wins": w, "hold": h, "wf_days": sum(days(x[2], x[3], s) for x in w),
+                   "hold_days": days(h, en, s)}
 
     slots, rnd_jobs = [], []
     for f in FAMILIES:
         for s in SYMBOLS:
+            wins, hold, end = span[s]["wins"], span[s]["hold"], span[s]["end"]
+            wf_days, hold_days = span[s]["wf_days"], span[s]["hold_days"]
             oos, picks = [], []
             for o0, o1, t0, t1 in wins:
                 sel, sc = select(results, f, s, o0, o1)
@@ -203,10 +211,10 @@ def main() -> None:
             sl["wf_random"] = None
             continue
         xs = []
-        for (o0, o1, t0, t1), pk in zip(wins, sl["picks"]):
+        for (o0, o1, t0, t1), pk in zip(span[s]["wins"], sl["picks"]):
             if pk["pick"] is not None:
                 xs.append(_slice(*rnd[(f, s, pk["pick"][0], pk["pick"][1], "random")], t0, t1))
-        sl["wf_random"] = summarize(np.concatenate(xs) if xs else np.array([]), wf_days)
+        sl["wf_random"] = summarize(np.concatenate(xs) if xs else np.array([]), span[s]["wf_days"])
 
     slots.sort(key=lambda z: z["wf"]["usd_day"], reverse=True)
     for z in slots:
@@ -217,8 +225,10 @@ def main() -> None:
         for pk in z["picks"]:
             if pk["pick"]:
                 pk["pick"] = {"params": FAMILIES[z["family"]][0][pk["pick"][0]], "plan": pk["pick"][1]}
-    meta = {"tf": TF, "lots": LOTS, "target": TARGET, "data": [str(start), str(end)], "holdout_from": str(hold),
-            "wf_days": round(wf_days), "holdout_days": round(hold_days), "backtests": len(jobs) + len(set(rnd_jobs))}
+    meta = {"tf": TF, "lots": LOTS, "target": TARGET, "backtests": len(jobs) + len(set(rnd_jobs)),
+            "markets": {s: {"data": [str(v["start"]), str(v["end"])], "holdout_from": str(v["hold"]),
+                            "wf_days": round(v["wf_days"]), "holdout_days": round(v["hold_days"]),
+                            "wf_windows": len(v["wins"])} for s, v in span.items()}}
     (OUT / "m5_lab.json").write_text(json.dumps({"meta": meta, "slots": slots}, indent=1, default=str,
                                                 ensure_ascii=False), encoding="utf-8")
     report(meta, slots)
@@ -237,10 +247,11 @@ def report(meta: dict, slots: list[dict]) -> None:
     pd.set_option("display.width", 250)
     print(df.to_string(index=False))
     md = ["# M5 lab — บอททดสอบ 9 ตัววิจัยตัวเอง", "",
-          f"ข้อมูล {meta['data'][0][:10]} → {meta['data'][1][:10]} · {meta['tf']} · lot {meta['lots']} · "
-          f"เป้า +${meta['target']:.0f}/วัน · backtest {meta['backtests']} ครั้ง",
-          f"walk-forward {meta['wf_days']} วันทำการ (เลือก {TRAIN_M} เดือน → ทดสอบ {TEST_M} เดือน) · "
-          f"hold-out {meta['holdout_days']} วัน ตั้งแต่ {meta['holdout_from'][:10]}", "",
+          f"{meta['tf']} · lot {meta['lots']} · เป้า +${meta['target']:.0f}/วัน · backtest {meta['backtests']} ครั้ง · "
+          f"เลือก {TRAIN_M} เดือน → ทดสอบ {TEST_M} เดือน", "",
+          *[f"- {s}: ข้อมูล {m['data'][0][:10]} → {m['data'][1][:10]} · walk-forward {m['wf_windows']} หน้าต่าง "
+            f"{m['wf_days']} วัน · hold-out {m['holdout_days']} วัน ตั้งแต่ {m['holdout_from'][:10]}"
+            for s, m in meta["markets"].items()], "",
           _md(df), ""]
     (ROOT / "research" / "RESULTS_m5.md").write_text("\n".join(md), encoding="utf-8")
 
@@ -252,7 +263,11 @@ def _md(df: pd.DataFrame) -> str:
 
 def write_assignments(meta: dict, slots: list[dict]) -> None:
     bots = []
-    for z in [z for z in slots if z["live"] and z["wf"]["n"] > 0][:N_BOTS]:
+    ok = [z for z in slots if z["live"] and z["wf"]["n"] > 0]          # เรียงตามผล walk-forward แล้ว
+    # ผู้ใช้ขอเล่น BTC (2026-10-17): จองช่อง BTC ที่ดีที่สุดตาม walk-forward ไว้ก่อน แม้ผลจะติดลบ
+    reserved = [z for s, k in MIN_SLOTS.items() for z in [z for z in ok if z["symbol"] == s][:k]]
+    rest = [z for z in ok if z not in reserved][:N_BOTS - len(reserved)]
+    for z in [z for z in ok if z in reserved or z in rest]:
         bots.append({"bot": f"m5_{len(bots) + 1}", "family": z["family"], "symbol": z["symbol"], "lot": LOTS[z["symbol"]],
                      "params": z["live"]["params"], "plan": z["live"]["plan"],
                      "wf_usd_day": z["wf"]["usd_day"], "holdout_usd_day": z["holdout"]["usd_day"],

@@ -3,17 +3,43 @@
   "tf": "M5",
   "lots": {
    "XAUUSD": 0.04,
-   "NAS100": 0.73
+   "NAS100": 0.73,
+   "BTCUSD": 0.17
   },
   "target": 120.0,
-  "data": [
-   "2025-05-19 13:50:00+00:00",
-   "2026-10-15 04:40:00+00:00"
-  ],
-  "holdout_from": "2026-08-15 04:40:00+00:00",
-  "wf_days": 191,
-  "holdout_days": 44,
-  "backtests": 4176
+  "backtests": 6250,
+  "markets": {
+   "XAUUSD": {
+    "data": [
+     "2025-05-19 13:50:00+00:00",
+     "2026-10-15 04:40:00+00:00"
+    ],
+    "holdout_from": "2026-08-15 04:40:00+00:00",
+    "wf_days": 191,
+    "holdout_days": 44,
+    "wf_windows": 5
+   },
+   "NAS100": {
+    "data": [
+     "2025-05-19 03:50:00+00:00",
+     "2026-10-15 04:40:00+00:00"
+    ],
+    "holdout_from": "2026-08-15 04:40:00+00:00",
+    "wf_days": 192,
+    "holdout_days": 44,
+    "wf_windows": 5
+   },
+   "BTCUSD": {
+    "data": [
+     "2025-11-03 04:35:00+00:00",
+     "2026-10-17 05:45:00+00:00"
+    ],
+    "holdout_from": "2026-08-17 05:45:00+00:00",
+    "wf_days": 106,
+    "holdout_days": 61,
+    "wf_windows": 2
+   }
+  }
  },
  "slots": [
   {
@@ -387,15 +413,15 @@
    "family": "ema",
    "symbol": "NAS100",
    "wf": {
-    "n": 521,
-    "usd_day": 2.92,
-    "usd_trade": 1.07,
-    "win": 49.5,
-    "pf": 1.04,
-    "t": 0.35,
+    "n": 467,
+    "usd_day": 3.53,
+    "usd_trade": 1.45,
+    "win": 45.6,
+    "pf": 1.05,
+    "t": 0.42,
     "ci95_day": [
-     -13.3,
-     19.1
+     -13.0,
+     20.0
     ]
    },
    "holdout": {
@@ -424,21 +450,21 @@
       },
       "plan": "trail"
      },
-     "train_score": 2.12
+     "train_score": 2.16
     },
     {
      "test": "2026-01-19→2026-03-19",
      "pick": {
       "params": {
-       "fast": 12,
-       "slow": 26,
+       "fast": 20,
+       "slow": 50,
        "sl_atr": 3.0,
-       "tp_r": 1.0,
+       "tp_r": 4.0,
        "max_hold": 96
       },
       "plan": "native"
      },
-     "train_score": 1.9
+     "train_score": 1.87
     },
     {
      "test": "2026-03-19→2026-05-19",
@@ -452,7 +478,7 @@
       },
       "plan": "native"
      },
-     "train_score": 6.23
+     "train_score": 5.58
     },
     {
      "test": "2026-05-19→2026-07-19",
@@ -466,7 +492,7 @@
       },
       "plan": "native"
      },
-     "train_score": 2.95
+     "train_score": 2.67
     },
     {
      "test": "2026-07-19→2026-08-15",
@@ -480,7 +506,7 @@
       },
       "plan": "native"
      },
-     "train_score": 7.83
+     "train_score": 7.68
     }
    ],
    "pre_holdout": {
@@ -505,15 +531,15 @@
    },
    "live_score": 6.41,
    "wf_random": {
-    "n": 506,
-    "usd_day": -14.55,
-    "usd_trade": -5.5,
-    "win": 48.0,
-    "pf": 0.81,
-    "t": -1.87,
+    "n": 454,
+    "usd_day": -9.02,
+    "usd_trade": -3.82,
+    "win": 45.2,
+    "pf": 0.88,
+    "t": -1.1,
     "ci95_day": [
-     -29.8,
-     0.7
+     -25.1,
+     7.0
     ]
    }
   },
@@ -528,7 +554,7 @@
     "pf": 1.01,
     "t": 0.03,
     "ci95_day": [
-     -12.1,
+     -12.0,
      12.4
     ]
    },
@@ -633,7 +659,7 @@
     "t": 0.07,
     "ci95_day": [
      -11.2,
-     12.1
+     12.0
     ]
    }
   },
@@ -770,6 +796,149 @@
    }
   },
   {
+   "family": "volx",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   },
+   "holdout": {
+    "n": 5,
+    "usd_day": 3.4,
+    "usd_trade": 41.44,
+    "win": 80.0,
+    "pf": 2.96,
+    "t": 0.96,
+    "ci95_day": [
+     -3.6,
+     10.4
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": null,
+     "train_score": -Infinity
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "box_n": 48,
+     "sl_atr": 2.0,
+     "tp_r": 2.0,
+     "max_hold_h": 24
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "box_n": 48,
+     "sl_atr": 2.0,
+     "tp_r": 1.5,
+     "max_hold_h": 24
+    },
+    "plan": "native"
+   },
+   "live_score": -2.68,
+   "wf_random": {
+    "n": 0,
+    "usd_day": 0.0,
+    "usd_trade": null,
+    "win": null,
+    "pf": null,
+    "t": null,
+    "ci95_day": null
+   }
+  },
+  {
+   "family": "levels",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 8,
+    "usd_day": -0.47,
+    "usd_trade": -6.28,
+    "win": 37.5,
+    "pf": 0.6,
+    "t": -0.6,
+    "ci95_day": [
+     -2.0,
+     1.1
+    ]
+   },
+   "holdout": {
+    "n": 14,
+    "usd_day": -1.05,
+    "usd_trade": -4.57,
+    "win": 42.9,
+    "pf": 0.83,
+    "t": -0.25,
+    "ci95_day": [
+     -9.3,
+     7.2
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "max_bars": 2,
+       "buffer_atr": 0.1,
+       "tp_r": 1.5
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -25.67
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.25,
+     "tp_r": 2.0
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.5,
+     "tp_r": 1.5
+    },
+    "plan": "ratchet"
+   },
+   "live_score": -2.44,
+   "wf_random": {
+    "n": 7,
+    "usd_day": 0.06,
+    "usd_trade": 0.91,
+    "win": 42.9,
+    "pf": 1.06,
+    "t": 0.07,
+    "ci95_day": [
+     -1.7,
+     1.8
+    ]
+   }
+  },
+  {
    "family": "orb",
    "symbol": "XAUUSD",
    "wf": {
@@ -883,13 +1052,13 @@
    "symbol": "NAS100",
    "wf": {
     "n": 135,
-    "usd_day": -1.21,
+    "usd_day": -1.2,
     "usd_trade": -1.71,
     "win": 53.3,
     "pf": 0.96,
     "t": -0.2,
     "ci95_day": [
-     -13.3,
+     -13.2,
      10.8
     ]
    },
@@ -986,112 +1155,6 @@
    },
    "live_score": -1.77,
    "wf_random": null
-  },
-  {
-   "family": "levels",
-   "symbol": "NAS100",
-   "wf": {
-    "n": 43,
-    "usd_day": -2.08,
-    "usd_trade": -9.26,
-    "win": 34.9,
-    "pf": 0.55,
-    "t": -1.47,
-    "ci95_day": [
-     -4.8,
-     0.7
-    ]
-   },
-   "holdout": {
-    "n": 19,
-    "usd_day": -2.3,
-    "usd_trade": -5.28,
-    "win": 31.6,
-    "pf": 0.45,
-    "t": -1.04,
-    "ci95_day": [
-     -6.7,
-     2.1
-    ]
-   },
-   "windows_positive": "2/5",
-   "picks": [
-    {
-     "test": "2025-11-19→2026-01-19",
-     "pick": null,
-     "train_score": -Infinity
-    },
-    {
-     "test": "2026-01-19→2026-03-19",
-     "pick": null,
-     "train_score": -Infinity
-    },
-    {
-     "test": "2026-03-19→2026-05-19",
-     "pick": {
-      "params": {
-       "max_bars": 2,
-       "buffer_atr": 0.25,
-       "tp_r": 3.0
-      },
-      "plan": "native"
-     },
-     "train_score": -1.67
-    },
-    {
-     "test": "2026-05-19→2026-07-19",
-     "pick": {
-      "params": {
-       "max_bars": 1,
-       "buffer_atr": 0.1,
-       "tp_r": 3.0
-      },
-      "plan": "trail"
-     },
-     "train_score": -3.14
-    },
-    {
-     "test": "2026-07-19→2026-08-15",
-     "pick": {
-      "params": {
-       "max_bars": 1,
-       "buffer_atr": 0.1,
-       "tp_r": 3.0
-      },
-      "plan": "trail"
-     },
-     "train_score": -1.79
-    }
-   ],
-   "pre_holdout": {
-    "params": {
-     "max_bars": 1,
-     "buffer_atr": 0.1,
-     "tp_r": 3.0
-    },
-    "plan": "trail"
-   },
-   "live": {
-    "params": {
-     "max_bars": 1,
-     "buffer_atr": 0.1,
-     "tp_r": 2.0
-    },
-    "plan": "trail"
-   },
-   "live_score": -0.78,
-   "wf_random": {
-    "n": 43,
-    "usd_day": 0.42,
-    "usd_trade": 1.89,
-    "win": 39.5,
-    "pf": 1.1,
-    "t": 0.23,
-    "ci95_day": [
-     -3.2,
-     4.1
-    ]
-   }
   },
   {
    "family": "levels",
@@ -1196,6 +1259,112 @@
     "ci95_day": [
      -7.4,
      1.1
+    ]
+   }
+  },
+  {
+   "family": "levels",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 44,
+    "usd_day": -2.23,
+    "usd_trade": -9.73,
+    "win": 34.1,
+    "pf": 0.53,
+    "t": -1.58,
+    "ci95_day": [
+     -5.0,
+     0.5
+    ]
+   },
+   "holdout": {
+    "n": 19,
+    "usd_day": -2.3,
+    "usd_trade": -5.28,
+    "win": 31.6,
+    "pf": 0.45,
+    "t": -1.04,
+    "ci95_day": [
+     -6.7,
+     2.1
+    ]
+   },
+   "windows_positive": "2/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": null,
+     "train_score": -Infinity
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "max_bars": 2,
+       "buffer_atr": 0.25,
+       "tp_r": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": -0.75
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "max_bars": 1,
+       "buffer_atr": 0.1,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": -3.14
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "max_bars": 1,
+       "buffer_atr": 0.1,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": -1.79
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.1,
+     "tp_r": 3.0
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "max_bars": 1,
+     "buffer_atr": 0.1,
+     "tp_r": 2.0
+    },
+    "plan": "trail"
+   },
+   "live_score": -0.78,
+   "wf_random": {
+    "n": 44,
+    "usd_day": 0.27,
+    "usd_trade": 1.17,
+    "win": 38.6,
+    "pf": 1.06,
+    "t": 0.14,
+    "ci95_day": [
+     -3.4,
+     3.9
     ]
    }
   },
@@ -1323,18 +1492,183 @@
    "wf_random": null
   },
   {
+   "family": "momo",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 30,
+    "usd_day": -3.07,
+    "usd_trade": -10.86,
+    "win": 43.3,
+    "pf": 0.79,
+    "t": -0.52,
+    "ci95_day": [
+     -14.6,
+     8.4
+    ]
+   },
+   "holdout": {
+    "n": 15,
+    "usd_day": 6.46,
+    "usd_trade": 26.27,
+    "win": 60.0,
+    "pf": 1.91,
+    "t": 1.06,
+    "ci95_day": [
+     -5.4,
+     18.3
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": {
+      "params": {
+       "entry_time": "12:00",
+       "min_move_adr": 0.35,
+       "sl_adr": 0.8
+      },
+      "plan": "native"
+     },
+     "train_score": 19.88
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "entry_time": "11:00",
+       "min_move_adr": 0.35,
+       "sl_adr": 0.3
+      },
+      "plan": "native"
+     },
+     "train_score": 18.83
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "entry_time": "11:00",
+     "min_move_adr": 0.35,
+     "sl_adr": 0.3
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "entry_time": "11:00",
+     "min_move_adr": 0.35,
+     "sl_adr": 0.3
+    },
+    "plan": "trail"
+   },
+   "live_score": 12.79,
+   "wf_random": {
+    "n": 30,
+    "usd_day": -2.73,
+    "usd_trade": -9.66,
+    "win": 50.0,
+    "pf": 0.83,
+    "t": -0.41,
+    "ci95_day": [
+     -15.9,
+     10.4
+    ]
+   }
+  },
+  {
+   "family": "pullback",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 71,
+    "usd_day": -3.54,
+    "usd_trade": -5.28,
+    "win": 35.2,
+    "pf": 0.74,
+    "t": -0.96,
+    "ci95_day": [
+     -10.7,
+     3.7
+    ]
+   },
+   "holdout": {
+    "n": 48,
+    "usd_day": 4.12,
+    "usd_trade": 5.23,
+    "win": 37.5,
+    "pf": 1.34,
+    "t": 0.66,
+    "ci95_day": [
+     -8.0,
+     16.3
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 20,
+       "pullback_ema": 20,
+       "sl_atr": 1.5,
+       "tp_r": 3.0
+      },
+      "plan": "trail"
+     },
+     "train_score": -17.6
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "trend_tf_min": 60,
+       "trend_ema": 20,
+       "pullback_ema": 20,
+       "sl_atr": 1.5,
+       "tp_r": 1.5
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -12.63
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "trend_tf_min": 60,
+     "trend_ema": 20,
+     "pullback_ema": 20,
+     "sl_atr": 1.5,
+     "tp_r": 1.5
+    },
+    "plan": "ratchet"
+   },
+   "live": {
+    "params": {
+     "trend_tf_min": 60,
+     "trend_ema": 20,
+     "pullback_ema": 20,
+     "sl_atr": 1.5,
+     "tp_r": 1.5
+    },
+    "plan": "ratchet"
+   },
+   "live_score": -2.21,
+   "wf_random": null
+  },
+  {
    "family": "pullback",
    "symbol": "NAS100",
    "wf": {
     "n": 190,
-    "usd_day": -6.01,
-    "usd_trade": -6.05,
-    "win": 28.9,
-    "pf": 0.66,
-    "t": -2.13,
+    "usd_day": -5.15,
+    "usd_trade": -5.2,
+    "win": 26.8,
+    "pf": 0.72,
+    "t": -1.71,
     "ci95_day": [
-     -11.5,
-     -0.5
+     -11.0,
+     0.7
     ]
    },
    "holdout": {
@@ -1384,14 +1718,14 @@
      "pick": {
       "params": {
        "trend_tf_min": 60,
-       "trend_ema": 50,
-       "pullback_ema": 20,
-       "sl_atr": 2.0,
+       "trend_ema": 20,
+       "pullback_ema": 10,
+       "sl_atr": 1.5,
        "tp_r": 3.0
       },
       "plan": "native"
      },
-     "train_score": 3.95
+     "train_score": 2.91
     },
     {
      "test": "2026-05-19→2026-07-19",
@@ -1405,21 +1739,21 @@
       },
       "plan": "native"
      },
-     "train_score": -0.51
+     "train_score": -0.9
     },
     {
      "test": "2026-07-19→2026-08-15",
      "pick": {
       "params": {
-       "trend_tf_min": 240,
+       "trend_tf_min": 60,
        "trend_ema": 50,
        "pullback_ema": 20,
-       "sl_atr": 1.0,
+       "sl_atr": 2.0,
        "tp_r": 2.0
       },
-      "plan": "trail"
+      "plan": "native"
      },
-     "train_score": 1.45
+     "train_score": 1.13
     }
    ],
    "pre_holdout": {
@@ -1444,6 +1778,466 @@
    },
    "live_score": 1.43,
    "wf_random": null
+  },
+  {
+   "family": "bb",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 33,
+    "usd_day": -6.15,
+    "usd_trade": -19.75,
+    "win": 21.2,
+    "pf": 0.43,
+    "t": -2.27,
+    "ci95_day": [
+     -11.4,
+     -0.8
+    ]
+   },
+   "holdout": {
+    "n": 75,
+    "usd_day": -4.91,
+    "usd_trade": -3.99,
+    "win": 33.3,
+    "pf": 0.87,
+    "t": -0.55,
+    "ci95_day": [
+     -22.3,
+     12.4
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": {
+      "params": {
+       "k": 3.0,
+       "sl_atr": 1.0,
+       "tp_r": null,
+       "max_hold": 12
+      },
+      "plan": "native"
+     },
+     "train_score": -11.28
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "k": 3.0,
+       "sl_atr": 1.0,
+       "tp_r": 1.0,
+       "max_hold": 12
+      },
+      "plan": "native"
+     },
+     "train_score": -13.36
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "k": 2.5,
+     "sl_atr": 1.0,
+     "tp_r": 2.0,
+     "max_hold": 36
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "k": 2.5,
+     "sl_atr": 1.0,
+     "tp_r": null,
+     "max_hold": 12
+    },
+    "plan": "ratchet"
+   },
+   "live_score": -6.91,
+   "wf_random": {
+    "n": 26,
+    "usd_day": -1.1,
+    "usd_trade": -4.47,
+    "win": 30.8,
+    "pf": 0.83,
+    "t": -0.38,
+    "ci95_day": [
+     -6.7,
+     4.5
+    ]
+   }
+  },
+  {
+   "family": "donchian",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 154,
+    "usd_day": -9.22,
+    "usd_trade": -6.35,
+    "win": 25.3,
+    "pf": 0.86,
+    "t": -0.8,
+    "ci95_day": [
+     -31.7,
+     13.2
+    ]
+   },
+   "holdout": {
+    "n": 545,
+    "usd_day": -64.6,
+    "usd_trade": -7.23,
+    "win": 28.1,
+    "pf": 0.69,
+    "t": -3.0,
+    "ci95_day": [
+     -106.9,
+     -22.3
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": {
+      "params": {
+       "entry_n": 192,
+       "stop_atr": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": -15.97
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "entry_n": 192,
+       "stop_atr": 3.0
+      },
+      "plan": "native"
+     },
+     "train_score": -14.4
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "entry_n": 12,
+     "stop_atr": 3.0
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "entry_n": 192,
+     "stop_atr": 4.0
+    },
+    "plan": "native"
+   },
+   "live_score": -7.08,
+   "wf_random": {
+    "n": 202,
+    "usd_day": -10.57,
+    "usd_trade": -5.55,
+    "win": 21.8,
+    "pf": 0.85,
+    "t": -0.92,
+    "ci95_day": [
+     -33.2,
+     12.0
+    ]
+   }
+  },
+  {
+   "family": "orb",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 101,
+    "usd_day": -9.61,
+    "usd_trade": -10.09,
+    "win": 34.7,
+    "pf": 0.58,
+    "t": -2.14,
+    "ci95_day": [
+     -18.4,
+     -0.8
+    ]
+   },
+   "holdout": {
+    "n": 37,
+    "usd_day": 8.28,
+    "usd_trade": 13.65,
+    "win": 62.2,
+    "pf": 1.3,
+    "t": 0.7,
+    "ci95_day": [
+     -14.9,
+     31.4
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": {
+      "params": {
+       "sl_mode": "mid",
+       "tp_r": null,
+       "buffer_adr": 0.0
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -7.58
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "sl_mode": "opposite",
+       "tp_r": null,
+       "buffer_adr": 0.0
+      },
+      "plan": "native"
+     },
+     "train_score": -16.85
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "sl_mode": "opposite",
+     "tp_r": 1.0,
+     "buffer_adr": 0.0
+    },
+    "plan": "trail"
+   },
+   "live": {
+    "params": {
+     "sl_mode": "opposite",
+     "tp_r": null,
+     "buffer_adr": 0.0
+    },
+    "plan": "ratchet"
+   },
+   "live_score": -9.52,
+   "wf_random": null
+  },
+  {
+   "family": "rsi2",
+   "symbol": "NAS100",
+   "wf": {
+    "n": 1284,
+    "usd_day": -11.36,
+    "usd_trade": -1.7,
+    "win": 58.3,
+    "pf": 0.82,
+    "t": -2.6,
+    "ci95_day": [
+     -19.9,
+     -2.8
+    ]
+   },
+   "holdout": {
+    "n": 237,
+    "usd_day": -13.63,
+    "usd_trade": -2.51,
+    "win": 64.1,
+    "pf": 0.76,
+    "t": -1.47,
+    "ci95_day": [
+     -31.8,
+     4.5
+    ]
+   },
+   "windows_positive": "1/5",
+   "picks": [
+    {
+     "test": "2025-11-19→2026-01-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 1.5,
+       "max_hold": 48,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.48
+    },
+    {
+     "test": "2026-01-19→2026-03-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 1.5,
+       "max_hold": 24,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -1.63
+    },
+    {
+     "test": "2026-03-19→2026-05-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 2.0,
+       "max_hold": 24,
+       "tp_r": 1.0
+      },
+      "plan": "native"
+     },
+     "train_score": -0.99
+    },
+    {
+     "test": "2026-05-19→2026-07-19",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 1.5,
+       "max_hold": 12,
+       "tp_r": null
+      },
+      "plan": "native"
+     },
+     "train_score": -0.81
+    },
+    {
+     "test": "2026-07-19→2026-08-15",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 3.0,
+       "max_hold": 6,
+       "tp_r": null
+      },
+      "plan": "native"
+     },
+     "train_score": -1.45
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "rsi_th": 5.0,
+     "sl_atr": 3.0,
+     "max_hold": 12,
+     "tp_r": 1.0
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "rsi_th": 5.0,
+     "sl_atr": 3.0,
+     "max_hold": 6,
+     "tp_r": null
+    },
+    "plan": "native"
+   },
+   "live_score": -1.49,
+   "wf_random": {
+    "n": 1345,
+    "usd_day": -16.54,
+    "usd_trade": -2.36,
+    "win": 51.0,
+    "pf": 0.73,
+    "t": -4.08,
+    "ci95_day": [
+     -24.5,
+     -8.6
+    ]
+   }
+  },
+  {
+   "family": "ema",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 284,
+    "usd_day": -16.96,
+    "usd_trade": -6.33,
+    "win": 39.4,
+    "pf": 0.76,
+    "t": -1.9,
+    "ci95_day": [
+     -34.5,
+     0.5
+    ]
+   },
+   "holdout": {
+    "n": 122,
+    "usd_day": -5.67,
+    "usd_trade": -2.83,
+    "win": 33.6,
+    "pf": 0.93,
+    "t": -0.32,
+    "ci95_day": [
+     -39.9,
+     28.5
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": {
+      "params": {
+       "fast": 12,
+       "slow": 26,
+       "sl_atr": 3.0,
+       "tp_r": 1.5,
+       "max_hold": 96
+      },
+      "plan": "trail"
+     },
+     "train_score": -14.06
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "fast": 20,
+       "slow": 50,
+       "sl_atr": 3.0,
+       "tp_r": 1.0,
+       "max_hold": 24
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -9.05
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "fast": 12,
+     "slow": 26,
+     "sl_atr": 3.0,
+     "tp_r": 4.0,
+     "max_hold": 96
+    },
+    "plan": "native"
+   },
+   "live": {
+    "params": {
+     "fast": 20,
+     "slow": 50,
+     "sl_atr": 1.5,
+     "tp_r": 3.0,
+     "max_hold": 24
+    },
+    "plan": "native"
+   },
+   "live_score": -5.32,
+   "wf_random": {
+    "n": 276,
+    "usd_day": -32.63,
+    "usd_trade": -12.53,
+    "win": 37.3,
+    "pf": 0.56,
+    "t": -3.84,
+    "ci95_day": [
+     -49.3,
+     -16.0
+    ]
+   }
   },
   {
    "family": "bb",
@@ -1703,15 +2497,15 @@
    "family": "donchian",
    "symbol": "NAS100",
    "wf": {
-    "n": 1034,
-    "usd_day": -18.42,
-    "usd_trade": -3.41,
+    "n": 1040,
+    "usd_day": -17.86,
+    "usd_trade": -3.3,
     "win": 30.1,
-    "pf": 0.86,
-    "t": -1.63,
+    "pf": 0.87,
+    "t": -1.58,
     "ci95_day": [
-     -40.6,
-     3.8
+     -40.0,
+     4.2
     ]
    },
    "holdout": {
@@ -1737,7 +2531,7 @@
       },
       "plan": "native"
      },
-     "train_score": -0.87
+     "train_score": -0.33
     },
     {
      "test": "2026-01-19→2026-03-19",
@@ -1759,7 +2553,7 @@
       },
       "plan": "native"
      },
-     "train_score": 2.35
+     "train_score": 3.04
     },
     {
      "test": "2026-05-19→2026-07-19",
@@ -1770,7 +2564,7 @@
       },
       "plan": "native"
      },
-     "train_score": -1.22
+     "train_score": -1.09
     },
     {
      "test": "2026-07-19→2026-08-15",
@@ -1781,7 +2575,7 @@
       },
       "plan": "native"
      },
-     "train_score": 0.16
+     "train_score": 0.0
     }
    ],
    "pre_holdout": {
@@ -1800,142 +2594,15 @@
    },
    "live_score": -1.24,
    "wf_random": {
-    "n": 1334,
-    "usd_day": -29.34,
-    "usd_trade": -4.21,
-    "win": 22.5,
-    "pf": 0.8,
-    "t": -2.57,
+    "n": 1333,
+    "usd_day": -27.83,
+    "usd_trade": -4.01,
+    "win": 22.7,
+    "pf": 0.81,
+    "t": -2.45,
     "ci95_day": [
-     -51.7,
-     -7.0
-    ]
-   }
-  },
-  {
-   "family": "rsi2",
-   "symbol": "NAS100",
-   "wf": {
-    "n": 2054,
-    "usd_day": -22.06,
-    "usd_trade": -2.06,
-    "win": 59.2,
-    "pf": 0.78,
-    "t": -3.89,
-    "ci95_day": [
-     -33.2,
-     -11.0
-    ]
-   },
-   "holdout": {
-    "n": 237,
-    "usd_day": -13.63,
-    "usd_trade": -2.51,
-    "win": 64.1,
-    "pf": 0.76,
-    "t": -1.47,
-    "ci95_day": [
-     -31.8,
-     4.5
-    ]
-   },
-   "windows_positive": "1/5",
-   "picks": [
-    {
-     "test": "2025-11-19→2026-01-19",
-     "pick": {
-      "params": {
-       "rsi_th": 10.0,
-       "sl_atr": 1.5,
-       "max_hold": 48,
-       "tp_r": null
-      },
-      "plan": "ratchet"
-     },
-     "train_score": -1.44
-    },
-    {
-     "test": "2026-01-19→2026-03-19",
-     "pick": {
-      "params": {
-       "rsi_th": 5.0,
-       "sl_atr": 1.0,
-       "max_hold": 24,
-       "tp_r": null
-      },
-      "plan": "ratchet"
-     },
-     "train_score": -1.6
-    },
-    {
-     "test": "2026-03-19→2026-05-19",
-     "pick": {
-      "params": {
-       "rsi_th": 20.0,
-       "sl_atr": 3.0,
-       "max_hold": 48,
-       "tp_r": null
-      },
-      "plan": "ratchet"
-     },
-     "train_score": -0.96
-    },
-    {
-     "test": "2026-05-19→2026-07-19",
-     "pick": {
-      "params": {
-       "rsi_th": 5.0,
-       "sl_atr": 1.5,
-       "max_hold": 12,
-       "tp_r": null
-      },
-      "plan": "native"
-     },
-     "train_score": -0.89
-    },
-    {
-     "test": "2026-07-19→2026-08-15",
-     "pick": {
-      "params": {
-       "rsi_th": 5.0,
-       "sl_atr": 3.0,
-       "max_hold": 6,
-       "tp_r": null
-      },
-      "plan": "native"
-     },
-     "train_score": -1.45
-    }
-   ],
-   "pre_holdout": {
-    "params": {
-     "rsi_th": 5.0,
-     "sl_atr": 3.0,
-     "max_hold": 12,
-     "tp_r": 1.0
-    },
-    "plan": "native"
-   },
-   "live": {
-    "params": {
-     "rsi_th": 5.0,
-     "sl_atr": 3.0,
-     "max_hold": 6,
-     "tp_r": null
-    },
-    "plan": "native"
-   },
-   "live_score": -1.49,
-   "wf_random": {
-    "n": 2127,
-    "usd_day": -25.83,
-    "usd_trade": -2.32,
-    "win": 56.2,
-    "pf": 0.75,
-    "t": -4.39,
-    "ci95_day": [
-     -37.4,
-     -14.3
+     -50.1,
+     -5.5
     ]
    }
   },
@@ -1943,15 +2610,15 @@
    "family": "bb",
    "symbol": "NAS100",
    "wf": {
-    "n": 2106,
-    "usd_day": -23.81,
-    "usd_trade": -2.16,
-    "win": 58.2,
-    "pf": 0.82,
-    "t": -3.09,
+    "n": 2317,
+    "usd_day": -22.91,
+    "usd_trade": -1.9,
+    "win": 55.4,
+    "pf": 0.83,
+    "t": -3.03,
     "ci95_day": [
-     -38.9,
-     -8.7
+     -37.7,
+     -8.1
     ]
    },
    "holdout": {
@@ -1979,7 +2646,7 @@
       },
       "plan": "trail"
      },
-     "train_score": -0.43
+     "train_score": -0.7
     },
     {
      "test": "2026-01-19→2026-03-19",
@@ -1992,20 +2659,20 @@
       },
       "plan": "native"
      },
-     "train_score": 0.15
+     "train_score": -0.0
     },
     {
      "test": "2026-03-19→2026-05-19",
      "pick": {
       "params": {
        "k": 1.5,
-       "sl_atr": 2.0,
+       "sl_atr": 1.5,
        "tp_r": null,
-       "max_hold": 36
+       "max_hold": 12
       },
       "plan": "ratchet"
      },
-     "train_score": -1.57
+     "train_score": -1.63
     },
     {
      "test": "2026-05-19→2026-07-19",
@@ -2018,7 +2685,7 @@
       },
       "plan": "native"
      },
-     "train_score": -0.7
+     "train_score": -1.06
     },
     {
      "test": "2026-07-19→2026-08-15",
@@ -2054,15 +2721,103 @@
    },
    "live_score": -1.49,
    "wf_random": {
-    "n": 2231,
-    "usd_day": -15.34,
-    "usd_trade": -1.32,
-    "win": 58.5,
-    "pf": 0.88,
-    "t": -2.06,
+    "n": 2170,
+    "usd_day": -0.48,
+    "usd_trade": -0.04,
+    "win": 57.1,
+    "pf": 1.0,
+    "t": -0.07,
     "ci95_day": [
-     -29.9,
-     -0.8
+     -14.1,
+     13.2
+    ]
+   }
+  },
+  {
+   "family": "rsi2",
+   "symbol": "BTCUSD",
+   "wf": {
+    "n": 288,
+    "usd_day": -24.26,
+    "usd_trade": -8.93,
+    "win": 43.8,
+    "pf": 0.42,
+    "t": -5.34,
+    "ci95_day": [
+     -33.2,
+     -15.4
+    ]
+   },
+   "holdout": {
+    "n": 98,
+    "usd_day": -12.87,
+    "usd_trade": -8.01,
+    "win": 35.7,
+    "pf": 0.63,
+    "t": -1.85,
+    "ci95_day": [
+     -26.5,
+     0.7
+    ]
+   },
+   "windows_positive": "0/2",
+   "picks": [
+    {
+     "test": "2026-05-03→2026-07-03",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 1.5,
+       "max_hold": 6,
+       "tp_r": null
+      },
+      "plan": "ratchet"
+     },
+     "train_score": -13.76
+    },
+    {
+     "test": "2026-07-03→2026-08-17",
+     "pick": {
+      "params": {
+       "rsi_th": 5.0,
+       "sl_atr": 3.0,
+       "max_hold": 24,
+       "tp_r": null
+      },
+      "plan": "native"
+     },
+     "train_score": -14.18
+    }
+   ],
+   "pre_holdout": {
+    "params": {
+     "rsi_th": 10.0,
+     "sl_atr": 1.0,
+     "max_hold": 6,
+     "tp_r": null
+    },
+    "plan": "ratchet"
+   },
+   "live": {
+    "params": {
+     "rsi_th": 10.0,
+     "sl_atr": 3.0,
+     "max_hold": 48,
+     "tp_r": null
+    },
+    "plan": "ratchet"
+   },
+   "live_score": -10.8,
+   "wf_random": {
+    "n": 311,
+    "usd_day": -20.23,
+    "usd_trade": -6.89,
+    "win": 36.7,
+    "pf": 0.5,
+    "t": -3.95,
+    "ci95_day": [
+     -30.3,
+     -10.2
     ]
    }
   }

@@ -28,6 +28,7 @@ from ..core.timeutil import UTC
 from ..engine import Engine
 from ..execution.order_guard import OrderGuard
 from ..risk.news import NewsCalendar
+from .awake import keep_awake
 from ..risk.risk_manager import RiskManager
 from .fileio import atomic_write
 from .mt5_broker import Mt5Broker
@@ -107,6 +108,7 @@ class LiveRunner:
 
     # ------------------------------------------------------------------ วนรอบ
     def run_forever(self) -> None:
+        keep_awake()   # เครื่อง sleep = บอทดับ ไม้ไม่ถูกปิดตามเวลา (เกิดจริง 16–17 ต.ค.)
         # เริ่มไม่ได้ (เช่น MT5 ยังไม่เปิดตอนบูตเครื่อง) → รอแล้วลองใหม่ ไม่ดับเงียบ
         delay = 10
         while True:

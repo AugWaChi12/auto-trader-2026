@@ -73,6 +73,12 @@ class PositionManager:
                     new_sl = self._tighter(pos, new_sl, pos.entry_price + side * keep / per_price)
                     pos.moved_to_be = True
 
+            min_stop = self._spec(pos.symbol).min_stop if self._spec is not None else 0.0
+            if min_stop and new_sl != pos.sl:
+                limit = bar.close - side * min_stop
+                new_sl = min(new_sl, limit) if side > 0 else max(new_sl, limit)
+                new_sl = self._tighter(pos, pos.sl, new_sl)
+
             new_tp = pos.tp
             if plan.tp_extend_at is not None and pos.tp is not None and pos.role != "partial":
                 tp_dist = (pos.tp - pos.entry_price) * side

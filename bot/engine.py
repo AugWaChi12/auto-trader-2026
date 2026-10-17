@@ -114,6 +114,9 @@ class Engine:
         spread = max(bar.spread, spec.min_spread)
         entry = bar.close + spread + spec.slippage if sig.side is Side.BUY else bar.close - spec.slippage
 
+        if spec.min_stop and abs(entry - sig.sl) < spec.min_stop:
+            self._log(now, sig, "stops_level", f"SL {abs(entry - sig.sl):.2f} < {spec.min_stop}")
+            return
         decision = self.risk.size(sig, entry, spec)
         if not decision.ok:
             self._log(now, sig, "size", decision.reason)

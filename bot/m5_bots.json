@@ -1,20 +1,46 @@
 {
- "generated": "2026-10-17T05:33:00.371074+00:00",
+ "generated": "2026-10-17T05:54:12.491404+00:00",
  "meta": {
   "tf": "M5",
   "lots": {
    "XAUUSD": 0.04,
-   "NAS100": 0.73
+   "NAS100": 0.73,
+   "BTCUSD": 0.17
   },
   "target": 120.0,
-  "data": [
-   "2025-05-19 13:50:00+00:00",
-   "2026-10-15 04:40:00+00:00"
-  ],
-  "holdout_from": "2026-08-15 04:40:00+00:00",
-  "wf_days": 191,
-  "holdout_days": 44,
-  "backtests": 4176
+  "backtests": 6250,
+  "markets": {
+   "XAUUSD": {
+    "data": [
+     "2025-05-19 13:50:00+00:00",
+     "2026-10-15 04:40:00+00:00"
+    ],
+    "holdout_from": "2026-08-15 04:40:00+00:00",
+    "wf_days": 191,
+    "holdout_days": 44,
+    "wf_windows": 5
+   },
+   "NAS100": {
+    "data": [
+     "2025-05-19 03:50:00+00:00",
+     "2026-10-15 04:40:00+00:00"
+    ],
+    "holdout_from": "2026-08-15 04:40:00+00:00",
+    "wf_days": 192,
+    "holdout_days": 44,
+    "wf_windows": 5
+   },
+   "BTCUSD": {
+    "data": [
+     "2025-11-03 04:35:00+00:00",
+     "2026-10-17 05:45:00+00:00"
+    ],
+    "holdout_from": "2026-08-17 05:45:00+00:00",
+    "wf_days": 106,
+    "holdout_days": 61,
+    "wf_windows": 2
+   }
+  }
  },
  "bots": [
   {
@@ -76,9 +102,9 @@
     "max_hold": 96
    },
    "plan": "native",
-   "wf_usd_day": 2.92,
+   "wf_usd_day": 3.53,
    "holdout_usd_day": -3.28,
-   "random_usd_day": -14.55
+   "random_usd_day": -9.02
   },
   {
    "bot": "m5_5",
@@ -97,6 +123,21 @@
   },
   {
    "bot": "m5_6",
+   "family": "levels",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
+   "params": {
+    "max_bars": 1,
+    "buffer_atr": 0.5,
+    "tp_r": 1.5
+   },
+   "plan": "ratchet",
+   "wf_usd_day": -0.47,
+   "holdout_usd_day": -1.05,
+   "random_usd_day": 0.06
+  },
+  {
+   "bot": "m5_7",
    "family": "orb",
    "symbol": "XAUUSD",
    "lot": 0.04,
@@ -111,49 +152,36 @@
    "random_usd_day": null
   },
   {
-   "bot": "m5_7",
-   "family": "orb",
-   "symbol": "NAS100",
-   "lot": 0.73,
-   "params": {
-    "sl_mode": "opposite",
-    "tp_r": 1.0,
-    "buffer_adr": 0.0
-   },
-   "plan": "native",
-   "wf_usd_day": -1.21,
-   "holdout_usd_day": -9.77,
-   "random_usd_day": null
-  },
-  {
    "bot": "m5_8",
-   "family": "levels",
-   "symbol": "NAS100",
-   "lot": 0.73,
+   "family": "momo",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
    "params": {
-    "max_bars": 1,
-    "buffer_atr": 0.1,
-    "tp_r": 2.0
+    "entry_time": "11:00",
+    "min_move_adr": 0.35,
+    "sl_adr": 0.3
    },
    "plan": "trail",
-   "wf_usd_day": -2.08,
-   "holdout_usd_day": -2.3,
-   "random_usd_day": 0.42
+   "wf_usd_day": -3.07,
+   "holdout_usd_day": 6.46,
+   "random_usd_day": -2.73
   },
   {
    "bot": "m5_9",
-   "family": "levels",
-   "symbol": "XAUUSD",
-   "lot": 0.04,
+   "family": "pullback",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
    "params": {
-    "max_bars": 1,
-    "buffer_atr": 0.5,
-    "tp_r": 3.0
+    "trend_tf_min": 60,
+    "trend_ema": 20,
+    "pullback_ema": 20,
+    "sl_atr": 1.5,
+    "tp_r": 1.5
    },
-   "plan": "native",
-   "wf_usd_day": -2.15,
-   "holdout_usd_day": -4.13,
-   "random_usd_day": -3.17
+   "plan": "ratchet",
+   "wf_usd_day": -3.54,
+   "holdout_usd_day": 4.12,
+   "random_usd_day": null
   }
  ]
 }

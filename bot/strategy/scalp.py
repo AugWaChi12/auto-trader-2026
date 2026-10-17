@@ -20,7 +20,7 @@ from ..core.indicators import ATR
 from ..core.interfaces import IAccount
 from ..core.types import TIMEFRAME_MINUTES, Bar, EnterSignal, ExitSignal, Side, Signal
 from .base import ManagementPlan, Strategy, clamp01, status_dict
-from .levels import hold_exits, in_rollover
+from .levels import ALWAYS_OPEN, hold_exits, in_rollover
 from .trend_pullback import EMA
 
 
@@ -87,8 +87,9 @@ class _ScalpBase(Strategy):
 
     def _can_enter(self, bar: Bar) -> bool:
         t = bar.time + self._bar
-        return (self._window.start_hour <= t.hour < self._window.end_hour and not in_rollover(t)
-                and not (t.weekday() == 4 and t.hour >= 19) and t.weekday() < 5)
+        if not (self._window.start_hour <= t.hour < self._window.end_hour and not in_rollover(t)):
+            return False
+        return self.symbol in ALWAYS_OPEN or (not (t.weekday() == 4 and t.hour >= 19) and t.weekday() < 5)
 
     def _side(self, rule: Side) -> Side:
         coin = self._rand.random()

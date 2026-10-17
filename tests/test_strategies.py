@@ -260,3 +260,39 @@ def test_m5_bots_build_from_research_assignments() -> None:
     assert dict(C.RISK_PROFILES["m5_fixed"].fixed_lots)["XAUUSD"] == 0.04
     assert C.RISK_PROFILES["m5_fixed"].daily_profit_target == 120.0
     assert C.LIVE_INSTANCES["main"]["tf"] == "M15" and C.LIVE_INSTANCES["main"]["strategies"] == ["xau_momo"]
+
+
+def test_btc_trades_weekends_and_respects_broker_min_stop() -> None:
+    """BTC เปิด 7 วัน: เข้าไม้เสาร์ได้ ไม่ปิดก่อนสุดสัปดาห์ · SL ใกล้กว่า $200 → ไม่ส่ง · เลื่อน SL ไม่ใกล้ราคากว่า $200"""
+    from bot.core.types import OrderRequest, SymbolSpec
+    from bot.execution.position_manager import PositionManager
+    from bot.strategy.scalp import EmaCross, EmaCrossConfig, ScalpWindow
+    sat = datetime(2026, 10, 17, 10, tzinfo=UTC)
+    btc = EmaCross(EmaCrossConfig("b", "BTCUSD", window=ScalpWindow(0, 24)), "M5")
+    gold = EmaCross(EmaCrossConfig("g", "XAUUSD", window=ScalpWindow(0, 24)), "M5")
+    bar = Bar(sat, 80000, 80010, 79990, 80000)
+    assert btc._can_enter(bar) and not gold._can_enter(bar)
+
+    BTC = SymbolSpec(name="BTCUSD", point=0.01, contract_size=1, min_spread=5, min_stop=200.0, margin_rate=0.005)
+    broker = SimBroker({"BTCUSD": BTC}, 10_000.0, timedelta(minutes=5))
+    broker.on_bar("BTCUSD", bar)
+    plan = ManagementPlan(partial_r=None, lock_tiers=((5.0, 0.9),))
+    pm = PositionManager({"t": plan}, broker, broker, spec=lambda s: BTC)
+    broker.send(OrderRequest("BTCUSD", Side.BUY, 0.1, 79700.0, None, "t", "g", "single"))
+    pos = broker.positions()[0]
+    up = Bar(sat + timedelta(minutes=5), 80000, 80300, 80000, 80250)        # กำไร ~$25 → อยากล็อก 90% แต่ห่างราคาได้ ≥ $200
+    broker.on_bar("BTCUSD", up)
+    pm.on_bar("BTCUSD", up)
+    assert pos.sl == pytest.approx(80250 - 200)
+
+
+def test_engine_skips_signal_when_sl_inside_broker_min_stop() -> None:
+    eng, broker = _engine(ManagementPlan(partial_r=None))
+    spec = broker.spec("XAUUSD")
+    object.__setattr__(spec, "min_stop", 1_000.0)          # SL ทองไม่มีวันห่างถึง $1000 → ต้องถูกข้ามทุกสัญญาณ
+    try:
+        _feed(eng, broker, warmup() + asian_range_then(date(2025, 1, 20), [(2000, 2006, 1999, 2006)]))
+    finally:
+        object.__setattr__(spec, "min_stop", 0.0)          # spec ใช้ร่วมกับเทสต์อื่น
+    assert not broker.positions()
+    assert any(s.outcome == "stops_level" for s in eng.stats.signals)

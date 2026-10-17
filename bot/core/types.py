@@ -57,6 +57,8 @@ class SymbolSpec:
     swap_short_rate: float = 0.0
     # ต้นทุนถือที่เปลี่ยนตามปี: ((ปี, long_rate, short_rate), ...) — ถ้ามี ใช้แทน swap_*_rate (research)
     carry: tuple = ()
+    # ระยะ SL/TP ขั้นต่ำจากราคา (หน่วยราคา) — โบรกปฏิเสธถ้าใกล้กว่านี้ (FxPro BITCOIN = $200)
+    min_stop: float = 0.0
 
     def round_volume_down(self, volume: float) -> float:
         """ปัดลงให้ตรง volume_step (ปัดลงเสมอ → ไม่มีวันเสี่ยงเกินที่คำนวณ)"""

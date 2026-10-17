@@ -42,6 +42,11 @@ DEFAULT_SPECS: dict[str, SymbolSpec] = {
                          min_spread=0.25, slippage=0.05, commission_per_lot=7.0, margin_rate=0.01),
     "NAS100": SymbolSpec(name="NAS100", point=0.01, contract_size=1, volume_min=0.01, volume_step=0.01,
                          min_spread=1.5, slippage=0.5, commission_per_lot=0.0, margin_rate=0.01),
+    # FxPro BITCOIN (ทดสอบ 2026-10-17): ค่าคอม $10/BTC · margin 0.5% · SL ต้องห่าง ≥ $200 · swap long −30%/ปี short −10%/ปี
+    # สเปรดใน demo = 0 (ไม่สมจริง) → backtest ใส่ $5 + slippage $5 เผื่อไว้ · เทรดได้ 7 วัน
+    "BTCUSD": SymbolSpec(name="BTCUSD", point=0.01, contract_size=1, volume_min=0.01, volume_step=0.01,
+                         min_spread=5.0, slippage=5.0, commission_per_lot=10.0, margin_rate=0.005,
+                         swap_long_rate=-0.30, swap_short_rate=-0.10, min_stop=200.0),
     # รอบ 4 (รายวัน) — สเปรดตั้งกว้างกว่าที่เห็นตอนตลาดปกติ เพื่อเผื่อช่วงข่าว/เปิดตลาด · swap ดึงจาก MT5 ตอน download
     "XAGUSD": SymbolSpec(name="XAGUSD", point=0.001, contract_size=5000, min_spread=0.03, slippage=0.005,
                          commission_per_lot=7.0, margin_rate=0.01),
@@ -78,9 +83,9 @@ RISK_PROFILES: dict[str, RiskConfig] = {
     "test_free":  RiskConfig(risk_per_trade=0.0025, min_lot_max_risk=0.15, daily_loss_limit=1.0, max_drawdown=1.0,
                              max_open_groups=20, max_groups_per_symbol=10, close_on_daily_halt=False,
                              account_floor=600.0),
-    # บอท M5 ที่วิจัยตัวเอง (2026-10-17 ตามคำขอ): ไม้ตายตัว ทอง 0.04 lot · NAS 0.73 lot (แกว่งเป็นเงินเท่าทอง 0.04)
+    # บอท M5 ที่วิจัยตัวเอง (2026-10-17 ตามคำขอ): ไม้ตายตัว ทอง 0.04 lot · NAS 0.73 · BTC 0.17 (แกว่งเป็นเงินเท่าทอง 0.04)
     # ได้ +$120 ในวันนั้น → ปิดทุกไม้ หยุดถึงวันใหม่ (UTC) · ไม่มีเพดานขาดทุนรายวัน · equity จริง < $600 → หยุดเปิดไม้
-    "m5_fixed":   RiskConfig(fixed_lots=(("XAUUSD", 0.04), ("NAS100", 0.73)), daily_profit_target=120.0,
+    "m5_fixed":   RiskConfig(fixed_lots=(("XAUUSD", 0.04), ("NAS100", 0.73), ("BTCUSD", 0.17)), daily_profit_target=120.0,
                              daily_loss_limit=1.0, max_drawdown=1.0, max_open_groups=20, max_groups_per_symbol=10,
                              close_on_daily_halt=False, account_floor=600.0),
 }
