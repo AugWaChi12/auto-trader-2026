@@ -22,6 +22,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .. import config as C
+from .. import settings as _settings
 from ..core.timeutil import UTC, server_to_utc
 from ..live.mt5_broker import decode_comment
 
@@ -29,7 +30,7 @@ log = logging.getLogger("monitor")
 HERE = Path(__file__).parent
 PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html",
          "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html", "/live": HERE / "live.html",
-         "/sandbox": HERE / "sandbox.html"}
+         "/sandbox": HERE / "sandbox.html", "/settings": HERE / "settings.html"}
 TECHNIQUES = C.ROOT / "research" / "techniques.json"
 RADAR_STATS = C.ROOT / "research" / "out" / "radar_stats.json"
 TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
@@ -292,6 +293,19 @@ class Collector:
                 "open": [p for p in self._open() if p["symbol"] == symbol], "trades": trades[:60]}
 
 
+def settings_payload() -> dict:
+    return {"values": _settings.load(), "defaults": _settings.DEFAULTS, "timeframes": _settings.TIMEFRAMES,
+            "limits": _settings.LIMITS, "bots": [n for n in C.LIVE_INSTANCES if n != "main"]}
+
+
+def restart_test_bots() -> None:
+    """รัน restart_bots.ps1 แบบไม่รอ (ใช้เวลาราว 10–30 วิ) — บอทอ่านค่าใหม่ตอนเริ่ม"""
+    import subprocess
+    script = C.ROOT / "restart_bots.ps1"
+    subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)], cwd=str(C.ROOT),
+                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
 def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
@@ -312,10 +326,30 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 n = max(20, min(int(q.get("n", ["150"])[0]), 500))
                 d = col.bars(q.get("symbol", ["XAUUSD"])[0], q.get("tf", ["M5"])[0], n)
                 self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/settings":
+                self._send(json.dumps(settings_payload(), ensure_ascii=False).encode(), "application/json")
             elif url.path in PAGES:
                 self._send(PAGES[url.path].read_bytes(), "text/html")
             else:
                 self.send_error(404)
+
+        def do_POST(self) -> None:  # noqa: N802
+            """บันทึกค่าตั้ง + รีสตาร์ทบอททดสอบ — ช่องเดียวที่หน้าเว็บเขียนได้ (main ไม่ถูกแตะ)
+            กันเว็บอื่นยิงมาทางเบราว์เซอร์ (CSRF): ต้องเป็น JSON + header เฉพาะ → เบราว์เซอร์ต้อง preflight ซึ่งเราไม่ตอบรับ"""
+            if urlparse(self.path).path != "/api/settings":
+                self.send_error(404)
+                return
+            if self.headers.get("X-Bot-Settings") != "1" or "application/json" not in (self.headers.get("Content-Type") or ""):
+                self.send_error(403)
+                return
+            try:
+                n = min(int(self.headers.get("Content-Length") or 0), 10_000)
+                saved = _settings.save(json.loads(self.rfile.read(n) or b"{}"))
+            except (ValueError, TypeError) as e:
+                self._send(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False).encode(), "application/json")
+                return
+            restart_test_bots()
+            self._send(json.dumps({"ok": True, "saved": saved}, ensure_ascii=False).encode(), "application/json")
 
         def _send(self, body: bytes, ctype: str) -> None:
             self.send_response(200)

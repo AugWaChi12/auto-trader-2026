@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import settings as _settings
 from .core.types import SymbolSpec
 from .risk.risk_manager import RiskConfig
 from .strategy.base import ManagementPlan, SessionWindow, Strategy
@@ -25,6 +26,7 @@ from .strategy.scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCr
 from .strategy.sweep_reversal import SweepConfig, SweepReversal
 
 ROOT = Path(__file__).resolve().parent.parent
+_S = _settings.load()          # ค่าที่ผู้ใช้ตั้งจากหน้าเว็บ (บอททดสอบเท่านั้น)
 NEWS_CSV = ROOT / "config" / "news.csv"
 
 TIMEFRAME = "M15"
@@ -85,7 +87,9 @@ RISK_PROFILES: dict[str, RiskConfig] = {
                              account_floor=600.0),
     # บอท M5 ที่วิจัยตัวเอง (2026-10-17 ตามคำขอ): ไม้ตายตัว ทอง 0.04 lot · NAS 0.73 · BTC 0.17 (แกว่งเป็นเงินเท่าทอง 0.04)
     # ได้ +$120 ในวันนั้น → ปิดทุกไม้ หยุดถึงวันใหม่ (UTC) · ไม่มีเพดานขาดทุนรายวัน · equity จริง < $600 → หยุดเปิดไม้
-    "m5_fixed":   RiskConfig(fixed_lots=(("XAUUSD", 0.04), ("NAS100", 0.73), ("BTCUSD", 0.17)), daily_profit_target=120.0,
+    # lot BTC / เป้ารายวัน / การขยาย SL ปรับได้จากหน้าเว็บ /settings (state/bot_settings.json)
+    "m5_fixed":   RiskConfig(fixed_lots=(("XAUUSD", 0.04), ("NAS100", 0.73), ("BTCUSD", _S["btc_lot"])),
+                             daily_profit_target=_S["daily_target"], widen_stops=_S["widen_stops"],
                              daily_loss_limit=1.0, max_drawdown=1.0, max_open_groups=20, max_groups_per_symbol=10,
                              close_on_daily_halt=False, account_floor=600.0),
 }
@@ -113,8 +117,9 @@ LIVE_INSTANCES: dict[str, dict] = {
     # ทดสอบไปข้างหน้า — ห้ามแตะ
     "main":    {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
     # บอท M5 วิจัยตัวเอง 9 ตัว: งานของแต่ละตัวอยู่ใน bot/m5_bots.json (เขียนโดย research/m5_lab.py --assign)
-    **{f"m5_{i}": {"strategies": [f"m5_{i}"], "tf": "M5", "profile": "m5_fixed", "magic": MAGIC + 20 + i,
-                   "allocation": 1000.0, "warmup": 30000} for i in range(1, 10)},   # ตัวแยกสภาวะตลาด (H1) ต้องใช้ ~100 วัน
+    # timeframe ปรับได้จากหน้าเว็บ /settings · warmup: ตัวแยกสภาวะตลาด (H1) ต้องใช้ ~100 วัน แต่ MT5 ให้ได้ไม่เกิน ~99,990 แท่ง
+    **{f"m5_{i}": {"strategies": [f"m5_{i}"], "tf": _S["tf"], "profile": "m5_fixed", "magic": MAGIC + 20 + i,
+                   "allocation": 1000.0, "warmup": {"M1": 99000, "M5": 30000}.get(_S["tf"], 10000)} for i in range(1, 10)},
 }
 
 

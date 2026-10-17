@@ -17,6 +17,7 @@
           padding: .35em .9em; font-weight: 700; box-shadow: 0 6px 18px rgba(20, 30, 60, .18); white-space: nowrap; }
   .title { font-size: 1.4em; }
   .demo { background: rgba(255, 224, 138, .95); }
+  .navl { pointer-events: auto; color: var(--ink); text-decoration: none; } .navl:hover { background: #fff3a6; }
   .spacer { flex: 1; }
   .num { font-variant-numeric: tabular-nums; }
   .up { color: var(--up); } .down { color: var(--down); }
@@ -61,6 +62,9 @@
 <div class="hud">
   <span class="chip title">🤖 หมู่บ้านบอท <span style="font-weight:600;font-size:.68em">3D Sandbox</span></span>
   <span class="chip demo">DEMO · ไม่ใช่เงินจริง</span>
+  <a class="chip navl" href="/">🏠 หน้าหลัก</a>
+  <a class="chip navl" href="/settings">⚙️ ตั้งค่า</a>
+  <span class="chip num" id="tfchip">–</span>
   <span class="spacer"></span>
   <span class="chip num" id="btc">BTC –</span>
   <span class="chip num" id="eq">Equity –</span>
@@ -393,6 +397,8 @@ function sync(d) {
     toast(`${t.profit > 0 ? "🎉" : "🌧️"} ${t.bot} ปิดไม้ ${money(t.profit)}`);
   }
   seenTrades = new Set(tr.map(t => t.ticket));
+  const tfs = [...new Set(robots.filter(r => r.name !== "main").map(r => r.hb?.tf).filter(Boolean))];
+  $("tfchip").textContent = "บอททดสอบ " + (tfs.join("/") || "–");
   const acc = d.account || {};
   $("eq").textContent = "Equity $" + (acc.equity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const today = Object.values(d.per_bot || {}).reduce((a, s) => a + (s.today || 0) + (s.floating || 0), 0);

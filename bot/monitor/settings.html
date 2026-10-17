@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot Settings</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1d2129; --muted: #6b7280; --line: #e5e7eb;
+    --up: #0f9d58; --down: #d93025; --accent: #b8860b; --warn: #e8a100; --chip: #eef0f3; --sel: #1d2129; --selText: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #181b21; --text: #e6e8eb; --muted: #8b93a1; --line: #262a33;
+            --up: #34c77b; --down: #ff6b5e; --accent: #e0b04b; --warn: #f2b632; --chip: #222630; --sel: #e0b04b; --selText: #15171c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card);
+           position: sticky; top: 0; z-index: 2; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; } header h1 span { color: var(--accent); }
+  .chip { background: var(--chip); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; white-space: nowrap; color: var(--accent); text-decoration: none; }
+  .chip.on { background: var(--sel); color: var(--selText); }
+  main { max-width: 980px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 4px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .row { display: grid; grid-template-columns: 220px 1fr; gap: 14px 20px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: none; }
+  .row label { font-weight: 650; }
+  .row .sub { color: var(--muted); font-size: 12.5px; font-weight: 400; display: block; }
+  .seg { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button { border: 0; background: transparent; color: var(--text); padding: 7px 18px; border-radius: 8px; font: inherit; font-weight: 650; cursor: pointer; }
+  .seg button.on { background: var(--sel); color: var(--selText); }
+  input[type=number] { width: 130px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-weight: 650; }
+  .presets { display: inline-flex; gap: 6px; margin-left: 8px; flex-wrap: wrap; }
+  .presets button { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .switch input { display: none; }
+  .switch i { width: 44px; height: 24px; border-radius: 999px; background: var(--line); position: relative; transition: .2s; }
+  .switch i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .switch input:checked + i { background: var(--up); } .switch input:checked + i::after { left: 23px; }
+  .note { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+  .warn { border-left: 4px solid var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 10px; }
+  .bar { display: flex; gap: 12px; align-items: center; justify-content: flex-end; margin-top: 6px; flex-wrap: wrap; }
+  .btn { border: 0; border-radius: 10px; padding: 10px 22px; font: inherit; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #fff; } .btn.ghost { background: var(--chip); color: var(--text); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  #status { font-weight: 650; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; gap: 8px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚙️ ตั้งค่า <span>บอททดสอบ</span></h1>
+  <nav style="display:flex;gap:6px;flex-wrap:wrap">
+    <a class="chip" href="/">🏠 ภาพรวม</a><a class="chip" href="/live">📺 Live</a><a class="chip" href="/sandbox">🤖 หมู่บ้านบอท</a>
+    <a class="chip" href="/charts">📈 กราฟ</a><a class="chip" href="/radar">📡 Radar</a><a class="chip" href="/techniques">📚 เทคนิค</a>
+    <a class="chip on" href="/settings">⚙️ ตั้งค่า</a>
+  </nav>
+</header>
+<main>
+  <section class="card">
+    <h2>ค่าของบอททดสอบ 9 ตัว (m5_1 – m5_9)</h2>
+    <p class="hint">กดบันทึกแล้วระบบจะรีสตาร์ทบอททดสอบให้เอง (~20 วินาที) · <b>main ไม่ถูกแตะ</b> — ยังเทรดทอง M15 แบบเดิม · บัญชี DEMO เท่านั้น</p>
+
+    <div class="row">
+      <label>Timeframe<span class="sub">ขนาดแท่งเทียนที่บอทใช้ตัดสินใจ</span></label>
+      <div>
+        <div class="seg" id="tf"></div>
+        <div class="note" id="tfNote"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>ขนาดไม้ BTC<span class="sub">lot ตายตัวทุกไม้</span></label>
+      <div>
+        <input type="number" id="lot" step="0.01" min="0.01" max="1"> BTC
+        <span class="presets" id="lotPresets"></span>
+        <div class="note" id="lotNote"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>เป้ากำไรรายวัน<span class="sub">ถึงแล้วปิดทุกไม้ พักถึงวันใหม่ (UTC)</span></label>
+      <div>
+        $ <input type="number" id="target" step="10" min="0" max="5000">
+        <span class="presets" id="targetPresets"></span>
+        <div class="note">0 = ไม่หยุด · นับต่อบอทแต่ละตัว</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>SL แคบกว่าขั้นต่ำของโบรก<span class="sub">FxPro บังคับ SL ของ BTC ห่างราคา ≥ $200</span></label>
+      <div>
+        <label class="switch"><input type="checkbox" id="widen"><i></i><span id="widenText"></span></label>
+        <div class="note" id="widenNote"></div>
+      </div>
+    </div>
+
+    <div id="warns"></div>
+    <div class="bar">
+      <span id="status" class="muted"></span>
+      <button class="btn ghost" id="reset">คืนค่าเริ่มต้น</button>
+      <button class="btn primary" id="save">💾 บันทึก + รีสตาร์ทบอท</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>สถานะบอทตอนนี้</h2>
+    <p class="hint">ดูว่าบอทรีสตาร์ทด้วยค่าใหม่แล้วหรือยัง (อัปเดตทุก 5 วินาที)</p>
+    <div style="overflow-x:auto"><table><thead><tr><th>บอท</th><th>กลยุทธ์</th><th>ตลาด</th><th>TF</th><th>สถานะ</th><th style="text-align:right">วันนี้</th></tr></thead>
+      <tbody id="bots"><tr><td colspan="6" class="muted">กำลังโหลด…</td></tr></tbody></table></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const money = (v) => (v >= 0 ? "+" : "−") + "$" + Math.abs(v || 0).toFixed(2);
+const FAM = { levels: "กวาด high/low", momo: "โมเมนตัมเช้า", pullback: "ย่อในเทรนด์", bb: "Bollinger สวนขอบ", donchian: "Donchian ทะลุกรอบ",
+              orb: "ทะลุกรอบเปิดตลาด", ema: "EMA ตัดกัน", rsi2: "RSI(2) สวน", volx: "ทะลุช่วงเงียบ" };
+const TF_NOTE = {
+  M1: "เข้า-ออกถี่ที่สุด เห็นบอททำงานบ่อย · <b>งานวิจัยทำบน M5</b> — บน M1 ยังไม่ได้วิจัย และต้นทุนต่อไม้กินกำไรมากกว่า (บทเรียนจากชุด M1 เดิม)",
+  M5: "ค่าที่งานวิจัยใช้ (walk-forward 6,174 backtest) — ตัวเลข \"วิจัยคาด\" ในหน้าอื่นอ้างอิง M5",
+  M15: "เข้าไม้น้อยลง ถือนานขึ้น ต้นทุนต่อไม้เบาลง · ยังไม่ได้วิจัยบน TF นี้",
+};
+let S = null, cur = null, saving = false, equity = 0;
+
+async function load() {
+  S = await (await fetch("/api/settings", { cache: "no-store" })).json();
+  cur = { ...S.values };
+  render();
+}
+function render() {
+  $("tf").innerHTML = S.timeframes.map(t => `<button data-tf="${t}" class="${cur.tf === t ? "on" : ""}">${t === "M1" ? "1 นาที" : t === "M5" ? "5 นาที" : "15 นาที"}</button>`).join("");
+  $("tfNote").innerHTML = TF_NOTE[cur.tf] || "";
+  $("lot").value = cur.btc_lot; $("target").value = cur.daily_target; $("widen").checked = cur.widen_stops;
+  $("lotPresets").innerHTML = [0.05, 0.1, 0.17, 0.25].map(v => `<button data-lot="${v}">${v}</button>`).join("");
+  $("targetPresets").innerHTML = [0, 50, 120, 300].map(v => `<button data-target="${v}">${v ? "$" + v : "ไม่หยุด"}</button>`).join("");
+  const minLoss = cur.btc_lot * 200, margin = cur.btc_lot * 81500 * 0.005;
+  $("lotNote").innerHTML = `แพ้ 1 ไม้ที่ SL ขั้นต่ำ $200 ≈ <b>−$${minLoss.toFixed(0)}</b> · ราคาขยับ $100 = $${(cur.btc_lot * 100).toFixed(0)} · margin ≈ $${margin.toFixed(0)} ต่อไม้`;
+  $("widenText").textContent = cur.widen_stops ? "ขยาย SL ไปที่ $200 แล้วเข้าไม้" : "ข้ามสัญญาณนั้น (ไม่เข้า)";
+  $("widenNote").innerHTML = cur.widen_stops
+    ? "เข้าไม้ได้บ่อยขึ้นมาก (สำคัญบน M1 ที่ SL ตาม ATR มักแคบแค่ ~$40–80) แต่เสี่ยงต่อไม้มากกว่าที่กลยุทธ์ออกแบบไว้"
+    : "ตรงกับงานวิจัย · บน M1 บอทจะ<b>แทบไม่ได้เข้าไม้</b> เพราะ SL ตาม ATR ของ M1 แคบกว่า $200 เกือบทุกครั้ง";
+  const w = [];
+  if (cur.tf === "M1" && !cur.widen_stops) w.push("M1 + ไม่ขยาย SL → บอท BTC แทบไม่มีสัญญาณที่ผ่านกฎ $200 ของโบรก แนะนำเปิด \"ขยาย SL\" ถ้าอยากเห็นบอทเทรด");
+  if (cur.tf === "M1") w.push("บอท m5_1 (กวาด high/low) และ m5_9 (ทะลุช่วงเงียบ) ต้องใช้ข้อมูลย้อนหลัง ~100 วัน — บน M1 โหลดได้แค่ ~69 วัน อาจขึ้นว่า \"พักกลยุทธ์\" จนกว่าข้อมูลจะพอ");
+  const room = equity - 600, worst = cur.btc_lot * 200 * 9;   // ระยะถึงเพดาน $600 vs บอท 9 ตัวแพ้พร้อมกันคนละไม้
+  if (equity && worst > room * .5) w.push(`ถ้าบอท 9 ตัวแพ้พร้อมกันคนละไม้ ≈ −$${worst.toFixed(0)} · เหลือห่างเพดาน $600 อีกแค่ $${Math.max(room, 0).toFixed(0)} (equity $${equity.toFixed(0)}) — ถึงเพดานบอททดสอบจะหยุดเปิดไม้เอง`);
+  $("warns").innerHTML = w.map(x => `<div class="warn">⚠️ ${x}</div>`).join("");
+  const dirty = JSON.stringify(cur) !== JSON.stringify(S.values);
+  $("save").disabled = saving || !dirty;
+  if (!saving) $("status").textContent = dirty ? "มีค่าที่ยังไม่บันทึก" : "ค่าปัจจุบันถูกใช้อยู่";
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b || !cur) return;
+  if (b.dataset.tf) cur.tf = b.dataset.tf;
+  else if (b.dataset.lot) cur.btc_lot = +b.dataset.lot;
+  else if ("target" in b.dataset) cur.daily_target = +b.dataset.target;
+  else return;
+  render();
+});
+$("lot").addEventListener("input", () => { cur.btc_lot = Math.round(+$("lot").value * 100) / 100 || 0.01; render(); });
+$("target").addEventListener("input", () => { cur.daily_target = Math.max(0, +$("target").value || 0); render(); });
+$("widen").addEventListener("change", () => { cur.widen_stops = $("widen").checked; render(); });
+$("reset").onclick = () => { cur = { ...S.defaults }; render(); };
+$("save").onclick = async () => {
+  saving = true; render(); $("status").textContent = "กำลังบันทึก…";
+  try {
+    const r = await (await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json", "X-Bot-Settings": "1" }, body: JSON.stringify(cur) })).json();
+    if (!r.ok) throw new Error(r.error);
+    S.values = r.saved; cur = { ...r.saved };
+    $("status").innerHTML = '<span class="up">✓ บันทึกแล้ว — กำลังรีสตาร์ทบอททดสอบ (~20 วิ) ดูตารางด้านล่าง</span>';
+    saving = false; render(); $("status").innerHTML = '<span class="up">✓ บันทึกแล้ว — กำลังรีสตาร์ทบอททดสอบ (~20 วิ) ดูตารางด้านล่าง</span>';
+  } catch (err) { saving = false; render(); $("status").innerHTML = `<span class="down">บันทึกไม่ได้: ${esc(err.message)}</span>`; }
+};
+
+async function bots() {
+  try {
+    const d = await (await fetch("/api", { cache: "no-store" })).json();
+    if (d.account?.equity && !equity) { equity = d.account.equity; render(); }
+    const names = Object.keys(d.bots || {}).sort((a, z) => (a === "main") - (z === "main") || a.localeCompare(z, undefined, { numeric: true }));
+    $("bots").innerHTML = names.map(n => {
+      const hb = d.bots[n], st = Object.values(hb.strategies || {})[0] || {}, r = d.research?.[n], pb = d.per_bot?.[n] || {};
+      const today = (pb.today || 0) + (pb.floating || 0), wantTf = n === "main" ? hb.tf : S?.values.tf;
+      const tfOk = !wantTf || hb.tf === wantTf;
+      return `<tr><td><b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${n === "main" ? "xau_momo (ไม่แตะ)" : esc(FAM[r?.family] || r?.family || "–")}</td>
+        <td>${esc(st.symbol || "–")}</td><td>${esc(hb.tf || "–")} ${tfOk ? "" : '<span class="muted">→ ' + esc(wantTf) + " (รอรีสตาร์ท)</span>"}</td>
+        <td>${hb.alive ? '<span class="up">● ทำงาน</span>' : '<span class="down">● หยุด</span>'} <span class="muted">${esc(hb.target_hit ? "🎯 ถึงเป้าแล้ว" : st.state || "")}</span></td>
+        <td style="text-align:right" class="${today >= 0 ? "up" : "down"}">${money(today)}</td></tr>`;
+    }).join("");
+  } catch { $("bots").innerHTML = '<tr><td colspan="6" class="down">ต่อ monitor ไม่ได้</td></tr>'; }
+}
+load().then(bots); setInterval(bots, 5000);
+</script>
+</body>
+</html>

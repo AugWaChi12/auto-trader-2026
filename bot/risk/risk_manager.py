@@ -47,6 +47,8 @@ class RiskConfig:
     fixed_lots: tuple[tuple[str, float], ...] = ()
     # เป้ากำไรรายวัน (USD): equity ≥ ต้นวัน + ค่านี้ → ปิดทุกไม้แล้วหยุดทั้งวัน (0 = ปิด)
     daily_profit_target: float = 0.0
+    # SL ใกล้กว่าระยะขั้นต่ำของโบรก (spec.min_stop): False = ข้ามสัญญาณ, True = ขยาย SL ออกไปที่ขั้นต่ำแล้วเข้า
+    widen_stops: bool = False
 
 
 @dataclass(frozen=True)

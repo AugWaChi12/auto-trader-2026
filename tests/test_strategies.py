@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from dataclasses import replace
+
 import pytest
 
 from bot.backtest.sim_broker import SimBroker
@@ -254,11 +256,11 @@ def test_m5_bots_build_from_research_assignments() -> None:
     assert bots, "ยังไม่มี bot/m5_bots.json — รัน research/m5_lab.py --assign"
     for b in bots:
         inst = C.LIVE_INSTANCES[b["bot"]]
-        assert inst["tf"] == "M5" and inst["profile"] == "m5_fixed"
+        assert inst["tf"] == C._S["tf"] and inst["profile"] == "m5_fixed"
         (s,) = C.build_strategies(inst["strategies"], timeframe="M5")
         assert s.tag == b["bot"] and s.symbol == b["symbol"]
-    assert dict(C.RISK_PROFILES["m5_fixed"].fixed_lots)["XAUUSD"] == 0.04
-    assert C.RISK_PROFILES["m5_fixed"].daily_profit_target == 120.0
+    assert dict(C.RISK_PROFILES["m5_fixed"].fixed_lots)["BTCUSD"] == C._S["btc_lot"]
+    assert C.RISK_PROFILES["m5_fixed"].daily_profit_target == C._S["daily_target"]
     assert C.LIVE_INSTANCES["main"]["tf"] == "M15" and C.LIVE_INSTANCES["main"]["strategies"] == ["xau_momo"]
 
 
@@ -296,3 +298,16 @@ def test_engine_skips_signal_when_sl_inside_broker_min_stop() -> None:
         object.__setattr__(spec, "min_stop", 0.0)          # spec ใช้ร่วมกับเทสต์อื่น
     assert not broker.positions()
     assert any(s.outcome == "stops_level" for s in eng.stats.signals)
+
+
+def test_engine_widens_sl_to_broker_min_stop_when_enabled() -> None:
+    eng, broker = _engine(ManagementPlan(partial_r=None))
+    eng.risk.cfg = replace(eng.risk.cfg, widen_stops=True)
+    spec = broker.spec("XAUUSD")
+    object.__setattr__(spec, "min_stop", 50.0)
+    try:
+        _feed(eng, broker, warmup() + asian_range_then(date(2025, 1, 20), [(2000, 2006, 1999, 2006)]))
+    finally:
+        object.__setattr__(spec, "min_stop", 0.0)
+    pos = broker.positions()[0]
+    assert abs(pos.entry_price - pos.sl) >= 50.0

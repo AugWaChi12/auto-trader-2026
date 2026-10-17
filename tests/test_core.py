@@ -245,3 +245,12 @@ def test_daily_profit_target_halts_for_the_day_then_resets() -> None:
     assert rm.on_time(T0 + 3 * M15) == []                                   # ไม่ยิงซ้ำในวันเดียวกัน
     rm.on_time(T0 + timedelta(days=1))
     assert rm.can_open(_sig(), T0 + timedelta(days=1)) == ""
+
+
+def test_settings_validate_rejects_bad_values_and_fills_defaults() -> None:
+    from bot import settings
+    v = settings.validate({"tf": "M1", "btc_lot": "0.123"})
+    assert v["tf"] == "M1" and v["btc_lot"] == 0.12 and v["daily_target"] == settings.DEFAULTS["daily_target"]
+    for bad in ({"tf": "H4"}, {"btc_lot": 5}, {"daily_target": -1}, {"hack": 1}, ["tf"]):
+        with pytest.raises(ValueError):
+            settings.validate(bad)

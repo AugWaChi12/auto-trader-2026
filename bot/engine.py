@@ -12,7 +12,7 @@ Engine รู้จักแค่ interface → โค้ดชุดเดี�
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Callable
 
@@ -115,8 +115,11 @@ class Engine:
         entry = bar.close + spread + spec.slippage if sig.side is Side.BUY else bar.close - spec.slippage
 
         if spec.min_stop and abs(entry - sig.sl) < spec.min_stop:
-            self._log(now, sig, "stops_level", f"SL {abs(entry - sig.sl):.2f} < {spec.min_stop}")
-            return
+            if not self.risk.cfg.widen_stops:
+                self._log(now, sig, "stops_level", f"SL {abs(entry - sig.sl):.2f} < {spec.min_stop}")
+                return
+            # ขยาย SL ออกไปที่ระยะขั้นต่ำ (+5% กันราคาขยับระหว่างส่ง) — เสี่ยงต่อไม้มากขึ้นตามระยะที่ขยาย
+            sig = replace(sig, sl=entry - int(sig.side) * spec.min_stop * 1.05)
         decision = self.risk.size(sig, entry, spec)
         if not decision.ok:
             self._log(now, sig, "size", decision.reason)
