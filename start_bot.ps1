@@ -13,7 +13,7 @@ $py = Join-Path $root ".venv\Scripts\python.exe"
 $pyw = Join-Path $root ".venv\Scripts\pythonw.exe"
 $exe = if ($Visible) { $py } else { $pyw }
 $names = @($Instance)
-if ($Instance -eq "all") { $names = (& $py -c "from bot import config as C; print(' '.join(C.LIVE_INSTANCES))").Split(" ") }
+if ($Instance -eq "all") { $names = (& $py -c "from bot import config as C; print(' '.join(C.ENABLED_INSTANCES))").Split(" ") }
 foreach ($n in $names) {
     $running = Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^pythonw?\.exe$' -and $_.CommandLine -match "bot live --instance $n(\s|$)" }
     if ($running) { Write-Host "[$n] already running (pid $($running[0].ProcessId)) - skipped"; continue }

@@ -50,6 +50,12 @@
   th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
   .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+  .mini { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 8px; padding: 3px 10px; font: inherit;
+          font-size: 12.5px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+  .mini.armed { background: var(--down); color: #fff; border-color: var(--down); }
+  .mini:disabled { opacity: .45; cursor: default; }
+  tr.off td { opacity: .55; }
+  #ctlNote { font-weight: 650; min-height: 1.4em; margin: 6px 0 0; }
   @media (max-width: 640px) { .row { grid-template-columns: 1fr; gap: 8px; } }
 </style>
 </head>
@@ -111,9 +117,11 @@
 
   <section class="card">
     <h2>สถานะบอทตอนนี้</h2>
-    <p class="hint">ดูว่าบอทรีสตาร์ทด้วยค่าใหม่แล้วหรือยัง (อัปเดตทุก 5 วินาที)</p>
-    <div style="overflow-x:auto"><table><thead><tr><th>บอท</th><th>กลยุทธ์</th><th>ตลาด</th><th>TF</th><th>สถานะ</th><th style="text-align:right">วันนี้</th></tr></thead>
-      <tbody id="bots"><tr><td colspan="6" class="muted">กำลังโหลด…</td></tr></tbody></table></div>
+    <p class="hint">อัปเดตทุก 5 วินาที · <b>⏹ ปิดบอท</b> = หยุดเทรด + ปิดไม้ที่ถืออยู่ (รีสตาร์ทเครื่องก็ไม่เปิดเอง จนกว่าจะกด ▶ เปิด) ·
+      <b>✋ ปิดไม้</b> = ปิดไม้ตอนนี้ บอททำงานต่อ · ทุกปุ่มต้องกดซ้ำเพื่อยืนยัน · main สั่งจากที่นี่ไม่ได้</p>
+    <div style="overflow-x:auto"><table><thead><tr><th>บอท</th><th>กลยุทธ์</th><th>ตลาด</th><th>TF</th><th>สถานะ</th><th style="text-align:right">วันนี้</th><th>สั่งงาน</th></tr></thead>
+      <tbody id="bots"><tr><td colspan="7" class="muted">กำลังโหลด…</td></tr></tbody></table></div>
+    <p id="ctlNote"></p>
   </section>
 </main>
 <script>
@@ -183,18 +191,43 @@ async function bots() {
   try {
     const d = await (await fetch("/api", { cache: "no-store" })).json();
     if (d.account?.equity && !equity) { equity = d.account.equity; render(); }
+    if (document.querySelector("#bots .mini.armed, #bots .mini:disabled[data-busy]")) return;   // ไม่วาดทับตอนกำลังยืนยัน
     const names = Object.keys(d.bots || {}).sort((a, z) => (a === "main") - (z === "main") || a.localeCompare(z, undefined, { numeric: true }));
     $("bots").innerHTML = names.map(n => {
       const hb = d.bots[n], st = Object.values(hb.strategies || {})[0] || {}, r = d.research?.[n], pb = d.per_bot?.[n] || {};
       const today = (pb.today || 0) + (pb.floating || 0), wantTf = n === "main" ? hb.tf : S?.values.tf;
       const tfOk = !wantTf || hb.tf === wantTf;
-      return `<tr><td><b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${n === "main" ? "xau_momo (ไม่แตะ)" : esc(FAM[r?.family] || r?.family || "–")}</td>
+      const off = (d.disabled || []).includes(n), open = (d.open || []).filter(o => o.bot === n).length;
+      const ctl = n === "main" ? '<span class="muted">—</span>' : off
+        ? `<button class="mini" data-bot="${esc(n)}" data-act="enable">▶ เปิดบอท</button>`
+        : `<button class="mini" data-bot="${esc(n)}" data-act="disable">⏹ ปิดบอท</button> <button class="mini" data-bot="${esc(n)}" data-act="close" ${open ? "" : "disabled"}>✋ ปิดไม้${open ? " (" + open + ")" : ""}</button>`;
+      return `<tr class="${off ? "off" : ""}"><td><b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${n === "main" ? "xau_momo (ไม่แตะ)" : esc(FAM[r?.family] || r?.family || "–")}</td>
         <td>${esc(st.symbol || "–")}</td><td>${esc(hb.tf || "–")} ${tfOk ? "" : '<span class="muted">→ ' + esc(wantTf) + " (รอรีสตาร์ท)</span>"}</td>
-        <td>${hb.alive ? '<span class="up">● ทำงาน</span>' : '<span class="down">● หยุด</span>'} <span class="muted">${esc(hb.target_hit ? "🎯 ถึงเป้าแล้ว" : st.state || "")}</span></td>
-        <td style="text-align:right" class="${today >= 0 ? "up" : "down"}">${money(today)}</td></tr>`;
+        <td>${off ? '<span class="muted">⏹ ปิดโดยผู้ใช้</span>' : hb.alive ? '<span class="up">● ทำงาน</span>' : '<span class="down">● หยุด</span>'} <span class="muted">${esc(off ? "" : hb.target_hit ? "🎯 ถึงเป้าแล้ว" : st.state || "")}</span></td>
+        <td style="text-align:right" class="${today >= 0 ? "up" : "down"}">${money(today)}</td><td>${ctl}</td></tr>`;
     }).join("");
   } catch { $("bots").innerHTML = '<tr><td colspan="6" class="down">ต่อ monitor ไม่ได้</td></tr>'; }
 }
+
+// ปุ่มสั่งบอททีละตัว: กดครั้งแรก = ขอยืนยัน (4 วิ) · กดซ้ำ = ทำจริง
+async function botAction(btn, bot, action) {
+  if (btn.dataset.armed !== "1") {
+    btn.dataset.armed = "1"; btn.dataset.label = btn.textContent; btn.textContent = "กดอีกครั้งเพื่อยืนยัน"; btn.classList.add("armed");
+    setTimeout(() => { if (btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = btn.dataset.label; btn.classList.remove("armed"); } }, 4000);
+    return;
+  }
+  btn.dataset.armed = ""; btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "กำลังทำ…";
+  try {
+    const r = await (await fetch("/api/bot", { method: "POST", headers: { "Content-Type": "application/json", "X-Bot-Settings": "1" },
+                                            body: JSON.stringify({ bot, action }) })).json();
+    if (!r.ok) throw new Error(r.error);
+    const closed = (r.closed || []), bad = closed.filter(c => !c.ok);
+    ctlNote(`${r.message}${closed.length ? ` · ปิด ${closed.length - bad.length}/${closed.length} ไม้` : ""}${bad.length ? " ⚠️ " + bad.map(c => c.message).join(", ") : ""}`, !bad.length);
+  } catch (e) { ctlNote("ทำไม่สำเร็จ: " + e.message, false); }
+  delete btn.dataset.busy; btn.disabled = false; btn.textContent = btn.dataset.label; btn.classList.remove("armed");
+}
+function ctlNote(text, ok) { $("ctlNote").innerHTML = `<span class="${ok ? "up" : "down"}">${esc(text)}</span>`; setTimeout(bots, 1500); }
+$("bots").addEventListener("click", (e) => { const b = e.target.closest("button.mini"); if (b) botAction(b, b.dataset.bot, b.dataset.act); });
 load().then(bots); setInterval(bots, 5000);
 </script>
 </body>

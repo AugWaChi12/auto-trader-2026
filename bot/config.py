@@ -123,6 +123,10 @@ LIVE_INSTANCES: dict[str, dict] = {
 }
 
 
+# บอทที่ start_bot.ps1 all / restart_bots.ps1 จะเปิด (ไม่รวมตัวที่ผู้ใช้กดปิดในหน้าเว็บ · main เปิดเสมอ)
+ENABLED_INSTANCES = [n for n in LIVE_INSTANCES if n not in _S["disabled_bots"]]
+
+
 def instance_state_dir(name: str) -> Path:
     return STATE_DIR if name == "main" else STATE_DIR / name
 

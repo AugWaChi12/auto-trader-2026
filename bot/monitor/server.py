@@ -99,6 +99,34 @@ class Collector:
                 return c
         return broker_name
 
+    # ------------------------------------------------------------------ สั่งงานจากหน้าเว็บ (บอททดสอบเท่านั้น · DEMO เท่านั้น)
+    def close_bot_positions(self, bot: str) -> list[dict]:
+        """ปิดไม้ทุกไม้ของบอทนี้ทันทีด้วยราคาตลาด — ตรวจว่าเป็นบัญชี DEMO ก่อนทุกครั้ง"""
+        with self._lock:
+            if not self._ok:
+                self._connect()
+            mt5 = self.mt5
+            acc = mt5.account_info()
+            if acc is None or acc.trade_mode != mt5.ACCOUNT_TRADE_MODE_DEMO:
+                raise ValueError("ไม่ใช่บัญชี DEMO — ไม่ปิดไม้ให้")
+            out = []
+            for p in mt5.positions_get() or ():
+                if p.magic != self.bots[bot]:
+                    continue
+                tick, info = mt5.symbol_info_tick(p.symbol), mt5.symbol_info(p.symbol)
+                buy = p.type == 0
+                fill = mt5.ORDER_FILLING_IOC if info.filling_mode & 2 else (
+                    mt5.ORDER_FILLING_FOK if info.filling_mode & 1 else mt5.ORDER_FILLING_RETURN)
+                r = mt5.order_send({
+                    "action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol, "volume": p.volume, "position": p.ticket,
+                    "type": mt5.ORDER_TYPE_SELL if buy else mt5.ORDER_TYPE_BUY, "price": tick.bid if buy else tick.ask,
+                    "deviation": 50, "magic": p.magic, "comment": "manual_close", "type_time": mt5.ORDER_TIME_GTC,
+                    "type_filling": fill})
+                ok = r is not None and r.retcode in (10008, 10009)
+                out.append({"ticket": p.ticket, "ok": ok, "message": r.comment if r is not None else str(mt5.last_error())})
+            self._cache.clear()
+            return out
+
     # ------------------------------------------------------------------ ไฟล์ของบอท
     def _heartbeats(self) -> dict[str, dict]:
         out = {}
@@ -218,6 +246,7 @@ class Collector:
             "now": datetime.now(UTC).isoformat(),
             "bot": hbs.get("main", {}), "bots": hbs, "per_bot": per_bot,
             "research": {b["bot"]: b for b in C.load_m5_bots()},
+            "disabled": _settings.load()["disabled_bots"],
             "account": {"login": acc.login, "server": acc.server, "balance": acc.balance, "equity": acc.equity,
                         "margin": acc.margin, "free_margin": acc.margin_free, "currency": acc.currency,
                         "demo": acc.trade_mode == mt5.ACCOUNT_TRADE_MODE_DEMO,
@@ -298,6 +327,41 @@ def settings_payload() -> dict:
             "limits": _settings.LIMITS, "bots": [n for n in C.LIVE_INSTANCES if n != "main"]}
 
 
+def _ps(command: str, wait: bool) -> None:
+    import subprocess
+    args = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command]
+    kw = {"cwd": str(C.ROOT), "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)}
+    subprocess.run(args, timeout=60, **kw) if wait else subprocess.Popen(args, **kw)
+
+
+def stop_bot(name: str) -> None:
+    _ps("Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'bot live --instance %s(\\s|$)' } | "
+        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" % name, wait=True)
+
+
+def start_bot(name: str) -> None:
+    _ps(f"& '{C.ROOT / 'start_bot.ps1'}' -Instance {name}", wait=False)
+
+
+def bot_action(col: "Collector", body: dict) -> dict:
+    """ปุ่มต่อบอทในหน้าเว็บ: close = ปิดไม้ตอนนี้ · disable = ปิดบอท (+ปิดไม้) · enable = เปิดบอท — main ไม่รับคำสั่ง"""
+    name, action = body.get("bot"), body.get("action")
+    if name == "main" or name not in C.LIVE_INSTANCES:
+        raise ValueError("สั่งได้เฉพาะบอททดสอบ m5_1 … m5_9")
+    if action not in ("close", "disable", "enable"):
+        raise ValueError("คำสั่งไม่ถูกต้อง")
+    s = _settings.load()
+    if action == "disable":
+        _settings.save({**s, "disabled_bots": s["disabled_bots"] + [name]})
+        stop_bot(name)                              # หยุดบอทก่อน ไม่ให้เปิดไม้ใหม่แข่งกับการปิด
+        return {"ok": True, "closed": col.close_bot_positions(name), "message": f"ปิด {name} แล้ว"}
+    if action == "enable":
+        _settings.save({**s, "disabled_bots": [b for b in s["disabled_bots"] if b != name]})
+        start_bot(name)
+        return {"ok": True, "message": f"กำลังเปิด {name} (~10 วิ)"}
+    return {"ok": True, "closed": col.close_bot_positions(name), "message": f"ปิดไม้ของ {name} แล้ว"}
+
+
 def restart_test_bots() -> None:
     """รัน restart_bots.ps1 แบบไม่รอ (ใช้เวลาราว 10–30 วิ) — บอทอ่านค่าใหม่ตอนเริ่ม"""
     import subprocess
@@ -336,7 +400,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:  # noqa: N802
             """บันทึกค่าตั้ง + รีสตาร์ทบอททดสอบ — ช่องเดียวที่หน้าเว็บเขียนได้ (main ไม่ถูกแตะ)
             กันเว็บอื่นยิงมาทางเบราว์เซอร์ (CSRF): ต้องเป็น JSON + header เฉพาะ → เบราว์เซอร์ต้อง preflight ซึ่งเราไม่ตอบรับ"""
-            if urlparse(self.path).path != "/api/settings":
+            path = urlparse(self.path).path
+            if path not in ("/api/settings", "/api/bot"):
                 self.send_error(404)
                 return
             if self.headers.get("X-Bot-Settings") != "1" or "application/json" not in (self.headers.get("Content-Type") or ""):
@@ -344,12 +409,16 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 return
             try:
                 n = min(int(self.headers.get("Content-Length") or 0), 10_000)
-                saved = _settings.save(json.loads(self.rfile.read(n) or b"{}"))
-            except (ValueError, TypeError) as e:
-                self._send(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False).encode(), "application/json")
-                return
-            restart_test_bots()
-            self._send(json.dumps({"ok": True, "saved": saved}, ensure_ascii=False).encode(), "application/json")
+                body = json.loads(self.rfile.read(n) or b"{}")
+                if path == "/api/bot":
+                    res = bot_action(col, body if isinstance(body, dict) else {})
+                else:
+                    current = _settings.load()          # หน้าตั้งค่าไม่ได้ส่งรายชื่อบอทที่ปิด → คงค่าเดิมไว้
+                    res = {"ok": True, "saved": _settings.save({"disabled_bots": current["disabled_bots"], **body})}
+                    restart_test_bots()
+            except (ValueError, TypeError, ConnectionError) as e:
+                res = {"ok": False, "error": str(e)}
+            self._send(json.dumps(res, ensure_ascii=False, default=str).encode(), "application/json")
 
         def _send(self, body: bytes, ctype: str) -> None:
             self.send_response(200)

@@ -216,3 +216,20 @@ def test_connect_keeps_broker_min_stop_distance(tmp_path: Path) -> None:
                                       volume_max=100.0, trade_stops_level=20000, filling_mode=2)
     b = broker(mt5, tmp_path)
     assert b.spec("XAUUSD").min_stop == pytest.approx(200.0)
+
+
+def test_monitor_bot_action_only_for_test_bots_and_disable_closes(tmp_path: Path, monkeypatch) -> None:
+    from bot import settings
+    from bot.monitor import server
+    monkeypatch.setattr(settings, "PATH", tmp_path / "bot_settings.json")
+    calls = []
+    monkeypatch.setattr(server, "stop_bot", lambda n: calls.append(("stop", n)))
+    monkeypatch.setattr(server, "start_bot", lambda n: calls.append(("start", n)))
+    col = type("Col", (), {"close_bot_positions": lambda self, n: calls.append(("close", n)) or [{"ticket": 1, "ok": True}]})()
+    for bad in ({"bot": "main", "action": "close"}, {"bot": "m5_1", "action": "rm"}, {"bot": "x", "action": "close"}):
+        with pytest.raises(ValueError):
+            server.bot_action(col, bad)
+    assert server.bot_action(col, {"bot": "m5_2", "action": "disable"})["ok"]
+    assert settings.load()["disabled_bots"] == ["m5_2"] and calls == [("stop", "m5_2"), ("close", "m5_2")]
+    server.bot_action(col, {"bot": "m5_2", "action": "enable"})
+    assert settings.load()["disabled_bots"] == [] and calls[-1] == ("start", "m5_2")

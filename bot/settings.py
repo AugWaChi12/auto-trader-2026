@@ -7,6 +7,7 @@ settings.py — ค่าที่ผู้ใช้ปรับเองได�
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 PATH = Path(__file__).resolve().parent.parent / "state" / "bot_settings.json"
@@ -17,6 +18,7 @@ DEFAULTS: dict = {
     "btc_lot": 0.17,            # ไม้ตายตัวของ BTC
     "daily_target": 120.0,      # ได้เท่านี้ในวันนั้น → ปิดทุกไม้แล้วพัก (0 = ไม่หยุด)
     "widen_stops": False,       # SL ใกล้กว่าระยะขั้นต่ำของโบรก ($200 สำหรับ BTC): False = ข้ามสัญญาณ, True = ขยาย SL ไปที่ขั้นต่ำ
+    "disabled_bots": [],        # บอททดสอบที่ผู้ใช้กดปิด — ไม่ถูกเปิดโดย start_bot.ps1 all / restart_bots.ps1
 }
 LIMITS = {"btc_lot": (0.01, 1.0), "daily_target": (0.0, 5000.0)}
 
@@ -41,6 +43,10 @@ def validate(raw: dict) -> dict:
             raise ValueError(f"{k} ต้องอยู่ระหว่าง {lo} ถึง {hi}")
     out["btc_lot"] = round(out["btc_lot"], 2)
     out["widen_stops"] = bool(out["widen_stops"])
+    bots = out["disabled_bots"]
+    if not isinstance(bots, list) or not all(isinstance(b, str) and re.fullmatch(r"m5_\d{1,2}", b) for b in bots):
+        raise ValueError("disabled_bots ต้องเป็นรายชื่อบอททดสอบ (m5_1 … m5_9)")
+    out["disabled_bots"] = sorted(set(bots), key=lambda b: int(b[3:]))
     return out
 
 

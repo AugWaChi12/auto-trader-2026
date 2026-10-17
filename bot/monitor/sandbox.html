@@ -50,6 +50,11 @@
           box-shadow: 0 14px 40px rgba(20, 30, 60, .3); padding: 1em 1.1em; font-size: .92em; line-height: 1.5; z-index: 6; }
   .card h4 { margin: 0 0 .4em; font-size: 1.2em; }
   .card .k { color: var(--muted); }
+  .ctl { display: flex; gap: 8px; margin-top: .7em; flex-wrap: wrap; }
+  .ctl button { border: 2px solid var(--ink); background: #fffdf6; border-radius: 10px; padding: .3em .8em; font: inherit; font-weight: 700; cursor: pointer; }
+  .ctl button.armed { background: var(--down); color: #fff; }
+  .ctl button:disabled { opacity: .45; cursor: default; }
+  #ctlNote { margin-top: .5em; font-weight: 650; font-size: .9em; }
   .card .x { position: absolute; right: .7em; top: .4em; cursor: pointer; font-weight: 800; font-size: 1.2em; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 1.4em; font-weight: 700; z-index: 2; }
 </style>
@@ -497,7 +502,8 @@ function sync(d) {
     const pos = (d.open || []).filter(o => o.bot === r.name);
     Object.assign(r, { hb, st, pb, pos, res: d.research?.[r.name] });
     r.float = pos.reduce((a, o) => a + o.profit, 0);
-    r.mode = !hb.alive || hb.killed ? "off" : hb.target_hit ? "target" : pos.length ? "trade"
+    r.disabled = (d.disabled || []).includes(r.name);
+    r.mode = r.disabled || !hb.alive || hb.killed ? "off" : hb.target_hit ? "target" : pos.length ? "trade"
       : (st.proximity || 0) >= .7 ? "aim" : /นอก|รอข้อมูล|ผ่านจุดตัดสิน|ไม่เข้าเกณฑ์|พัก/.test(st.state || "") ? "rest" : "watch";
     labelRobot(r);
   }
@@ -525,14 +531,14 @@ function sync(d) {
   $("eq").textContent = "Equity $" + (acc.equity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const today = Object.values(d.per_bot || {}).reduce((a, s) => a + (s.today || 0) + (s.floating || 0), 0);
   $("today").innerHTML = `วันนี้ <span class="${today >= 0 ? "up" : "down"}">${money(today)}</span>`;
-  if (cardFor) showCard(cardFor);
+  if (cardFor && !document.querySelector(".ctl button.armed, .ctl button:disabled[data-busy]")) showCard(cardFor);   // ไม่วาดทับตอนกำลังยืนยัน
 }
 function labelRobot(r) {
   // ป้ายเดียวต่อหุ่น: ตัวที่มีเรื่อง (ถือไม้ / เล็ง / ถึงเป้า / ออฟไลน์ / main) = ป้ายคำพูดเหนือหัวรวมชื่อ · ตัวอื่น = ป้ายชื่อเล็กใต้เท้า
   const u = r.obj.userData, pb = r.pb || {}, st = r.st || {}, today = (pb.today || 0) + (pb.floating || 0);
   const name = r.name === "main" ? "★ main" : r.name;
   const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.mode === "off" || r.name === "main";
-  const what = r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
+  const what = r.disabled ? "⏹ ปิดโดยผู้ใช้" : r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
     r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
   u.bubble.element.innerHTML = `<b>${esc(name)}</b> · ${esc(what)}`;
   u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : r.mode === "off" ? "off" : "");
@@ -541,6 +547,25 @@ function labelRobot(r) {
   u.plate.element.className = "plate";
   u.plate.element.innerHTML = `<b>${esc(name)}</b>` + (today ? ` <span class="m ${today > 0 ? "up" : "down"}">${money(today)}</span>` : "");
 }
+
+// ปุ่มสั่งบอททีละตัว: กดครั้งแรก = ขอยืนยัน (4 วิ) · กดซ้ำ = ทำจริง
+async function botAction(btn, bot, action) {
+  if (btn.dataset.armed !== "1") {
+    btn.dataset.armed = "1"; btn.dataset.label = btn.textContent; btn.textContent = "กดอีกครั้งเพื่อยืนยัน"; btn.classList.add("armed");
+    setTimeout(() => { if (btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = btn.dataset.label; btn.classList.remove("armed"); } }, 4000);
+    return;
+  }
+  btn.dataset.armed = ""; btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "กำลังทำ…";
+  try {
+    const r = await (await fetch("/api/bot", { method: "POST", headers: { "Content-Type": "application/json", "X-Bot-Settings": "1" },
+                                            body: JSON.stringify({ bot, action }) })).json();
+    if (!r.ok) throw new Error(r.error);
+    const closed = (r.closed || []), bad = closed.filter(c => !c.ok);
+    ctlNote(`${r.message}${closed.length ? ` · ปิด ${closed.length - bad.length}/${closed.length} ไม้` : ""}${bad.length ? " ⚠️ " + bad.map(c => c.message).join(", ") : ""}`, !bad.length);
+  } catch (e) { ctlNote("ทำไม่สำเร็จ: " + e.message, false); }
+  delete btn.dataset.busy; btn.disabled = false; btn.textContent = btn.dataset.label; btn.classList.remove("armed");
+}
+function ctlNote(text, ok) { const n = $("ctlNote"); if (n) n.innerHTML = `<span class="${ok ? "up" : "down"}">${esc(text)}</span>`; toast((ok ? "✅ " : "⚠️ ") + text); refresh(); }
 function toast(text) {
   const el = document.createElement("div"); el.className = "chip"; el.textContent = text;
   $("feed").prepend(el); while ($("feed").children.length > 5) $("feed").lastChild.remove();
@@ -588,6 +613,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   if (o) { cardFor = o.userData.name; showCard(cardFor, e.clientX, e.clientY); } else hideCard();
 });
 $("cardx").onclick = hideCard;
+$("card").addEventListener("click", (e) => { const b = e.target.closest(".ctl button"); if (b && cardFor) botAction(b, cardFor, b.dataset.act); });
 function hideCard() { cardFor = null; $("card").style.display = "none"; }
 function showCard(name, cx, cy) {
   const r = robots.find(x => x.name === name); if (!r) return;
@@ -600,7 +626,11 @@ function showCard(name, cx, cy) {
     <div><span class="k">วันนี้</span> <b class="${today >= 0 ? "up" : "down"}">${money(today)}</b> · <span class="k">รวม</span> ${money(pb.total || 0)} · ${pb.trades || 0} ไม้ ${pb.win_rate == null ? "" : "· ชนะ " + pb.win_rate + "%"}</div>
     ${res ? `<div><span class="k">งานวิจัยคาด</span> ${money(res.wf_usd_day)}/วัน · <span class="k">วิธีออก</span> ${esc(res.plan)}</div>
     <div class="k" style="font-size:.85em">${esc(JSON.stringify(res.params))}</div>` : ""}
-    ${r.hb?.target_hit ? "<div>🎯 ถึงเป้า +$120 วันนี้แล้ว — พักถึงวันใหม่</div>" : ""}`;
+    ${r.hb?.target_hit ? "<div>🎯 ถึงเป้า +$120 วันนี้แล้ว — พักถึงวันใหม่</div>" : ""}
+    ${name === "main" ? '<div class="k" style="margin-top:.6em">main สั่งจากหน้านี้ไม่ได้ (ทดสอบไปข้างหน้า ไม่แตะ)</div>' : (D?.disabled || []).includes(name)
+      ? `<div class="ctl"><button data-act="enable">▶ เปิดบอท</button></div>`
+      : `<div class="ctl"><button data-act="disable">⏹ ปิดบอท</button><button data-act="close" ${pos.length ? "" : "disabled"}>✋ ปิดไม้ตอนนี้${pos.length ? " (" + pos.length + ")" : ""}</button></div>`}
+    <div id="ctlNote"></div>`;
   const c = $("card"); c.style.display = "block";
   if (cx != null) { c.style.left = Math.min(cx + 16, innerWidth - c.offsetWidth - 16) + "px"; c.style.top = Math.max(16, Math.min(cy - c.offsetHeight / 2, innerHeight - c.offsetHeight - 16)) + "px"; }
 }
