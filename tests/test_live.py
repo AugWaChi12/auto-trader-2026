@@ -4,6 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace as NS
 
+import json
+
 import pytest
 
 from bot import config as C
@@ -233,3 +235,19 @@ def test_monitor_bot_action_only_for_test_bots_and_disable_closes(tmp_path: Path
     assert settings.load()["disabled_bots"] == ["m5_2"] and calls == [("stop", "m5_2"), ("close", "m5_2")]
     server.bot_action(col, {"bot": "m5_2", "action": "enable"})
     assert settings.load()["disabled_bots"] == [] and calls[-1] == ("start", "m5_2")
+
+
+def test_stream_config_validates_and_never_exposes_key(tmp_path: Path, monkeypatch) -> None:
+    from bot.monitor import stream
+    monkeypatch.setattr(stream, "CFG_PATH", tmp_path / "stream.json")
+    with pytest.raises(ValueError):
+        stream.save_cfg({"server": "http://evil.example/x", "key": "abc"})
+    with pytest.raises(ValueError):
+        stream.save_cfg({"server": "rtmp://a/b", "key": "has space"})
+    stream.save_cfg({"server": "rtmp://push.example/live", "key": "SECRET1", "orientation": "portrait", "quality": "720p"})
+    stream.save_cfg({"server": "rtmp://push.example/live", "key": ""})          # key ว่าง = คงค่าเดิม
+    assert stream.load_cfg()["key"] == "SECRET1"
+    st = stream.Streamer().status() if hasattr(stream, "Streamer") else {}
+    assert "SECRET1" not in json.dumps(st) and st["has_key"] is True
+    cmd = stream.build_cmd(stream.load_cfg(), (0, 0, 540, 960), "out.flv")
+    assert "anullsrc" in " ".join(cmd) and "720:1280" in " ".join(cmd)

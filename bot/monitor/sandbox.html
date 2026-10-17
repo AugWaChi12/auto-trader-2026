@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="th">
+<html lang="th" translate="no">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
 <title>Bot Village</title>
 <style>
   :root { --ink: #1d2433; --paper: #fffdf6; --up: #1fae5d; --down: #ec4d44; --muted: #6b7489; }
@@ -56,6 +57,21 @@
   .ctl button:disabled { opacity: .45; cursor: default; }
   #ctlNote { margin-top: .5em; font-weight: 650; font-size: .9em; }
   .card .x { position: absolute; right: .7em; top: .4em; cursor: pointer; font-weight: 800; font-size: 1.2em; }
+  /* โหมดไลฟ์ (?stream=1) — สำหรับ TikTok LIVE Studio จับภาพหน้าต่างนี้ */
+  html.stream, html.stream * { cursor: none !important; }
+  html.stream .help, html.stream .navl, html.stream #feed .chip:nth-child(n+4) { display: none; }
+  .disclaimer { display: none; position: fixed; left: 50%; bottom: 1.4vh; transform: translateX(-50%); z-index: 4; pointer-events: none;
+                background: rgba(29, 36, 51, .82); color: #fff; padding: .35em 1em; border-radius: 999px; font-weight: 700; font-size: .85em; white-space: nowrap; }
+  html.stream .disclaimer { display: block; }
+  /* จอแนวตั้ง (มือถือ / TikTok 9:16) */
+  html.portrait body { font-size: clamp(11px, 2.6vw, 18px); }
+  html.portrait .hud { flex-wrap: wrap; gap: 1.2vw; }
+  html.portrait .hud .spacer { display: none; }
+  html.portrait .hud .title { font-size: 1.15em; }
+  html.portrait .legend { top: auto; bottom: 5.5vh; max-width: 96vw; }
+  html.portrait .legend .chip:not(.trading) { display: none; }
+  html.portrait .feed { top: auto; bottom: 10vh; right: 2vw; left: 2vw; width: auto; align-items: center; }
+  html.portrait .bubble.hot { max-width: 46vw; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 1.4em; font-weight: 700; z-index: 2; }
 </style>
 <script type="importmap">
@@ -91,6 +107,7 @@
   <span class="chip">📦 ออเดอร์ → 🛡️ กันซ้ำ → ⚖️ ความเสี่ยง → 📏 ขนาดไม้ → 🏦 MT5</span>
 </div>
 <div class="feed" id="feed"></div>
+<div class="disclaimer">🤖 บอทเทรดอัตโนมัติ · บัญชี DEMO เงินทดลอง · ไม่ใช่คำแนะนำการลงทุน</div>
 <div class="help">ลากเพื่อหมุนกล้อง · ล้อเมาส์ซูม · คลิกหุ่นยนต์ดูรายละเอียด · ภูเขา = ราคา BTC 3 ชม. ล่าสุด</div>
 <div class="card" id="card"><span class="x" id="cardx">×</span><div id="cardbody"></div></div>
 
@@ -142,10 +159,20 @@ function setSpin(on) {
 $("spinBtn").onclick = () => setSpin(!spin);
 setSpin(spin);
 
+const STREAM = new URLSearchParams(location.search).has("stream");
+if (STREAM) document.documentElement.classList.add("stream");
 function resize() {
-  const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h); labels.setSize(w, h); camera.aspect = w / h;
-  camera.fov = w / h < 1.5 ? 46 : 38; camera.updateProjectionMatrix();
+  const w = innerWidth, h = innerHeight, a = w / h, portrait = a < .9;
+  renderer.setSize(w, h); labels.setSize(w, h); camera.aspect = a;
+  document.documentElement.classList.toggle("portrait", portrait);
+  // แนวตั้ง: มุมกว้างขึ้น + กล้องถอยให้เห็นทั้งลาน โซนเทรด และ MT5 ในจอแคบ
+  camera.fov = portrait ? 66 : a < 1.5 ? 46 : 38;   // แนวตั้ง: มุมกว้างพอให้เห็นตั้งแต่บ้านพักถึงโซนเทรด
+  if (portrait !== resize.portrait) {
+    resize.portrait = portrait;
+    if (portrait) { camera.position.set(24, 22, 26); controls.target.set(-3, 0, 0); }   // ถ่ายเฉียงจากมุมโซนเทรด → หมู่บ้านทอดยาวตามแนวลึก พอดีจอตั้ง
+    else { camera.position.set(1, 11, 30); controls.target.set(-1, 2.6, 1.5); }
+  }
+  camera.updateProjectionMatrix();
 }
 addEventListener("resize", resize); resize();
 

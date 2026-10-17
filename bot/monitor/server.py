@@ -30,7 +30,7 @@ log = logging.getLogger("monitor")
 HERE = Path(__file__).parent
 PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html",
          "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html", "/live": HERE / "live.html",
-         "/sandbox": HERE / "sandbox.html", "/settings": HERE / "settings.html"}
+         "/sandbox": HERE / "sandbox.html", "/settings": HERE / "settings.html", "/stream": HERE / "stream.html"}
 TECHNIQUES = C.ROOT / "research" / "techniques.json"
 RADAR_STATS = C.ROOT / "research" / "out" / "radar_stats.json"
 TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
@@ -362,6 +362,22 @@ def bot_action(col: "Collector", body: dict) -> dict:
     return {"ok": True, "closed": col.close_bot_positions(name), "message": f"ปิดไม้ของ {name} แล้ว"}
 
 
+def stream_action(body: dict) -> dict:
+    """หน้า /stream: save = บันทึก URL/key · start = ▶ Play · stop = ⏹ Stop"""
+    from . import stream
+    if stream.STREAMER is None:
+        raise ValueError("ไลฟ์ได้เฉพาะบน Windows")
+    action = body.get("action")
+    if action == "save":
+        stream.save_cfg(body)
+        return {"ok": True, **stream.STREAMER.status()}
+    if action == "start":
+        return {"ok": True, **stream.STREAMER.start()}
+    if action == "stop":
+        return {"ok": True, **stream.STREAMER.stop()}
+    raise ValueError("คำสั่งไม่ถูกต้อง")
+
+
 def restart_test_bots() -> None:
     """รัน restart_bots.ps1 แบบไม่รอ (ใช้เวลาราว 10–30 วิ) — บอทอ่านค่าใหม่ตอนเริ่ม"""
     import subprocess
@@ -390,6 +406,10 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 n = max(20, min(int(q.get("n", ["150"])[0]), 500))
                 d = col.bars(q.get("symbol", ["XAUUSD"])[0], q.get("tf", ["M5"])[0], n)
                 self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/stream":
+                from .stream import STREAMER
+                d = STREAMER.status() if STREAMER else {"error": "ไลฟ์ได้เฉพาะบน Windows"}
+                self._send(json.dumps(d, ensure_ascii=False).encode(), "application/json")
             elif url.path == "/api/settings":
                 self._send(json.dumps(settings_payload(), ensure_ascii=False).encode(), "application/json")
             elif url.path in PAGES:
@@ -401,7 +421,7 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
             """บันทึกค่าตั้ง + รีสตาร์ทบอททดสอบ — ช่องเดียวที่หน้าเว็บเขียนได้ (main ไม่ถูกแตะ)
             กันเว็บอื่นยิงมาทางเบราว์เซอร์ (CSRF): ต้องเป็น JSON + header เฉพาะ → เบราว์เซอร์ต้อง preflight ซึ่งเราไม่ตอบรับ"""
             path = urlparse(self.path).path
-            if path not in ("/api/settings", "/api/bot"):
+            if path not in ("/api/settings", "/api/bot", "/api/stream"):
                 self.send_error(404)
                 return
             if self.headers.get("X-Bot-Settings") != "1" or "application/json" not in (self.headers.get("Content-Type") or ""):
@@ -412,11 +432,13 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 body = json.loads(self.rfile.read(n) or b"{}")
                 if path == "/api/bot":
                     res = bot_action(col, body if isinstance(body, dict) else {})
+                elif path == "/api/stream":
+                    res = stream_action(body if isinstance(body, dict) else {})
                 else:
                     current = _settings.load()          # หน้าตั้งค่าไม่ได้ส่งรายชื่อบอทที่ปิด → คงค่าเดิมไว้
                     res = {"ok": True, "saved": _settings.save({"disabled_bots": current["disabled_bots"], **body})}
                     restart_test_bots()
-            except (ValueError, TypeError, ConnectionError) as e:
+            except (ValueError, TypeError, ConnectionError, RuntimeError, OSError) as e:
                 res = {"ok": False, "error": str(e)}
             self._send(json.dumps(res, ensure_ascii=False, default=str).encode(), "application/json")
 

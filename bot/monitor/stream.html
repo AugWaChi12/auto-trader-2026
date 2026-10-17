@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="th" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
+<title>Bot Live Stream</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1d2129; --muted: #6b7280; --line: #e5e7eb;
+    --up: #0f9d58; --down: #d93025; --accent: #b8860b; --warn: #e8a100; --chip: #eef0f3; --live: #fe2c55;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #181b21; --text: #e6e8eb; --muted: #8b93a1; --line: #262a33;
+            --up: #34c77b; --down: #ff6b5e; --accent: #e0b04b; --warn: #f2b632; --chip: #222630; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card);
+           position: sticky; top: 0; z-index: 2; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; } header h1 span { color: var(--live); }
+  .chip { background: var(--chip); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; white-space: nowrap; color: var(--accent); text-decoration: none; }
+  .chip.on { background: var(--live); color: #fff; }
+  main { max-width: 900px; margin: 0 auto; padding: 18px 16px 40px; display: grid; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 6px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .live { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .big { border: 0; border-radius: 14px; padding: 16px 34px; font: inherit; font-size: 20px; font-weight: 800; cursor: pointer; color: #fff; }
+  .big.play { background: var(--live); } .big.stop { background: #1d2129; }
+  @media (prefers-color-scheme: dark) { .big.stop { background: #3a4050; } }
+  .big:disabled { opacity: .5; cursor: default; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-weight: 750; font-size: 16px; }
+  .pill i { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
+  .pill.on i { background: var(--live); animation: pulse 1.2s infinite; } .pill.on { color: var(--live); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .stats { font-family: Consolas, monospace; font-size: 12.5px; color: var(--muted); }
+  .row { display: grid; grid-template-columns: 170px 1fr; gap: 10px 18px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: 0; }
+  .row label { font-weight: 650; }
+  input[type=text], input[type=password] { width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+  .seg { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button { border: 0; background: transparent; color: var(--text); padding: 6px 14px; border-radius: 8px; font: inherit; font-weight: 650; cursor: pointer; }
+  .seg button.on { background: var(--text); color: var(--card); }
+  .btn { border: 0; border-radius: 10px; padding: 9px 20px; font: inherit; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; }
+  .msg { font-weight: 650; min-height: 1.4em; }
+  .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+  .warn { border-left: 4px solid var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+  ol { margin: 6px 0 0; padding-left: 20px; } li { margin: 3px 0; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; max-height: 180px; overflow: auto; white-space: pre-wrap; margin: 8px 0 0; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>📡 ไลฟ์ <span>หมู่บ้านบอท</span></h1>
+  <nav style="display:flex;gap:6px;flex-wrap:wrap">
+    <a class="chip" href="/">🏠 ภาพรวม</a><a class="chip" href="/live">📺 Live</a><a class="chip" href="/sandbox">🤖 หมู่บ้านบอท</a>
+    <a class="chip" href="/settings">⚙️ ตั้งค่า</a><a class="chip on" href="/stream">📡 ไลฟ์</a>
+  </nav>
+</header>
+<main>
+  <section class="card">
+    <div class="live">
+      <button class="big play" id="play">▶ Play</button>
+      <button class="big stop" id="stop" style="display:none">⏹ Stop</button>
+      <div>
+        <div class="pill" id="pill"><i></i><span id="pillText">ไม่ได้ไลฟ์</span></div>
+        <div class="stats" id="stats"></div>
+      </div>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div class="warn">กด Play แล้วระบบจะเปิดหน้าต่าง <b>Bot Village</b> ไว้มุมซ้ายบนให้<b>อยู่บนสุดเสมอ</b> แล้วส่งภาพตรงนั้นขึ้นไลฟ์ —
+      <b>อะไรที่ลอยทับหน้าต่างนี้จะติดไปในไลฟ์ด้วย</b> (ย่อ/ปิดหน้าต่างนี้ = ภาพหาย) · กด Stop แล้วหน้าต่างเลิกอยู่บนสุด</div>
+  </section>
+
+  <section class="card">
+    <h2>ตั้งค่าไลฟ์</h2>
+    <p class="hint">Stream Key = รหัสผ่านไลฟ์ของคุณ — เก็บในเครื่องนี้เท่านั้น (state/stream.json) ไม่แสดงกลับบนหน้าเว็บ และถูกลบออกจาก log</p>
+    <div class="row"><label>Server URL</label><input type="text" id="server" placeholder="rtmp://…  (จาก TikTok)" autocomplete="off" spellcheck="false"></div>
+    <div class="row"><label>Stream Key</label><input type="password" id="key" placeholder="วาง Stream Key" autocomplete="new-password" spellcheck="false"></div>
+    <div class="row"><label>แนวจอ</label><div class="seg" id="orient"><button data-v="portrait">📱 แนวตั้ง 9:16 (มือถือ)</button><button data-v="landscape">🖥️ แนวนอน 16:9</button></div></div>
+    <div class="row"><label>คุณภาพ</label><div class="seg" id="quality"><button data-v="720p">720p · 3 Mbps</button><button data-v="1080p">1080p · 6 Mbps</button></div></div>
+    <div style="display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:10px"><span class="msg" id="saveMsg"></span><button class="btn" id="save">💾 บันทึก</button></div>
+  </section>
+
+  <section class="card">
+    <h2>เอา Server URL + Stream Key จาก TikTok</h2>
+    <ol>
+      <li>บัญชีต้องมีสิทธิ์ไลฟ์ผ่านโปรแกรมภายนอก (TikTok กำหนดเกณฑ์เอง ถ้าไม่มีเมนู Stream Key = ยังไม่ได้สิทธิ์)</li>
+      <li>บนคอม เปิด <b>tiktok.com</b> → เมนู <b>LIVE</b> / <b>LIVE Producer</b> → ตั้งชื่อไลฟ์ + หมวด → จะได้ <b>Server URL</b> กับ <b>Stream Key</b></li>
+      <li>คัดลอกมาวางด้านบน → 💾 บันทึก → กด <b>▶ Play</b> → กลับไปหน้า TikTok เห็นภาพตัวอย่างแล้วกด <b>Go LIVE</b> (ถ้ามีปุ่ม)</li>
+      <li>บางบัญชี Stream Key เปลี่ยนทุกครั้งที่สร้างไลฟ์ใหม่ → วาง key ใหม่ทุกรอบ</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>log ของตัวส่งภาพ (ffmpeg)</h2>
+    <pre id="log" class="muted">–</pre>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let st = null, picked = { orientation: "portrait", quality: "720p" }, loadedForm = false;
+async function post(body) {
+  const r = await (await fetch("/api/stream", { method: "POST", headers: { "Content-Type": "application/json", "X-Bot-Settings": "1" }, body: JSON.stringify(body) })).json();
+  if (!r.ok) throw new Error(r.error || "ไม่สำเร็จ");
+  return r;
+}
+function hms(sec) { sec = Math.max(0, Math.floor(sec)); return [sec / 3600 | 0, (sec % 3600) / 60 | 0, sec % 60].map(v => String(v).padStart(2, "0")).join(":"); }
+function render() {
+  if (!st) return;
+  if (!loadedForm) { $("server").value = st.server || ""; picked = { orientation: st.orientation, quality: st.quality }; loadedForm = true; }
+  $("key").placeholder = st.has_key ? "ตั้งไว้แล้ว •••••••• (วางใหม่ถ้าจะเปลี่ยน)" : "วาง Stream Key";
+  for (const g of ["orient", "quality"]) for (const b of $(g).children) b.classList.toggle("on", b.dataset.v === picked[g === "orient" ? "orientation" : "quality"]);
+  $("play").style.display = st.running ? "none" : ""; $("stop").style.display = st.running ? "" : "none";
+  $("pill").className = "pill" + (st.running ? " on" : "");
+  $("pillText").textContent = st.running ? `LIVE · ส่งภาพอยู่ ${hms(Date.now() / 1000 - st.since)}` : "ไม่ได้ไลฟ์";
+  $("stats").textContent = st.running ? (st.stats || "กำลังเชื่อมต่อ…") : "";
+  if (st.error) $("msg").innerHTML = `<span class="down">⚠️ ${esc(st.error)}</span>`;
+  $("log").textContent = (st.log || []).join("\n") || "–";
+}
+async function poll() { try { st = await (await fetch("/api/stream", { cache: "no-store" })).json(); render(); } catch {} }
+for (const g of ["orient", "quality"]) $(g).addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; picked[g === "orient" ? "orientation" : "quality"] = b.dataset.v; render(); });
+$("save").onclick = async () => {
+  try {
+    st = await post({ action: "save", server: $("server").value, key: $("key").value, ...picked });
+    $("key").value = ""; $("saveMsg").innerHTML = '<span class="up">✓ บันทึกแล้ว</span>'; render();
+  } catch (e) { $("saveMsg").innerHTML = `<span class="down">${esc(e.message)}</span>`; }
+};
+$("play").onclick = async () => {
+  $("play").disabled = true; $("msg").innerHTML = '<span class="muted">กำลังเปิดหน้าต่างและเริ่มส่งภาพ… (~10 วิ)</span>';
+  try { st = await post({ action: "start" }); $("msg").innerHTML = '<span class="up">▶ เริ่มส่งภาพแล้ว — ไปหน้า TikTok ดูภาพตัวอย่าง แล้วกด Go LIVE</span>'; render(); }
+  catch (e) { $("msg").innerHTML = `<span class="down">⚠️ ${esc(e.message)}</span>`; }
+  $("play").disabled = false;
+};
+$("stop").onclick = async () => {
+  try { st = await post({ action: "stop" }); $("msg").innerHTML = '<span class="muted">⏹ หยุดส่งภาพแล้ว</span>'; render(); }
+  catch (e) { $("msg").innerHTML = `<span class="down">⚠️ ${esc(e.message)}</span>`; }
+};
+poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>
