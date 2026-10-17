@@ -48,7 +48,7 @@ ASSIGN = ROOT / "bot" / "m5_bots.json"
 LOTS = {"XAUUSD": 0.04, "NAS100": 0.73, "BTCUSD": 0.17}
 TARGET = 120.0
 N_BOTS = 9
-MIN_SLOTS = {"BTCUSD": 3}       # จำนวนบอทขั้นต่ำต่อตลาด (ตามคำขอผู้ใช้)
+BOT_MARKETS = {"BTCUSD"}        # ตลาดที่บอททดสอบเล่น (ตามคำขอผู้ใช้ 2026-10-17) — วิจัยทุกตลาดเหมือนเดิม
 TRAIN_M, TEST_M, HOLDOUT_M = 6, 2, 2
 MIN_TRAIN_TRADES = 40
 
@@ -263,11 +263,10 @@ def _md(df: pd.DataFrame) -> str:
 
 def write_assignments(meta: dict, slots: list[dict]) -> None:
     bots = []
-    ok = [z for z in slots if z["live"] and z["wf"]["n"] > 0]          # เรียงตามผล walk-forward แล้ว
-    # ผู้ใช้ขอเล่น BTC (2026-10-17): จองช่อง BTC ที่ดีที่สุดตาม walk-forward ไว้ก่อน แม้ผลจะติดลบ
-    reserved = [z for s, k in MIN_SLOTS.items() for z in [z for z in ok if z["symbol"] == s][:k]]
-    rest = [z for z in ok if z not in reserved][:N_BOTS - len(reserved)]
-    for z in [z for z in ok if z in reserved or z in rest]:
+    # ผู้ใช้ขอให้บอททดสอบเล่น BTC ทั้งหมด (2026-10-17) → เลือกเฉพาะช่องของตลาดใน BOT_MARKETS
+    # เรียง: ช่องที่มีไม้ใน walk-forward ก่อน (ตามผล) แล้วค่อยช่องที่มีชุดพารามิเตอร์ปัจจุบันแต่ยังไม่มีผล walk-forward
+    cand = [z for z in slots if z["live"] and z["symbol"] in BOT_MARKETS]
+    for z in sorted(cand, key=lambda z: z["wf"]["n"] == 0)[:N_BOTS]:
         bots.append({"bot": f"m5_{len(bots) + 1}", "family": z["family"], "symbol": z["symbol"], "lot": LOTS[z["symbol"]],
                      "params": z["live"]["params"], "plan": z["live"]["plan"],
                      "wf_usd_day": z["wf"]["usd_day"], "holdout_usd_day": z["holdout"]["usd_day"],

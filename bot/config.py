@@ -114,7 +114,7 @@ LIVE_INSTANCES: dict[str, dict] = {
     "main":    {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
     # บอท M5 วิจัยตัวเอง 9 ตัว: งานของแต่ละตัวอยู่ใน bot/m5_bots.json (เขียนโดย research/m5_lab.py --assign)
     **{f"m5_{i}": {"strategies": [f"m5_{i}"], "tf": "M5", "profile": "m5_fixed", "magic": MAGIC + 20 + i,
-                   "allocation": 1000.0, "warmup": 6000} for i in range(1, 10)},
+                   "allocation": 1000.0, "warmup": 30000} for i in range(1, 10)},   # ตัวแยกสภาวะตลาด (H1) ต้องใช้ ~100 วัน
 }
 
 

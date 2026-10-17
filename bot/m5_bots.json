@@ -1,5 +1,5 @@
 {
- "generated": "2026-10-17T05:54:12.491404+00:00",
+ "generated": "2026-10-17T07:25:34.100207+00:00",
  "meta": {
   "tf": "M5",
   "lots": {
@@ -45,84 +45,6 @@
  "bots": [
   {
    "bot": "m5_1",
-   "family": "donchian",
-   "symbol": "XAUUSD",
-   "lot": 0.04,
-   "params": {
-    "entry_n": 12,
-    "stop_atr": 1.0
-   },
-   "plan": "native",
-   "wf_usd_day": 13.6,
-   "holdout_usd_day": -26.99,
-   "random_usd_day": -6.42
-  },
-  {
-   "bot": "m5_2",
-   "family": "momo",
-   "symbol": "XAUUSD",
-   "lot": 0.04,
-   "params": {
-    "entry_time": "11:00",
-    "min_move_adr": 0.35,
-    "sl_adr": 0.5
-   },
-   "plan": "trail",
-   "wf_usd_day": 8.87,
-   "holdout_usd_day": 25.98,
-   "random_usd_day": -0.03
-  },
-  {
-   "bot": "m5_3",
-   "family": "ema",
-   "symbol": "XAUUSD",
-   "lot": 0.04,
-   "params": {
-    "fast": 9,
-    "slow": 21,
-    "sl_atr": 1.5,
-    "tp_r": 4.0,
-    "max_hold": 96
-   },
-   "plan": "native",
-   "wf_usd_day": 8.56,
-   "holdout_usd_day": 15.69,
-   "random_usd_day": -3.38
-  },
-  {
-   "bot": "m5_4",
-   "family": "ema",
-   "symbol": "NAS100",
-   "lot": 0.73,
-   "params": {
-    "fast": 20,
-    "slow": 50,
-    "sl_atr": 3.0,
-    "tp_r": 1.0,
-    "max_hold": 96
-   },
-   "plan": "native",
-   "wf_usd_day": 3.53,
-   "holdout_usd_day": -3.28,
-   "random_usd_day": -9.02
-  },
-  {
-   "bot": "m5_5",
-   "family": "momo",
-   "symbol": "NAS100",
-   "lot": 0.73,
-   "params": {
-    "entry_time": "12:00",
-    "min_move_adr": 0.35,
-    "sl_adr": 0.3
-   },
-   "plan": "native",
-   "wf_usd_day": 0.18,
-   "holdout_usd_day": -4.85,
-   "random_usd_day": 0.44
-  },
-  {
-   "bot": "m5_6",
    "family": "levels",
    "symbol": "BTCUSD",
    "lot": 0.17,
@@ -137,22 +59,7 @@
    "random_usd_day": 0.06
   },
   {
-   "bot": "m5_7",
-   "family": "orb",
-   "symbol": "XAUUSD",
-   "lot": 0.04,
-   "params": {
-    "sl_mode": "opposite",
-    "tp_r": 1.0,
-    "buffer_adr": 0.0
-   },
-   "plan": "trail",
-   "wf_usd_day": -0.69,
-   "holdout_usd_day": 19.23,
-   "random_usd_day": null
-  },
-  {
-   "bot": "m5_8",
+   "bot": "m5_2",
    "family": "momo",
    "symbol": "BTCUSD",
    "lot": 0.17,
@@ -167,7 +74,7 @@
    "random_usd_day": -2.73
   },
   {
-   "bot": "m5_9",
+   "bot": "m5_3",
    "family": "pullback",
    "symbol": "BTCUSD",
    "lot": 0.17,
@@ -182,6 +89,100 @@
    "wf_usd_day": -3.54,
    "holdout_usd_day": 4.12,
    "random_usd_day": null
+  },
+  {
+   "bot": "m5_4",
+   "family": "bb",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
+   "params": {
+    "k": 2.5,
+    "sl_atr": 1.0,
+    "tp_r": null,
+    "max_hold": 12
+   },
+   "plan": "ratchet",
+   "wf_usd_day": -6.15,
+   "holdout_usd_day": -4.91,
+   "random_usd_day": -1.1
+  },
+  {
+   "bot": "m5_5",
+   "family": "donchian",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
+   "params": {
+    "entry_n": 192,
+    "stop_atr": 4.0
+   },
+   "plan": "native",
+   "wf_usd_day": -9.22,
+   "holdout_usd_day": -64.6,
+   "random_usd_day": -10.57
+  },
+  {
+   "bot": "m5_6",
+   "family": "orb",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
+   "params": {
+    "sl_mode": "opposite",
+    "tp_r": null,
+    "buffer_adr": 0.0
+   },
+   "plan": "ratchet",
+   "wf_usd_day": -9.61,
+   "holdout_usd_day": 8.28,
+   "random_usd_day": null
+  },
+  {
+   "bot": "m5_7",
+   "family": "ema",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
+   "params": {
+    "fast": 20,
+    "slow": 50,
+    "sl_atr": 1.5,
+    "tp_r": 3.0,
+    "max_hold": 24
+   },
+   "plan": "native",
+   "wf_usd_day": -16.96,
+   "holdout_usd_day": -5.67,
+   "random_usd_day": -32.63
+  },
+  {
+   "bot": "m5_8",
+   "family": "rsi2",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
+   "params": {
+    "rsi_th": 10.0,
+    "sl_atr": 3.0,
+    "max_hold": 48,
+    "tp_r": null
+   },
+   "plan": "ratchet",
+   "wf_usd_day": -24.26,
+   "holdout_usd_day": -12.87,
+   "random_usd_day": -20.23
+  },
+  {
+   "bot": "m5_9",
+   "family": "volx",
+   "symbol": "BTCUSD",
+   "lot": 0.17,
+   "params": {
+    "box_n": 48,
+    "sl_atr": 2.0,
+    "tp_r": 1.5,
+    "max_hold_h": 24
+   },
+   "plan": "native",
+   "wf_usd_day": 0.0,
+   "holdout_usd_day": 3.4,
+   "random_usd_day": 0.0
   }
  ]
 }

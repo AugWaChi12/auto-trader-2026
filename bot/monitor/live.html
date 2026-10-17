@@ -106,7 +106,7 @@
 
   <div class="mid">
     <div class="left">
-      <div class="card"><h3><span>XAUUSD · M1</span><span class="num" id="px">–</span></h3><canvas id="chart"></canvas></div>
+      <div class="card"><h3><span>BTCUSD · M1</span><span class="num" id="px">–</span></h3><canvas id="chart"></canvas></div>
       <div class="card"><h3><span>🎯 บอทหลัก — xau_momo</span><span id="mainState" class="muted"></span></h3><div id="mainbot" class="mainbot"></div></div>
     </div>
     <div class="right">
@@ -134,6 +134,8 @@ const START = 1000;   // ทุนเริ่มต้นบัญชี demo
 setInterval(() => { $("clock").textContent = new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date()); }, 1000);
 
 let chartData = null;
+const CHART_SYM = "BTCUSD";                       // บอททดสอบทั้ง 9 ตัวเล่น BTC (2026-10-17) · main ทองอยู่การ์ดของตัวเอง
+const SYM = { XAUUSD: "ทอง", NAS100: "NAS", BTCUSD: "BTC" };
 function drawChart() {
   const cv = $("chart"), d = chartData, dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight;
@@ -143,7 +145,8 @@ function drawChart() {
   if (!d || !d.bars?.length) return;
   const bars = d.bars.map(b => ({ t: Date.parse(b[0]), o: b[1], h: b[2], l: b[3], c: b[4] }));
   let lo = Math.min(...bars.map(b => b.l)), hi = Math.max(...bars.map(b => b.h));
-  for (const o of d.open) for (const v of [o.open_price, o.sl, o.tp]) if (v && v > lo - (hi - lo) * .4 && v < hi + (hi - lo) * .4) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const mine = d.open.filter(o => o.symbol === CHART_SYM);
+  for (const o of mine) for (const v of [o.open_price, o.sl, o.tp]) if (v && v > lo - (hi - lo) * .4 && v < hi + (hi - lo) * .4) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
   const pad = (hi - lo) * .06 || 1; lo -= pad; hi += pad;
   const fs = Math.max(10, Math.min(H / 24, 15));
   g.font = `bold ${fs}px Segoe UI, sans-serif`;
@@ -162,7 +165,7 @@ function drawChart() {
     g.strokeStyle = col; g.setLineDash(dash); g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke();
     g.setLineDash([]); g.lineWidth = 1; if (label) { g.fillStyle = col; g.fillText(label, 6, y - 4); }
   };
-  for (const o of d.open) { line(o.open_price, css("--entry"), [], `${o.side} [${o.bot}] ${money(o.profit)}`); line(o.sl, css("--down"), [5, 4], ""); line(o.tp, css("--up"), [5, 4], ""); }
+  for (const o of mine) { line(o.open_price, css("--entry"), [], `${o.side} [${o.bot}] ${money(o.profit)}`); line(o.sl, css("--down"), [5, 4], ""); line(o.tp, css("--up"), [5, 4], ""); }
   if (d.bid) { const y = clampY(Y(d.bid) + fs * .35) - fs * .35; g.fillStyle = css("--gold"); g.fillRect(plotW + 2, y - fs * .8, R - 2, fs * 1.6);
     g.fillStyle = css("--bg"); g.font = `bold ${fs}px Segoe UI`; g.fillText(d.bid.toFixed(2), plotW + 8, y + fs * .35); }
 }
@@ -214,7 +217,7 @@ function vs(d) {
   $("vs").innerHTML = names.slice(0, 9).map(n => {
     const r = R[n], s = pb[n] || {}, today = (s.today || 0) + (s.floating || 0), hit = d.bots?.[n]?.target_hit;
     const w = Math.max(0, Math.min(today / 120, 1)) * 100;
-    return `<span title="${esc(r.family)} ${esc(JSON.stringify(r.params))} · ${esc(r.plan)}">${esc(n)} <span class="muted">${LBL[r.family] || esc(r.family)}·${r.symbol === "XAUUSD" ? "ทอง" : "NAS"}</span></span>
+    return `<span title="${esc(r.family)} ${esc(JSON.stringify(r.params))} · ${esc(r.plan)}">${esc(n)} <span class="muted">${LBL[r.family] || esc(r.family)}·${SYM[r.symbol] || esc(r.symbol)}</span></span>
       <div class="bar"><i style="left:0;width:${w}%;background:${hit ? "var(--gold)" : "var(--up)"}"></i></div>
       <b class="num ${cls(today)}">${hit ? "🎯 " : ""}${money(today)}</b><span class="num muted">${money(r.wf_usd_day)}</span>`;
   }).join("");
@@ -239,7 +242,7 @@ function openPositions(d) {
       <thead><tr><th>บอท</th><th>ทิศ · lot</th><th class="r">เข้า → ตอนนี้</th><th class="r">ถือมา</th><th class="r">ลอย</th></tr></thead>
       <tbody>${rows.map(o => `<tr title="${esc(o.bot)} · ${esc(o.tag)} · SL ${o.sl ? o.sl.toFixed(dp(o)) : "–"} · TP ${o.tp ? o.tp.toFixed(dp(o)) : "–"}">
       <td>${o.bot === "main" ? "<b>★ main</b>" : esc(o.bot)}</td>
-      <td><span class="side ${o.side}">${o.side}</span> ${o.symbol === "XAUUSD" ? "ทอง" : "NAS"} <span class="sub">${o.volume}</span></td>
+      <td><span class="side ${o.side}">${o.side}</span> ${SYM[o.symbol] || esc(o.symbol)} <span class="sub">${o.volume}</span></td>
       <td class="r num">${o.open_price.toFixed(dp(o))} → ${o.price.toFixed(dp(o))}</td>
       <td class="r held">${held(o.open_time)}</td>
       <td class="r num"><b class="${cls(o.profit)}">${money(o.profit)}</b></td></tr>`).join("")}</tbody></table>`;
@@ -278,7 +281,7 @@ async function refresh() {
 }
 
 async function refreshChart() {
-  try { chartData = await (await fetch("/api/bars?symbol=XAUUSD&tf=M1&n=110", { cache: "no-store" })).json(); } catch { return; }
+  try { chartData = await (await fetch(`/api/bars?symbol=${CHART_SYM}&tf=M1&n=110`, { cache: "no-store" })).json(); } catch { return; }
   if (chartData.bid) $("px").textContent = chartData.bid.toFixed(2);
   drawChart();
 }
