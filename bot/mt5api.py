@@ -50,7 +50,10 @@ def _dec(x):
 
 def _mt5call(name, payload):
     a = _dec(json.loads(payload))
-    return json.dumps(_enc(getattr(mt5, name)(*a["args"], **a["kwargs"])))
+    fn = getattr(mt5, name)
+    # ห้ามส่ง **{} ว่างๆ: ฟังก์ชันของ MetaTrader5 มองว่ามี keyword ปนมา → (-2 'Unnamed arguments not allowed')
+    # (เจอจริง 18 ต.ค. 2026: ทุก order_send บนเซิร์ฟเวอร์ถูกปฏิเสธด้วยเหตุนี้)
+    return json.dumps(_enc(fn(*a["args"], **a["kwargs"]) if a["kwargs"] else fn(*a["args"])))
 
 def _mt5consts():
     return json.dumps({k: getattr(mt5, k) for k in dir(mt5)
@@ -102,10 +105,6 @@ class RemoteMT5:
             raise AttributeError(name)
 
         def call(*args: Any, **kwargs: Any) -> Any:
-            if name in ("order_send", "order_check") and args and not kwargs:
-                # MetaTrader5 5.0.36 (Python ใน Wine) รับแค่ request=… — แบบไม่ระบุชื่อได้ (-2 'Unnamed arguments not allowed')
-                # เจอจริง 18 ต.ค. 2026: ทุกออเดอร์บนเซิร์ฟเวอร์ถูกปฏิเสธด้วยเหตุนี้
-                args, kwargs = (), {"request": args[0]}
             payload = json.dumps(_encode({"args": list(args), "kwargs": kwargs}))
             try:
                 if self._conn is None or self._conn.closed:

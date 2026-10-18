@@ -301,14 +301,25 @@ def test_public_view_hides_account_and_logs() -> None:
     assert v["account"]["equity"] == 700.0 and "pid" not in v["bots"]["main"] and len(v["trades"]) == 20
 
 
-def test_remote_mt5_sends_order_request_by_keyword() -> None:
-    """MetaTrader5 5.0.36 ใน Wine ปฏิเสธ order_send(dict) แบบไม่ระบุชื่อ → ต้องส่งเป็น request=…"""
+def test_remote_mt5_never_passes_empty_kwargs() -> None:
+    """MetaTrader5 ใน Wine: fn(*args, **{}) → (-2 'Unnamed arguments not allowed') · ต้องเรียก fn(*args) เมื่อไม่มี keyword"""
     from bot import mt5api
-    sent = []
-    r = mt5api.RemoteMT5.__new__(mt5api.RemoteMT5)
-    r._conn, r._addr = NS(closed=False), ("x", 1)
-    r._call = lambda name, payload: sent.append((name, json.loads(payload))) or "null"
-    r.order_send({"symbol": "BITCOIN", "volume": 0.5})
-    r.symbol_info_tick("BITCOIN")
-    assert sent[0] == ("order_send", {"args": [], "kwargs": {"request": {"symbol": "BITCOIN", "volume": 0.5}}})
-    assert sent[1][1]["args"] == ["BITCOIN"]
+    ns: dict = {}
+    calls = []
+
+    class FakeMT5:
+        @staticmethod
+        def order_send(*args, **kwargs):  # noqa: ANN205
+            calls.append(kwargs)
+            return None
+    import sys as _s
+    import types
+    mod = types.ModuleType("MetaTrader5")
+    mod.order_send = FakeMT5.order_send
+    _s.modules["MetaTrader5"] = mod
+    try:
+        exec(mt5api._REMOTE_CODE, ns)
+        ns["_mt5call"]("order_send", json.dumps({"args": [{"symbol": "BITCOIN"}], "kwargs": {}}))
+    finally:
+        del _s.modules["MetaTrader5"]
+    assert calls == [{}]

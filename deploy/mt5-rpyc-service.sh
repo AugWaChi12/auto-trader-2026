@@ -27,6 +27,21 @@ if [ "$(cat /config/.wine-booted 2>/dev/null)" != "$WV" ]; then
   $RUN wine wineboot -u </dev/null >>"$LOG" 2>&1 && echo "$WV" > /config/.wine-booted
 fi
 
+# ปัญหาที่ 7 (เจอจริง 18 ต.ค. 2026): MetaTrader5 5.0.36 ของ Python 32 บิต อ่านข้อมูลได้แต่ส่งคำสั่งเทรดให้ terminal รุ่นใหม่ไม่ได้
+#   (order_send/order_check → 10013 Invalid request ทุกครั้ง) · MetaTrader5 รุ่นใหม่มีแค่ Python 64 บิต
+#   แก้: ติดตั้ง Python 3.11 64 บิต (C:\Python311 จาก py311.exe ที่ image ทิ้งไว้) + MetaTrader5 ล่าสุด แล้วใช้ตัวนั้นรัน RPyC
+PY64="/config/.wine/drive_c/Python311"
+if [ ! -f "$PY64/Lib/site-packages/MetaTrader5/__init__.py" ] && [ -f /config/.wine/drive_c/py311.exe ]; then
+  echo "[mt5-rpyc] $(date -Is) installing 64-bit Python + MetaTrader5" >>"$LOG"
+  [ -f "$PY64/python.exe" ] || $RUN wine /config/.wine/drive_c/py311.exe /quiet InstallAllUsers=0 'TargetDir=C:\Python311' \
+      Include_launcher=0 Include_test=0 Include_doc=0 Include_tcltk=0 PrependPath=0 </dev/null >>"$LOG" 2>&1
+  $RUN wine 'C:\Python311\python.exe' -m pip install --disable-pip-version-check -q MetaTrader5 numpy "rpyc==${RPYC_VERSION:-6.0.2}" </dev/null >>"$LOG" 2>&1
+fi
+if [ -f "$PY64/Lib/site-packages/MetaTrader5/__init__.py" ]; then
+  PYDIR="$PY64"
+fi
+echo "[mt5-rpyc] $(date -Is) python: $PYDIR" >>"$LOG"
+
 if ! pgrep -f "terminal64.exe" >/dev/null; then
   echo "[mt5-rpyc] $(date -Is) terminal64.exe not running -> starting it" >>"$LOG"
   $RUN wine "/config/.wine/drive_c/Program Files/MetaTrader 5/terminal64.exe" </dev/null >/dev/null 2>&1 &
