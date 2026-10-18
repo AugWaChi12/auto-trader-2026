@@ -612,3 +612,10 @@ def test_watchdog_flags_repeated_system_order_failures(monkeypatch, tmp_path: Pa
         encoding="utf-8")
     bad = W.failed_orders(30)
     assert len(bad) == 3 and bad[0][0] == "m5_8" and "Unnamed" in bad[-1][1]
+
+
+def test_take_profit_closes_bot_when_floating_sum_reaches_target() -> None:
+    acts = M.RuleBrain().decide(snap(m5_6=bot(opens=[pos(1, profit=26.0), pos(2, profit=25.0)]),
+                                     m5_7=bot(opens=[pos(3, profit=49.0)])), {})
+    assert ("close", "m5_6") in kinds(acts) and ("close", "m5_7") not in kinds(acts)
+    assert sum(1 for a in acts if a.kind == "close" and a.bot == "m5_6") == 1        # ปิดครั้งเดียวทั้งกลุ่ม

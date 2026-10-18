@@ -56,6 +56,8 @@ PORTFOLIO_DAY_STOP = -150.0   # บอททดสอบรวมกันวั
 BOT_DAY_STOP = -45.0          # บอทตัวเดียววันนี้ (รวมไม้ที่ลอย) เสียถึงนี้ → ปิดไม้ + พักถึงวันใหม่
 LOSS_STREAK = 4               # แพ้ติดกันกี่ไม้ → พัก STREAK_PAUSE_MIN
 STREAK_PAUSE_MIN = 90
+# ผู้ใช้สั่ง 2026-10-18: "ไม้ไหน + ถึง 50 ก็ปิดเลย" — กำไรลอยรวมทุกชิ้นของบอทตัวนั้น (ไม่ใช่ main) · 0 = ปิดกฎนี้
+TAKE_PROFIT_USD = float(os.environ.get("MANAGER_TAKE_PROFIT_USD") or 50)
 GIVEBACK_PEAK = 15.0          # ไม้เคยกำไรถึงนี้ แล้วหดเหลือครึ่ง → ปิดเก็บกำไร
 STALE_HOURS, STALE_LOSS = 3.0, -20.0   # ถือนานเกิน และยังขาดทุนเกิน → ตัดทิ้ง
 VOL_SPIKE = 3.0               # ช่วง 15 นาทีล่าสุดกว้างกว่าค่ากลาง 3 ชม. กี่เท่า → พักบอท BTC
@@ -325,7 +327,11 @@ class RuleBrain:
             # 4) แพ้ติดกัน
             if LOSS_STOPS and b["streak"] >= LOSS_STREAK and n not in paused and not b["open"]:
                 acts.append(Action("pause", n, STREAK_PAUSE_MIN, f"{n} แพ้ติดกัน {b['streak']} ไม้ — พัก {STREAK_PAUSE_MIN} นาที ให้ตลาดเปลี่ยนจังหวะ"))
-            # 5) ไม้ที่ถืออยู่: กำไรหดคืน / ขาดทุนค้างนาน
+            # 5) ไม้ที่ถืออยู่: ถึงเป้ากำไร $ / กำไรหดคืน / ขาดทุนค้างนาน
+            floating = round(sum(o["profit"] for o in b["open"]), 2)
+            if TAKE_PROFIT_USD > 0 and b["open"] and floating >= TAKE_PROFIT_USD:
+                acts.append(Action("close", n, reason=f"{n} กำไรลอย {floating:+.2f}$ ถึงเป้า +{TAKE_PROFIT_USD:.0f}$ — ปิดเก็บกำไร"))
+                continue
             for o in b["open"]:
                 tk, pnl = o["ticket"], o["profit"]
                 self.peaks[tk] = max(self.peaks.get(tk, pnl), pnl)

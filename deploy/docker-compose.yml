@@ -47,6 +47,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       TELEGRAM_TRADES: ${TELEGRAM_TRADES:-0}       # 1 = ส่งทุกไม้ของทุกบอทด้วย (ถี่มาก)
+      MANAGER_TAKE_PROFIT_USD: ${MANAGER_TAKE_PROFIT_USD:-50}   # บอททดสอบกำไรลอยรวมถึงนี้ → ผู้จัดการปิดทันที (0 = ปิดกฎ)
       RESEARCH_EVERY_DAYS: ${RESEARCH_EVERY_DAYS:-1}   # วิจัยทุกคืนตี 4 (7 = อาทิตย์ละครั้ง · 0 = ปิด)
       MANAGER_PAUSE: ${MANAGER_PAUSE:-0}           # 0 = ไม่พักบอทจริง (ผู้จัดการทำนาย + เรียนรู้) · 1 = พักจริง
       MT5_HOST: mt5
