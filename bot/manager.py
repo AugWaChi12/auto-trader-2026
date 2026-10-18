@@ -62,8 +62,8 @@ VOL_SPIKE = 3.0               # ช่วง 15 นาทีล่าสุด�
 VOL_PAUSE_MIN = 30
 
 # อ่านสภาพตลาด (BTC M5 ย้อนหลัง 2 ชม.) แล้วพักบอทที่สายกลยุทธ์ไม่เข้ากับตลาดตอนนี้
-TREND_FAMILIES = {"ema", "donchian", "momo", "orb", "pullback"}   # ได้เปรียบตอนตลาดวิ่งเป็นทาง
-RANGE_FAMILIES = {"bb", "rsi2", "levels"}                         # ได้เปรียบตอนตลาดเด้งไปมาในกรอบ
+TREND_FAMILIES = {"ema", "donchian", "momo", "orb", "pullback", "fvg"}   # ได้เปรียบตอนตลาดวิ่งเป็นทาง
+RANGE_FAMILIES = {"bb", "rsi2", "levels", "vwap", "div"}                  # ได้เปรียบตอนตลาดเด้งไปมาในกรอบ
 ER_TREND, ER_RANGE = 0.40, 0.20     # efficiency ratio: ระยะที่ราคาไปได้จริง ÷ ระยะที่วิ่งทั้งหมด
 REGIME_CONFIRM = 3                  # ต้องเห็นสภาพเดิมติดกันกี่นาทีถึงจะเชื่อ (กันสั่งกลับไปกลับมา)
 REGIME_PAUSE_MIN = 240               # พักนานสุดเท่านี้ — ปกติได้กลับก่อนเมื่อสภาพตลาดเปลี่ยน

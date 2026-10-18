@@ -119,7 +119,7 @@ def run_weekly(download: bool = True) -> list[dict]:
 
 # ---------------------------------------------------------------- ล่า edge ใหม่ (อาทิตย์ละครั้ง · ไม่ใส่ให้บอทเอง)
 EXPLORE_PATH = C.STATE_DIR / "explorer.json"
-EXPLORE_TFS = ("M15", "H1")
+EXPLORE_TFS = ("M5", "M15", "H1")
 
 
 def load_explore() -> dict:
@@ -135,23 +135,24 @@ def is_edge(z: dict) -> bool:
     return wf["n"] >= 30 and wf["usd_day"] > 0 and ho["usd_day"] > 0 and (rnd is None or wf["usd_day"] > rnd["usd_day"])
 
 
-def run_explore(tfs: tuple[str, ...] = EXPLORE_TFS) -> list[dict]:
-    """ลองทุกสายกลยุทธ์บน BTC timeframe ใหญ่ขึ้น (ต้นทุนสเปรดต่อไม้กินกำไรน้อยกว่า M1/M5) → รายงานตัวที่ผ่านเกณฑ์ ให้ผู้ใช้ตัดสินใจเอง"""
+def run_explore(tfs: tuple[str, ...] = EXPLORE_TFS, symbols: list[str] | None = None) -> list[dict]:
+    """ลองทุกสายกลยุทธ์ (รวมสายใหม่ vwap/fvg/div) บนทุกตลาดและหลาย timeframe → รายงานตัวที่ผ่านเกณฑ์ ให้ผู้ใช้ตัดสินใจเอง"""
     if hasattr(os, "nice"):
         try:
             os.nice(19)
         except OSError:
             pass
     t0 = time.time()
-    say("info", f"🧭 เริ่มล่า edge ประจำสัปดาห์: ทุกสายกลยุทธ์บน BTC {'/'.join(tfs)} (walk-forward + เทียบกลุ่มสุ่ม)")
+    syms = symbols or sorted({b["symbol"] for b in C.load_m5_bots()}) or ["BTCUSD"]
+    say("info", f"🧭 เริ่มล่า edge ประจำสัปดาห์: 12 สายกลยุทธ์ × {'/'.join(syms)} × {'/'.join(tfs)} (walk-forward + เทียบกลุ่มสุ่ม)")
     sys.path.insert(0, str(C.ROOT / "research"))
     import m5_lab  # noqa: PLC0415
     rows = []
     try:
         for tf in tfs:
-            for z in m5_lab.main(["--symbols", "BTCUSD", "--workers", os.environ.get("RESEARCH_WORKERS", "1"), "--tf", tf, "--explore"]) or []:
-                rows.append({"tf": tf, "family": z["family"], "wf": z["wf"], "holdout": z["holdout"],
-                             "random": z.get("wf_random"), "live": z["live"], "edge": is_edge(z)})
+            for z in m5_lab.main(["--symbols", ",".join(syms), "--workers", os.environ.get("RESEARCH_WORKERS", "1"), "--tf", tf, "--explore"]) or []:
+                rows.append({"symbol": z.get("symbol", "BTCUSD"), "tf": tf, "family": z["family"], "wf": z["wf"],
+                             "holdout": z["holdout"], "random": z.get("wf_random"), "live": z["live"], "edge": is_edge(z)})
     except Exception as e:  # noqa: BLE001
         log.exception("explore failed")
         say("alert", f"🧭 ล่า edge ไม่สำเร็จ: {e}")
@@ -162,13 +163,13 @@ def run_explore(tfs: tuple[str, ...] = EXPLORE_TFS) -> list[dict]:
     atomic_write(EXPLORE_PATH, json.dumps({"finished": time.time(), "minutes": round((time.time() - t0) / 60, 1),
                                            "rows": rows, "found": found}, ensure_ascii=False, indent=1, default=str))
     if found:
-        lines = [f"{r['tf']} {r['family']}: walk-forward {r['wf']['usd_day']:+.2f}$/วัน ({r['wf']['n']} ไม้) · "
+        lines = [f"{r.get('symbol', '')} {r['tf']} {r['family']}: walk-forward {r['wf']['usd_day']:+.2f}$/วัน ({r['wf']['n']} ไม้) · "
                  f"2 เดือนล่าสุด {r['holdout']['usd_day']:+.2f}$/วัน" for r in found[:5]]
         say("journal", "🎯 ล่า edge เจอตัวที่ผ่านเกณฑ์! " + " · ".join(lines)
-            + " — ยังไม่ใส่ให้บอทเอง (เปลี่ยน timeframe) บอกผู้ช่วยได้ถ้าจะลองบน DEMO")
+            + " — ยังไม่ใส่ให้บอทเอง บอกผู้ช่วยได้ถ้าจะลองบน DEMO")
     else:
         best = rows[0] if rows else None
         say("journal", f"🧭 ล่า edge ประจำสัปดาห์เสร็จ ({(time.time() - t0) / 60:.0f} นาที): ยังไม่พบตัวที่ผ่านเกณฑ์"
-            + (f" · ใกล้สุด {best['tf']} {best['family']} walk-forward {best['wf']['usd_day']:+.2f}$/วัน, "
+            + (f" · ใกล้สุด {best.get('symbol', '')} {best['tf']} {best['family']} walk-forward {best['wf']['usd_day']:+.2f}$/วัน, "
                f"2 เดือนล่าสุด {best['holdout']['usd_day']:+.2f}$/วัน" if best else ""))
     return found

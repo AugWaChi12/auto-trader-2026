@@ -561,3 +561,35 @@ def test_ai_adaptive_interval_and_compact_snapshot(monkeypatch) -> None:  # noqa
     assert len(calls) == 3
     payload = json.loads(calls[0].split("\n", 1)[1])
     assert "open" not in payload["bots"]["m5_1"] and len(payload["btc"]["m5_candles_t_o_h_l_c"]) <= 8
+
+
+def test_new_research_families_vwap_fvg_div_build_and_signal() -> None:
+    from bot.core.types import Bar
+    from bot.strategy.catalog import FAMILIES, build
+    assert {"vwap", "fvg", "div"} <= set(FAMILIES)
+    t0 = datetime(2026, 10, 15, 8, 0, tzinfo=timezone.utc)
+    acct = NS(positions=lambda sym, tag: [])
+    # 1) VWAP reversion: ราคาแกว่งแถว 100 แล้วทุบแรงหลุด -band_atr * ATR → BUY
+    vwap = build("vwap", "XAUUSD", {"band_atr": 1.5, "sl_atr": 1.5, "tp_r": 1.5, "max_hold": 12}, None, "M5", "t_vwap")
+    sigs = []
+    for i in range(30):
+        p = 100.0 if i < 29 else 92.0
+        sigs.extend(vwap.on_bar(Bar(t0 + timedelta(minutes=5 * i), p, p + 1.0, p - 1.0, p, volume=100.0), acct))
+    assert sigs and sigs[-1].side.name == "BUY" and vwap.status()["type"] == "vwap"
+    # 2) FVG pullback: เทรนด์ขาขึ้น > EMA200 → กระโดดเปิด gap → ย่อแตะโซน → BUY
+    fvg = build("fvg", "XAUUSD", {"min_gap_atr": 0.2, "expire_bars": 10, "sl_atr": 1.5, "tp_r": 2.0}, None, "M5", "t_fvg")
+    fvg_sigs = []
+    for i in range(210):
+        b = Bar(t0 + timedelta(minutes=5 * i), 100 + i * 0.1, 100.5 + i * 0.1, 99.5 + i * 0.1, 100.2 + i * 0.1)
+        fvg.on_bar(b, acct)
+    base = 122.0
+    fvg.on_bar(Bar(t0 + timedelta(minutes=5 * 210), base, base + 0.5, base - 0.5, base + 0.3), acct)         # b0 high = base+0.5
+    fvg.on_bar(Bar(t0 + timedelta(minutes=5 * 211), base + 0.3, base + 4.0, base + 0.2, base + 3.8), acct)   # แท่งพุ่งแรง
+    fvg.on_bar(Bar(t0 + timedelta(minutes=5 * 212), base + 3.5, base + 4.5, base + 2.0, base + 4.0), acct)   # b2 low = base+2.0 > b0.high
+    fvg_sigs.extend(fvg.on_bar(Bar(t0 + timedelta(minutes=5 * 213), base + 3.0, base + 3.2, base + 1.0, base + 2.5), acct))
+    assert fvg_sigs and fvg_sigs[-1].side.name == "BUY"
+    # 3) RSI Divergence: สร้างได้และคืน status ครบ
+    div = build("div", "BTCUSD", {"lookback": 14, "rsi_ext": 35.0, "sl_atr": 1.5, "tp_r": 2.0}, None, "M5", "t_div")
+    for i in range(30):
+        div.on_bar(Bar(t0 + timedelta(minutes=5 * i), 100 - i, 101 - i, 99 - i, 100 - i), acct)
+    assert div.status()["type"] == "div"

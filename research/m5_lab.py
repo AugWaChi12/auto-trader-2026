@@ -81,6 +81,9 @@ FAMILIES: dict[str, tuple] = {
     "orb": (_grid(sl_mode=["mid", "opposite"], tp_r=[None, 1.0, 2.0, 3.0], buffer_adr=[0.0, 0.02, 0.05]), False),
     "momo": (_grid(entry_time=["11:00", "12:00", "13:00", "14:00"], min_move_adr=[0.2, 0.35, 0.5],
                    sl_adr=[0.3, 0.5, 0.8]), True),
+    "vwap": (_grid(band_atr=[1.5, 2.0, 2.5, 3.0], sl_atr=[1.0, 1.5, 2.0], tp_r=[None, 1.5, 2.5], max_hold=[12, 36]), True),
+    "fvg": (_grid(min_gap_atr=[0.2, 0.35, 0.5], expire_bars=[6, 12, 24], sl_atr=[1.0, 1.5, 2.0], tp_r=[1.5, 2.0, 3.0]), True),
+    "div": (_grid(lookback=[14, 24, 36], rsi_ext=[30.0, 35.0, 40.0], sl_atr=[1.0, 1.5, 2.0], tp_r=[1.5, 2.0, 3.0]), True),
 }
 SYMBOLS = ["XAUUSD", "NAS100", "BTCUSD"]
 
@@ -201,7 +204,10 @@ def main(argv: list[str] | None = None) -> list[dict] | None:
         TF = os.environ["LAB_TF"] = _arg("--tf")
         _market.cache_clear()
     OUT.mkdir(parents=True, exist_ok=True)
-    jobs = [(f, s, pi, plan, "rule") for f in FAMILIES for s in SYMBOLS for pi in range(len(FAMILIES[f][0]))
+    active_fams = ({b["family"] for b in C.load_m5_bots() if b.get("family") in FAMILIES}
+                   if "--retune" in sys.argv and "--explore" not in sys.argv else set(FAMILIES))
+    fams = [f for f in FAMILIES if f in active_fams]
+    jobs = [(f, s, pi, plan, "rule") for f in fams for s in SYMBOLS for pi in range(len(FAMILIES[f][0]))
             for plan in PLANS]
     print(f"backtests: {len(jobs)} ({TF}, lots {LOTS}, เป้า +${TARGET:.0f}/วัน)", flush=True)
     with ProcessPoolExecutor(workers) as ex:
@@ -216,7 +222,7 @@ def main(argv: list[str] | None = None) -> list[dict] | None:
                    "hold_days": days(h, en, s)}
 
     slots, rnd_jobs = [], []
-    for f in FAMILIES:
+    for f in fams:
         for s in SYMBOLS:
             wins, hold, end = span[s]["wins"], span[s]["hold"], span[s]["end"]
             wf_days, hold_days = span[s]["wf_days"], span[s]["hold_days"]

@@ -10,6 +10,8 @@ from dataclasses import replace
 from .base import ManagementPlan, SessionWindow, Strategy
 from .daily_trend import DailyTrend, DailyTrendConfig
 from .level_sweep import LevelSweep, LevelSweepConfig
+from .microstructure import (FairValueGap, FairValueGapConfig, RsiDivergence, RsiDivergenceConfig, VwapReversion,
+                             VwapReversionConfig)
 from .scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCrossConfig, RsiReversion, RsiReversionConfig,
                     ScalpWindow)
 from .session_breakout import BreakoutConfig, SessionBreakout
@@ -34,11 +36,14 @@ FAMILIES: dict[str, tuple] = {
     "levels": (LevelSweepConfig, LevelSweep, True),
     "orb": (BreakoutConfig, SessionBreakout, False),
     "momo": (MomentumConfig, SessionMomentum, True),
+    "vwap": (VwapReversionConfig, VwapReversion, True),
+    "fvg": (FairValueGapConfig, FairValueGap, True),
+    "div": (RsiDivergenceConfig, RsiDivergence, True),
 }
 LABELS = {
     "rsi2": "RSI(2) สวนสุดโต่ง", "ema": "EMA ตัดกัน", "bb": "Bollinger สวนขอบ", "donchian": "Donchian ทะลุกรอบ",
     "pullback": "ย่อในเทรนด์", "volx": "ทะลุช่วงเงียบ", "levels": "กวาด high/low สำคัญ", "orb": "ทะลุกรอบเปิดตลาด",
-    "momo": "โมเมนตัมช่วงเช้า",
+    "momo": "โมเมนตัมช่วงเช้า", "vwap": "VWAP ดึงกลับค่าเฉลี่ย", "fvg": "FVG ย่อแตะช่องว่าง", "div": "RSI Divergence",
 }
 
 
@@ -49,7 +54,7 @@ def build(family: str, symbol: str, params: dict, plan: ManagementPlan | None, t
     skip_regimes, skip_sessions = tuple(kw.pop("skip_regimes", ()) or ()), tuple(kw.pop("skip_sessions", ()) or ())
     gate_mode = kw.pop("gate_mode", "active")
     gold = symbol != "NAS100"          # ทอง / BTC ใช้กรอบเวลา UTC · NAS ใช้เวลานิวยอร์ก
-    if family in ("rsi2", "ema", "bb"):
+    if family in ("rsi2", "ema", "bb", "vwap", "fvg", "div"):
         kw.update(window=ALL_DAY, side_mode=mode)
     elif family in ("donchian", "volx"):
         kw.update(side_mode=mode)
