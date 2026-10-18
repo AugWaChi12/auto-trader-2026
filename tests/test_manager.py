@@ -593,3 +593,22 @@ def test_new_research_families_vwap_fvg_div_build_and_signal() -> None:
     for i in range(30):
         div.on_bar(Bar(t0 + timedelta(minutes=5 * i), 100 - i, 101 - i, 99 - i, 100 - i), acct)
     assert div.status()["type"] == "div"
+
+
+def test_watchdog_flags_repeated_system_order_failures(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    import importlib.util
+    from datetime import datetime, timedelta, timezone
+    spec = importlib.util.spec_from_file_location("watchdog2", Path(__file__).resolve().parent.parent / "deploy" / "watchdog.py")
+    W = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(W)
+    monkeypatch.setattr(W, "ROOT", tmp_path)
+    (tmp_path / "logs").mkdir()
+    now = datetime.now(timezone.utc)
+    line = lambda dt, why: f"{dt:%Y-%m-%d %H:%M:%S},000 INFO    live: signal m5_8:x not sent: rejected:{why}"  # noqa: E731
+    (tmp_path / "logs" / f"m5_8_{now:%Y%m%d}.log").write_text("\n".join([
+        line(now - timedelta(hours=2), "connection (-2, 'old')"),                     # เก่าเกิน 30 นาที
+        line(now - timedelta(minutes=5), "invalid_stops sl 1 vs bid 2"),             # ตลาดปฏิเสธปกติ ไม่นับ
+        *[line(now - timedelta(minutes=m), "connection (-2, 'Unnamed arguments not allowed')") for m in (1, 2, 3)]]),
+        encoding="utf-8")
+    bad = W.failed_orders(30)
+    assert len(bad) == 3 and bad[0][0] == "m5_8" and "Unnamed" in bad[-1][1]

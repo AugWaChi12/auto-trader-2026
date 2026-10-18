@@ -96,6 +96,31 @@ def age_min(p: Path) -> float | None:
         return None
 
 
+FAIL_MARK = "not sent: rejected:"
+FAIL_REASONS = ("connection", "unknown")   # ความผิดปกติของระบบ — ไม่นับ invalid_stops / market_closed ฯลฯ ที่เป็นเรื่องปกติของตลาด
+
+
+def failed_orders(minutes: int) -> list[tuple[str, str]]:
+    """ออเดอร์ที่บอทส่งแล้วระบบล้มเหลว (ไม่ใช่ถูกตลาดปฏิเสธตามปกติ) ใน N นาทีล่าสุด — บทเรียน 18 ต.ค. 2026: ล้ม 53 ครั้งเงียบๆ ทั้งวัน"""
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    out = []
+    for f in (ROOT / "logs").glob(f"*_{cutoff:%Y%m%d}.log"):
+        try:
+            for ln in f.read_text(encoding="utf-8", errors="replace").splitlines()[-3000:]:
+                i = ln.find(FAIL_MARK)
+                if i < 0 or not ln[i + len(FAIL_MARK):].startswith(FAIL_REASONS):
+                    continue
+                try:
+                    t = datetime.strptime(ln[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                except ValueError:
+                    continue
+                if t >= cutoff:
+                    out.append((f.name.rsplit("_", 1)[0], ln[i + len(FAIL_MARK):]))
+        except OSError:
+            pass
+    return out
+
+
 def check() -> dict[str, str]:
     """คืน {รหัสปัญหา: คำอธิบาย} — ว่าง = ปกติ"""
     probs: dict[str, str] = {}
@@ -127,6 +152,10 @@ def check() -> dict[str, str]:
                     if n not in disabled and n not in pauses and not (hb or {}).get("alive")]
             if dead:
                 probs["bots"] = "บอทไม่ส่งสัญญาณชีพ: " + ", ".join(sorted(dead))
+    bad = failed_orders(30)
+    if len(bad) >= 3:
+        probs["orders"] = (f"ส่งออเดอร์ไม่ผ่าน {len(bad)} ครั้งใน 30 นาที (" + ", ".join(sorted({b for b, _ in bad}))
+                           + f") — ล่าสุด: {bad[-1][1][:90]}")
     hb = age_min(STATE / "manager_heartbeat")
     if hb is None or hb > QUIET_MIN:
         probs["manager"] = f"ผู้จัดการพอร์ตเงียบ {'–' if hb is None else int(hb)} นาที"
