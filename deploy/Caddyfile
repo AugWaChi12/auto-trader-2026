@@ -1,0 +1,16 @@
+# หน้าสาธารณะ: https://$PUBLIC_DOMAIN → หมู่บ้านบอท (/sandbox) อ่านอย่างเดียว
+# Caddy ขอใบรับรอง Let's Encrypt ให้เอง · ส่งต่อไปที่ monitor โหมด PUBLIC_READONLY (ไม่มีหน้า/ปุ่มสั่งงาน)
+{$PUBLIC_DOMAIN} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		-Server
+	}
+	# เผื่อไว้อีกชั้น: สาธารณะอ่านได้อย่างเดียว
+	@write not method GET HEAD
+	respond @write 405
+	reverse_proxy public:8765
+}

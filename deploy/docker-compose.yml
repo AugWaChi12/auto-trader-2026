@@ -66,5 +66,43 @@ services:
     mem_limit: 300m
     logging: *logs
 
+  # หน้าสาธารณะ (อ่านอย่างเดียว): https://$PUBLIC_DOMAIN → /sandbox — ตั้ง PUBLIC_DOMAIN ใน deploy/.env
+  public:
+    image: auto-trader:latest
+    container_name: trader-public
+    restart: unless-stopped
+    command: ["python", "-m", "bot", "monitor", "--no-browser"]
+    environment:
+      MT5_HOST: mt5
+      MT5_PORT: "8001"
+      MT5_PATH: 'C:\Program Files\MetaTrader 5\terminal64.exe'
+      MONITOR_HOST: 0.0.0.0
+      PUBLIC_READONLY: "1"               # เปิดได้แค่ /sandbox + ข้อมูลที่หน้านั้นใช้ · ไม่มีปุ่มสั่งงาน · ไม่โชว์เลขบัญชี/log
+    volumes:
+      - ../state:/app/state:ro
+      - ../logs:/app/logs:ro
+    depends_on: [mt5, bots]
+    mem_limit: 250m
+    logging: *logs
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: trader-caddy
+    restart: unless-stopped
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [public]
+    mem_limit: 100m
+    logging: *logs
+
 volumes:
   mt5_config:
+  caddy_data:
+  caddy_config:

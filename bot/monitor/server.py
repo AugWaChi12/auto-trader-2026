@@ -403,10 +403,32 @@ def restart_test_bots() -> None:
                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
+# โหมดสาธารณะ (เปิดให้คนทั่วไปดูผ่านโดเมน): หน้า /sandbox อย่างเดียว อ่านอย่างเดียว ไม่มีปุ่มสั่งงาน ไม่โชว์เลขบัญชี/log
+PUBLIC = __import__("os").environ.get("PUBLIC_READONLY") == "1"
+PUBLIC_SYMBOLS = ("BTCUSD", "XAUUSD")
+
+
+def public_view(d: dict) -> dict:
+    """ตัดข้อมูลที่ไม่ควรออกสู่สาธารณะ: เลขบัญชี/server ของโบรก, log, pid/magic"""
+    acc = d.get("account") or {}
+    bots = {n: {k: v for k, v in (b or {}).items() if k not in ("pid", "magic", "kill_reason")}
+            for n, b in (d.get("bots") or {}).items()}
+    return {
+        "public": True, "now": d.get("now"), "bots": bots, "per_bot": d.get("per_bot"), "research": d.get("research"),
+        "disabled": d.get("disabled"), "open": d.get("open"), "trades": (d.get("trades") or [])[:20],
+        "quotes": d.get("quotes"), "stats": d.get("stats"),
+        "account": {k: acc.get(k) for k in ("balance", "equity", "currency", "demo", "floating")},
+        "error": "ระบบกำลังเชื่อมต่อ" if d.get("error") else None,
+    }
+
+
 def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
             url = urlparse(self.path)
+            if PUBLIC:
+                self._public_get(url)
+                return
             if url.path == "/api":
                 self._send(json.dumps(col.data(), ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/techniques":
@@ -439,9 +461,36 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
             else:
                 self.send_error(404)
 
+        def _public_get(self, url) -> None:  # noqa: ANN001
+            """โหมดสาธารณะ: เปิดได้เฉพาะสิ่งที่หน้า /sandbox ใช้ — ที่เหลือ 404"""
+            if url.path == "/":
+                self.send_response(302)
+                self.send_header("Location", "/sandbox?stream=1")
+                self.end_headers()
+            elif url.path == "/sandbox":
+                self._send(PAGES["/sandbox"].read_bytes(), "text/html")
+            elif url.path == "/api":
+                self._send(json.dumps(public_view(col.data()), ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/bars":
+                q = parse_qs(url.query)
+                sym, tf = q.get("symbol", ["BTCUSD"])[0], q.get("tf", ["M1"])[0]
+                if sym not in PUBLIC_SYMBOLS or tf not in ("M1", "M5", "M15"):
+                    self.send_error(404)
+                    return
+                d = col.bars(sym, tf, max(20, min(int(q.get("n", ["180"])[0]), 200)))
+                d = {k: d.get(k) for k in ("symbol", "tf", "bars", "bid")}
+                self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/version":
+                self._send(json.dumps({"v": int(PAGES["/sandbox"].stat().st_mtime)}).encode(), "application/json")
+            else:
+                self.send_error(404)
+
         def do_POST(self) -> None:  # noqa: N802
             """บันทึกค่าตั้ง + รีสตาร์ทบอททดสอบ — ช่องเดียวที่หน้าเว็บเขียนได้ (main ไม่ถูกแตะ)
             กันเว็บอื่นยิงมาทางเบราว์เซอร์ (CSRF): ต้องเป็น JSON + header เฉพาะ → เบราว์เซอร์ต้อง preflight ซึ่งเราไม่ตอบรับ"""
+            if PUBLIC:
+                self.send_error(403)        # สาธารณะ = อ่านอย่างเดียว ไม่มีทางสั่งงาน
+                return
             path = urlparse(self.path).path
             if path not in ("/api/settings", "/api/bot", "/api/stream"):
                 self.send_error(404)

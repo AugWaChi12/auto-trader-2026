@@ -290,3 +290,12 @@ def test_supervisor_follows_settings_file(tmp_path: Path, monkeypatch) -> None:
     assert s.children["main"].proc is None and "main" not in started
     s.children["main"].next_start = 0; s.tick()
     assert "main" in started
+
+
+def test_public_view_hides_account_and_logs() -> None:
+    from bot.monitor.server import public_view
+    d = {"account": {"login": 592193564, "server": "FxPro-MT5 Demo", "equity": 700.0, "balance": 690.0},
+         "log": ["secret"], "bots": {"main": {"pid": 1, "magic": 26101501, "alive": True}}, "trades": list(range(50))}
+    v = public_view(d)
+    assert v["public"] and "log" not in v and "login" not in v["account"] and "server" not in v["account"]
+    assert v["account"]["equity"] == 700.0 and "pid" not in v["bots"]["main"] and len(v["trades"]) == 20
