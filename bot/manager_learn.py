@@ -36,16 +36,22 @@ class Learner:
         self.tape: dict[str, dict] = _load(TAPE_PATH, {})
         d = _load(LEARN_PATH, {})
         self.table: dict[str, dict[str, dict]] = d.get("table", {})
+        self.detail: dict[str, dict[str, dict]] = d.get("detail", {})      # สาย → "sess:asia" / "trend:against" → ผล
         self.counted: list[str] = d.get("counted", [])
 
-    def observe(self, bots: dict[str, dict], regime: str | None, er: float | None, t: float) -> list[dict]:
-        """จดไม้ใหม่ + นับไม้ที่ปิดแล้ว · คืนรายการไม้ที่เพิ่งนับ"""
+    def observe(self, bots: dict[str, dict], regime: str | None, er: float | None, t: float, trend_dir: int = 0) -> list[dict]:
+        """จดไม้ใหม่ + นับไม้ที่ปิดแล้ว · trend_dir = ทิศราคา BTC 2 ชม. (+1/-1/0) · คืนรายการไม้ที่เพิ่งนับ"""
+        from datetime import datetime
+        from .strategy.gate import session_of
         changed, learned = False, []
         for name, b in bots.items():
             for o in b.get("open", []):
                 k = str(o["ticket"])
                 if k not in self.tape and k not in self.counted and regime:
-                    self.tape[k] = {"bot": name, "family": b.get("family"), "regime": regime, "er": er, "t": t}
+                    side = 1 if o.get("side") == "BUY" else -1
+                    self.tape[k] = {"bot": name, "family": b.get("family"), "regime": regime, "er": er, "t": t,
+                                    "session": session_of(datetime.fromisoformat(o["open_time"]).hour) if o.get("open_time") else None,
+                                    "trend": "flat" if trend_dir == 0 else "with" if side == trend_dir else "against"}
                     changed = True
             for r in b.get("recent", []):
                 k = str(r["ticket"])
@@ -56,6 +62,13 @@ class Learner:
                 cell["n"] += 1
                 cell["pnl"] = round(cell["pnl"] + r["profit"], 2)
                 cell["wins"] += r["profit"] > 0
+                for key in (f"sess:{rec.get('session')}", f"trend:{rec.get('trend')}"):
+                    if "None" in key:
+                        continue
+                    c2 = self.detail.setdefault(rec["family"] or "?", {}).setdefault(key, {"n": 0, "pnl": 0.0, "wins": 0})
+                    c2["n"] += 1
+                    c2["pnl"] = round(c2["pnl"] + r["profit"], 2)
+                    c2["wins"] += r["profit"] > 0
                 self.counted = (self.counted + [k])[-5000:]
                 del self.tape[k]
                 learned.append({**rec, "profit": r["profit"]})
@@ -66,7 +79,7 @@ class Learner:
             changed = True
         if changed:
             _save(TAPE_PATH, self.tape)
-            _save(LEARN_PATH, {"table": self.table, "counted": self.counted})
+            _save(LEARN_PATH, {"table": self.table, "detail": self.detail, "counted": self.counted})
         return learned
 
     def cell(self, family: str | None, regime: str) -> dict | None:
@@ -85,6 +98,21 @@ class Learner:
         """ตารางสำหรับหน้าเว็บ/AI: สาย → สภาพตลาด → {n, avg, win_rate}"""
         return {f: {rg: {"n": c["n"], "avg": round(c["pnl"] / c["n"], 2), "win_rate": round(c["wins"] / c["n"] * 100)}
                     for rg, c in cells.items() if c["n"]} for f, cells in self.table.items()}
+
+
+    def lessons(self, min_n: int = 5, limit: int = 5) -> list[dict]:
+        """จุดอ่อนที่ชัดที่สุด: (สาย, เงื่อนไข) ที่ไม้พอและเฉลี่ยขาดทุนมากสุด — ให้ AI/บันทึกท้ายวัน/งานวิจัยใช้"""
+        rows = []
+        for fam, cells in list(self.table.items()) + [(f, c) for f, c in self.detail.items()]:
+            for key, c in cells.items():
+                if c["n"] >= min_n and c["pnl"] < 0:
+                    rows.append({"family": fam, "when": key if ":" in key else f"regime:{key}", "n": c["n"],
+                                 "avg": round(c["pnl"] / c["n"], 2), "total": c["pnl"]})
+        return sorted(rows, key=lambda r: r["total"])[:limit]
+
+    def detail_summary(self) -> dict[str, dict[str, dict]]:
+        return {f: {k: {"n": c["n"], "avg": round(c["pnl"] / c["n"], 2), "win_rate": round(c["wins"] / c["n"] * 100)}
+                    for k, c in cells.items() if c["n"]} for f, cells in self.detail.items()}
 
 
 def load_summary() -> dict:

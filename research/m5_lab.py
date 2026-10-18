@@ -252,24 +252,90 @@ def main(argv: list[str] | None = None) -> list[dict] | None:
     return None
 
 
+# ---------------------------------------------------------------------------- ตัวกรองที่ผู้จัดการเรียนรู้ (strategy/gate.py)
+GATE_REGIMES = [(), ("trend",), ("range",), ("mixed",), ("trend", "mixed"), ("range", "mixed")]
+GATE_SESSIONS = [(), ("asia",), ("europe",), ("us",)]
+GATE_MIN_GAIN = 0.5          # $/ไม้ (ครึ่งที่แย่กว่า) ต้องดีขึ้นอย่างน้อยเท่านี้ถึงจะใช้ตัวกรอง
+
+
+def run_custom(args: tuple) -> tuple:
+    key, family, symbol, params_json, plan = args
+    bars, spec, news = _market(symbol)
+    res = run_backtest({symbol: bars}, {symbol: spec}, [build(family, symbol, json.loads(params_json), C.M5_PLANS[plan], TF, "g")],
+                       RISK, TF, 1_000_000.0, news)
+    t = np.array([tr.open_time.timestamp() for tr in res.trades], dtype=float)
+    p = np.array([tr.pnl for tr in res.trades], dtype=float)
+    return key, t, p
+
+
+def gate_search(bots: list[dict], workers: int) -> dict[str, dict]:
+    """ลองตัวกรองทุกแบบกับพารามิเตอร์ปัจจุบันของแต่ละบอท
+    เลือกจากช่วง 6 เดือน "ก่อน" 2 เดือนล่าสุด → ยืนยันกับ 2 เดือนล่าสุดที่ไม่ได้ใช้เลือก (กันเลือกแบบที่บังเอิญดี 1 ใน 23)
+    ใช้เฉพาะแบบที่ดีขึ้นชัดในช่วงเลือก และไม่แย่ลงในช่วงยืนยัน"""
+    jobs = []
+    for b in bots:
+        base = {k: v for k, v in b["params"].items() if k not in ("skip_regimes", "skip_sessions")}
+        for r in GATE_REGIMES:
+            for ss in GATE_SESSIONS:
+                jobs.append(((b["bot"], r, ss), b["family"], b["symbol"],
+                             json.dumps({**base, "skip_regimes": list(r), "skip_sessions": list(ss)}), b["plan"]))
+    print(f"gate search: {len(jobs)} backtests", flush=True)
+    with ProcessPoolExecutor(workers) as ex:
+        res = {k: (t, p) for k, t, p in ex.map(run_custom, jobs, chunksize=4)}
+    out = {}
+    for b in bots:
+        bars = _market(b["symbol"])[0]
+        end = pd.Timestamp(bars[-1].time) + pd.Timedelta(days=1)
+        hold0 = end - pd.DateOffset(months=HOLDOUT_M)
+        sel0 = hold0 - pd.DateOffset(months=TRAIN_M)
+        hd = days(hold0, end, b["symbol"])
+
+        def stats(r: tuple, ss: tuple) -> tuple[float, float]:
+            t, p = res[(b["bot"], r, ss)]
+            return score(t, p, sel0, hold0), float(_slice(t, p, hold0, end).sum() / hd)
+        base_sc, base_ho = stats((), ())
+        best = None
+        if np.isfinite(base_sc):
+            for r in GATE_REGIMES:
+                for ss in GATE_SESSIONS:
+                    if not r and not ss:
+                        continue
+                    sc, ho = stats(r, ss)
+                    if np.isfinite(sc) and sc >= base_sc + GATE_MIN_GAIN and ho >= base_ho and (best is None or sc > best[0]):
+                        best = (sc, ho, r, ss)
+        out[b["bot"]] = {"skip_regimes": list(best[2]) if best else [], "skip_sessions": list(best[3]) if best else [],
+                         "score_from": round(base_sc, 2) if np.isfinite(base_sc) else None,
+                         "score_to": round(best[0], 2) if best else None,
+                         "holdout_from": round(base_ho, 2), "holdout_to": round(best[1], 2) if best else None}
+    return out
+
+
 def retune(meta: dict, slots: list[dict], path: Path) -> list[dict]:
     """ปรับพารามิเตอร์ใหม่ด้วยข้อมูลล่าสุด แต่บอทแต่ละตัวคงสายเดิม (สถิติ live ต่อบอทจะได้ต่อเนื่อง)
     คืนรายการ {bot, family, old, new} ของตัวที่เปลี่ยน"""
     cur = C.load_m5_bots()
     by = {(z["family"], z["symbol"]): z for z in slots if z["live"]}
-    bots, changes = [], []
+    bots = []
     for b in cur:
         z = by.get((b["family"], b["symbol"]))
         if z is None:
-            bots.append(b)
+            bots.append(dict(b))
             continue
-        nb = {**b, "params": z["live"]["params"], "plan": z["live"]["plan"], "wf_usd_day": z["wf"]["usd_day"],
-              "holdout_usd_day": z["holdout"]["usd_day"],
-              "random_usd_day": z["wf_random"]["usd_day"] if z.get("wf_random") else None}
-        bots.append(nb)
-        if (nb["params"], nb["plan"]) != (b["params"], b["plan"]):
-            changes.append({"bot": b["bot"], "family": b["family"], "old": {"params": b["params"], "plan": b["plan"]},
-                            "new": {"params": nb["params"], "plan": nb["plan"]}, "wf_usd_day": nb["wf_usd_day"]})
+        bots.append({**b, "params": dict(z["live"]["params"]), "plan": z["live"]["plan"], "wf_usd_day": z["wf"]["usd_day"],
+                     "holdout_usd_day": z["holdout"]["usd_day"],
+                     "random_usd_day": z["wf_random"]["usd_day"] if z.get("wf_random") else None})
+    gates = gate_search(bots, int(_arg("--workers", "24"))) if "--no-gates" not in sys.argv else {}
+    changes = []
+    for b, old in zip(bots, cur):
+        g = gates.get(b["bot"])
+        b["params"] = {k: v for k, v in b["params"].items() if k not in ("skip_regimes", "skip_sessions")}
+        if g and (g["skip_regimes"] or g["skip_sessions"]):
+            b["params"].update(skip_regimes=g["skip_regimes"], skip_sessions=g["skip_sessions"])
+        b["gate_test"] = g
+        if (b["params"], b["plan"]) != (old["params"], old["plan"]):
+            changes.append({"bot": b["bot"], "family": b["family"], "old": {"params": old["params"], "plan": old["plan"]},
+                            "new": {"params": b["params"], "plan": b["plan"]}, "wf_usd_day": b.get("wf_usd_day") or 0.0,
+                            "gate": g})
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"generated": pd.Timestamp.now(tz="UTC").isoformat(), "mode": "retune", "meta": meta,
                                 "bots": bots}, indent=1, ensure_ascii=False, default=str), encoding="utf-8")

@@ -1,5 +1,5 @@
 """
-research_weekly.py — วิจัยประจำสัปดาห์บนเซิร์ฟเวอร์ (python -m bot research · ผู้จัดการพอร์ตสั่งเองทุกอาทิตย์ 04:00 เวลาไทย)
+research_weekly.py — วิจัยบนเซิร์ฟเวอร์ (python -m bot research · ผู้จัดการพอร์ตสั่งเองทุกคืน 04:00 เวลาไทย · RESEARCH_EVERY_DAYS)
 
   1) ดึงแท่ง BTC M5 ย้อนหลัง 1 ปีจาก MT5 → data/mt5
   2) research/m5_lab.py แบบ BTC อย่างเดียว 1 โปรเซส (nice 19 ไม่แย่ง MT5/บอท)
@@ -41,9 +41,21 @@ def save_status(d: dict) -> None:
     atomic_write(STATUS_PATH, json.dumps(d, ensure_ascii=False, indent=1, default=str))
 
 
+GATE_TH = {"trend": "ตลาดเทรนด์", "range": "ตลาดออกข้าง", "mixed": "ตลาดไม่ชัดทาง", "asia": "ช่วงเอเชีย",
+           "europe": "ช่วงยุโรป", "us": "ช่วงอเมริกา"}
+
+
+def _gate_text(params: dict) -> str:
+    skip = list(params.get("skip_regimes") or []) + list(params.get("skip_sessions") or [])
+    return "ไม่เข้าไม้ตอน" + "/".join(GATE_TH.get(x, x) for x in skip) if skip else "ไม่มีตัวกรอง"
+
+
 def _diff(old: dict, new: dict) -> str:
-    """อธิบายพารามิเตอร์ที่เปลี่ยนแบบสั้น: fast 9→12 · วิธีออก native→ratchet"""
-    parts = [f"{k} {old['params'].get(k)}→{v}" for k, v in new["params"].items() if old["params"].get(k) != v]
+    """อธิบายพารามิเตอร์ที่เปลี่ยนแบบสั้น: fast 9→12 · วิธีออก native→ratchet · ตัวกรองใหม่"""
+    gk = ("skip_regimes", "skip_sessions")
+    parts = [f"{k} {old['params'].get(k)}→{v}" for k, v in new["params"].items() if k not in gk and old["params"].get(k) != v]
+    if any((old["params"].get(k) or []) != (new["params"].get(k) or []) for k in gk):
+        parts.append(f"ตัวกรอง: {_gate_text(new['params'])}")
     if old["plan"] != new["plan"]:
         parts.append(f"วิธีออก {old['plan']}→{new['plan']}")
     return ", ".join(parts) or "–"
@@ -51,9 +63,14 @@ def _diff(old: dict, new: dict) -> str:
 
 def describe(changes: list[dict], minutes: float) -> str:
     if not changes:
-        return f"🔬 วิจัยประจำสัปดาห์เสร็จ ({minutes:.0f} นาที): พารามิเตอร์เดิมยังดีที่สุดทุกตัว — ไม่เปลี่ยนอะไร"
-    lines = [f"{c['bot']} ({c['family']}): {_diff(c['old'], c['new'])} · walk-forward {c['wf_usd_day']:+.2f}$/วัน" for c in changes]
-    return (f"🔬 วิจัยประจำสัปดาห์เสร็จ ({minutes:.0f} นาที): ปรับพารามิเตอร์ {len(changes)} ตัวด้วยข้อมูลล่าสุด — "
+        return f"🔬 วิจัยประจำวันเสร็จ ({minutes:.0f} นาที): ค่าเดิม + ตัวกรองเดิมยังดีที่สุดทุกตัว — ไม่เปลี่ยนอะไร"
+    lines = []
+    for c in changes:
+        g = c.get("gate") or {}
+        proof = (f" (ทดสอบย้อนหลัง: ครึ่งที่แย่กว่า {g['score_from']:+.2f}→{g['score_to']:+.2f}$/ไม้ · 2 เดือนล่าสุด "
+                 f"{g['holdout_from']:+.2f}→{g['holdout_to']:+.2f}$/วัน)") if g.get("score_to") is not None else ""
+        lines.append(f"{c['bot']} ({c['family']}): {_diff(c['old'], c['new'])}{proof} · walk-forward {c['wf_usd_day']:+.2f}$/วัน")
+    return (f"🔬 วิจัยประจำวันเสร็จ ({minutes:.0f} นาที): ปรับ {len(changes)} ตัวด้วยข้อมูลล่าสุด + ตัวกรองจากสิ่งที่ผู้จัดการเรียนรู้ — "
             + " · ".join(lines) + " · บอทที่เปลี่ยนจะรีสตาร์ทใช้ค่าใหม่")
 
 
@@ -65,7 +82,7 @@ def run_weekly(download: bool = True) -> list[dict]:
             pass
     t0 = time.time()
     save_status({"started": t0, "running": True})
-    say("info", "🔬 เริ่มวิจัยประจำสัปดาห์: ดึงข้อมูล BTC ล่าสุด แล้วทดสอบย้อนหลังราว 2,000 แบบ (ใช้เวลาประมาณ 30–60 นาที)")
+    say("info", "🔬 เริ่มวิจัยประจำวัน: ดึงข้อมูล BTC ล่าสุด → ทดสอบย้อนหลังราว 2,000 แบบ + ตัวกรอง 216 แบบจากสิ่งที่ผู้จัดการเรียนรู้ (ประมาณ 30–60 นาที)")
     try:
         if download:
             from .data import mt5_source
@@ -80,7 +97,7 @@ def run_weekly(download: bool = True) -> list[dict]:
     except Exception as e:  # noqa: BLE001
         log.exception("research failed")
         save_status({"started": t0, "finished": time.time(), "running": False, "error": str(e)})
-        say("alert", f"🔬 วิจัยประจำสัปดาห์ไม่สำเร็จ: {e}")
+        say("alert", f"🔬 วิจัยประจำวันไม่สำเร็จ: {e}")
         return []
     minutes = (time.time() - t0) / 60
     text = describe(changes, minutes)

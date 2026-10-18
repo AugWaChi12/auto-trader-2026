@@ -33,8 +33,8 @@ log = logging.getLogger("manager")
 
 LOG_PATH = C.STATE_DIR / "manager_log.jsonl"
 JOURNAL_PATH = C.STATE_DIR / "manager_journal.jsonl"
-RESEARCH_EVERY_DAYS = float(os.environ.get("RESEARCH_EVERY_DAYS") or 7)   # 0 = ไม่วิจัยอัตโนมัติ
-RESEARCH_HOUR_BKK = 4                                                      # วันอาทิตย์ ตี 4 เวลาไทย
+RESEARCH_EVERY_DAYS = float(os.environ.get("RESEARCH_EVERY_DAYS") or 1)   # ทุกคืน (7 = เฉพาะวันอาทิตย์ · 0 = ไม่วิจัยอัตโนมัติ)
+RESEARCH_HOUR_BKK = 4                                                      # ตี 4 เวลาไทย
 PAUSES_PATH = C.STATE_DIR / "manager_pauses.json"
 TICK_SEC = 60
 REPORT_EVERY_MIN = 30
@@ -43,6 +43,10 @@ MAX_PAUSE_MIN = 24 * 60
 
 # เพดานขาดทุน (ข้อ 1, 3, 4 ด้านล่าง) ปิดไว้ — DEMO ให้เรียนรู้จากผลจริง ถูกผิดเต็มที่ · เปิดคืนด้วย MANAGER_STOPS=1
 LOSS_STOPS = os.environ.get("MANAGER_STOPS") == "1"
+# พักบอทจริงไหม — ปิดไว้ (ผู้ใช้สั่ง 2026-10-18: "ไม่ต้องให้บอทพัก ให้ผู้จัดการเรียนรู้แล้วปรับปรุง")
+#   ปิด = คำสั่งพักกลายเป็น "คำทำนาย" (บอทเทรดต่อ) แล้วให้คะแนนจากไม้จริงภายหลัง · สิ่งที่เรียนรู้ไปทางงานวิจัย (ตัวกรอง) แทน
+PAUSE_BOTS = os.environ.get("MANAGER_PAUSE") == "1"
+PAPER_MIN = 60                # คำทำนายจากสภาพตลาดครอบคลุมกี่นาที
 
 # เกณฑ์ของสมองตามกฎ (ดอลลาร์ = ของบอทแต่ละตัว เว้นแต่บอกว่าทั้งพอร์ต)
 EQUITY_GUARD = 640.0          # equity ทั้งบัญชีต่ำกว่านี้ → พักบอททดสอบทั้งหมด (ก่อนชนเพดาน $600 ของ RiskManager)
@@ -228,10 +232,9 @@ def market_regime(bars: list[list]) -> tuple[str | None, float | None]:
     m5 = to_m5(bars, 25)
     if len(m5) < 25:
         return None, None
-    closes = [b[4] for b in m5]
-    path = sum(abs(b - a) for a, b in zip(closes, closes[1:]))
-    er = abs(closes[-1] - closes[0]) / path if path else 0.0
-    return ("trend" if er >= ER_TREND else "range" if er <= ER_RANGE else "mixed"), round(er, 2)
+    from .strategy.gate import efficiency, regime_of     # สูตรเดียวกับตัวกรองในบอท
+    er = efficiency([b[4] for b in m5])
+    return regime_of(er), round(er, 2)
 
 
 def suits(family: str | None, regime: str) -> bool | None:
@@ -344,7 +347,7 @@ class RuleBrain:
             fit, why, p = *self.fit(b.get("family"), now), pauses.get(n)
             if fit is False and p is None and not b["open"]:
                 self.acted.add(n)
-                acts.append(Action("pause", n, REGIME_PAUSE_MIN, f"{n} สาย {b.get('family')} ไม่ถนัด{REGIME_TH[now]}{why} — พักรอ", tag="regime"))
+                acts.append(Action("pause", n, REGIME_PAUSE_MIN if PAUSE_BOTS else PAPER_MIN, f"{n} สาย {b.get('family')} ไม่ถนัด{REGIME_TH[now]}{why} — พักรอ", tag="regime"))
             elif fit is not False and p and p.get("tag") == "regime" and s.t - p.get("since", 0) >= REGIME_MIN_REST_MIN * 60:
                 self.acted.add(n)
                 acts.append(Action("resume", n, reason=f"{REGIME_TH[now]} — สาย {b.get('family')} กลับมาลุยได้{why}", tag="regime"))
@@ -428,6 +431,9 @@ class Manager:
         if a.kind == "say":
             say("analysis", a.reason, src=a.src)
             return
+        if not PAUSE_BOTS and a.kind in ("pause", "resume"):
+            self.paper(a, s)
+            return
         self.recent.append(s.t)
         if a.kind == "pause":
             m = max(1, min(int(a.minutes), MAX_PAUSE_MIN))
@@ -438,7 +444,7 @@ class Manager:
             p = pauses.pop(a.bot, None)
             if p is not None:
                 save_pauses(pauses)
-                shadow.record(a.bot, p, s.t)
+                shadow.record_pause(a.bot, p, s.t)
                 say("action", f"▶ ให้ {a.bot} กลับมาทำงาน — {a.reason}", bot=a.bot, act="resume", src=a.src)
         elif a.kind == "close":
             res = self.col.close_bot_positions(a.bot)
@@ -451,7 +457,10 @@ class Manager:
     def tick(self) -> None:
         s = build_snapshot(self.col)
         regime, er = market_regime(s.btc_bars)
-        for x in self.learner.observe(s.test_bots(), regime, er, s.t):
+        b = s.btc_bars
+        move = (b[-1][4] - b[-121][4]) if len(b) > 121 else 0.0
+        trend_dir = 0 if regime != "trend" else (1 if move > 0 else -1)
+        for x in self.learner.observe(s.test_bots(), regime, er, s.t, trend_dir):
             log.info("learned %s %s %s %+.2f", x["bot"], x["family"], x["regime"], x["profit"])
         if bkk_day() != self.day:
             if self.last_snap is not None:
@@ -462,7 +471,8 @@ class Manager:
         if s.t - self.last_shadow >= 3600:
             self.last_shadow = s.t
             try:
-                for e in shadow.evaluate(self.fetch_bars, C.DEFAULT_SPECS["BTCUSD"], s.t):
+                for e in shadow.evaluate(self.fetch_bars, C.DEFAULT_SPECS["BTCUSD"], s.t,
+                                         lambda bot: self.col.trades_page(bot, 1, 200).get("rows", [])):
                     say("info", shadow.describe(e), src=e["src"], bot=e["bot"], shadow=e["missed"])
             except Exception:  # noqa: BLE001 — บอทเงาพังต้องไม่ทำให้ผู้จัดการหยุดตัดสินใจ
                 log.exception("shadow evaluate failed")
@@ -473,7 +483,7 @@ class Manager:
         expired = sorted(set(raw) - set(pauses))
         for b in expired:
             say("action", f"▶ ครบเวลาพัก — {b} กลับมาทำงาน", bot=b, act="resume")
-            shadow.record(b, raw[b], s.t)
+            shadow.record_pause(b, raw[b], s.t)
         if expired:
             save_pauses(pauses)                 # ล้างตัวที่หมดเวลาออกจากไฟล์
         actions = self.brain.decide(s, pauses)
@@ -485,6 +495,20 @@ class Manager:
             except Exception as e:  # noqa: BLE001
                 log.exception("action failed")
                 say("alert", f"⚠️ ทำ {a.kind} {a.bot or ''} ไม่สำเร็จ: {e}")
+
+    def paper(self, a: Action, s: Snapshot) -> None:
+        """โหมดไม่พักบอท: "พัก" = ทำนายว่าบอทนี้ไม่ควรเข้าไม้ช่วงนี้ · "ให้กลับ" = ปิดคำทำนายของผู้สั่งคนเดิม"""
+        who = {"rules": "กฎ", "gemini": "Gemini", "claude": "Claude"}.get(a.src, a.src)
+        if a.kind == "resume":
+            if shadow.end_paper(a.bot, a.src, s.t):
+                say("analysis", f"📝 {who} ถอนคำทำนาย {a.bot} — {a.reason}", src=a.src, bot=a.bot)
+            return
+        if shadow.open_paper(a.bot, a.src, s.t):
+            return                                            # มีคำทำนายของผู้สั่งคนนี้ค้างอยู่แล้ว
+        m = max(15, min(int(a.minutes), MAX_PAUSE_MIN))
+        shadow.record({"bot": a.bot, "start": s.t, "end": s.t + m * 60, "src": a.src, "tag": a.tag, "reason": a.reason, "paper": True})
+        say("analysis", f"📝 {who} ทำนาย: {a.bot} ไม่ควรเข้าไม้ {m} นาที — {a.reason} (บอทยังเทรดตามปกติ · ให้คะแนนจากไม้จริงภายหลัง)",
+            src=a.src, bot=a.bot, act="paper", minutes=m)
 
     def fetch_bars(self, tf: str, count: int) -> list:
         """แท่งที่ปิดแล้วล่าสุดของ BTC (ให้บอทเงาจำลอง) — แปลงเวลา server → UTC แบบเดียวกับบอทจริง"""
@@ -511,6 +535,12 @@ class Manager:
                 f"แย่สุด {ranked[-1][0]} {ranked[-1][1]['today']:+.2f}$ · ผู้จัดการสั่งงาน {len(acts)} ครั้ง"
                 + (" (" + ", ".join(f"{k} {v}" for k, v in sorted(by_src.items())) + ")" if by_src else "")
                 + f" · equity ${s.equity:,.2f}") if ranked else f"สรุปวันที่ {day}: ไม่มีข้อมูลบอท"
+        sb = shadow.scoreboard(1)
+        if sb:
+            text += " · คำทำนายวันนี้: " + ", ".join(f"{shadow.WHO.get(k, k)} ถูก {v['right']}/{v['calls']}" for k, v in sorted(sb.items()))
+        lessons = self.learner.lessons(limit=3)
+        if lessons:
+            text += " · จุดอ่อนที่เห็น: " + "; ".join(f"{x['family']} ตอน {x['when']} ({x['n']} ไม้ เฉลี่ย {x['avg']:+.2f}$)" for x in lessons)
         ai = ""
         if self.llm is not None:
             try:
@@ -518,7 +548,8 @@ class Manager:
                     "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2–4 ประโยค ภาษาไทย: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
                     "และพรุ่งนี้จะปรับวิธีคิดอย่างไร (ตอบเป็นข้อความธรรมดา ไม่ต้องเรียกฟังก์ชัน)\n\n"
                     + json.dumps({"summary": text, "bots": {n: {"strategy": b.get("family"), "today_usd": b["today"]} for n, b in tests.items()},
-                                  "learned": self.learner.summary(), "actions": [m["text"] for m in acts][-30:]}, ensure_ascii=False))
+                                  "learned": self.learner.summary(), "lessons": lessons, "prediction_score_today": sb,
+                                  "actions": [m["text"] for m in acts][-30:]}, ensure_ascii=False))
             except Exception as e:  # noqa: BLE001
                 log.warning("journal ai: %s", e)
         JOURNAL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -535,7 +566,8 @@ class Manager:
         st = load_status()
         n = datetime.fromtimestamp(s.t, timezone.utc) + timedelta(hours=7)
         last = st.get("finished") or 0 if st.get("error") or not st.get("running") else st.get("started", 0)
-        if (st.get("running") or s.t - last < RESEARCH_EVERY_DAYS * 86400 - 3 * 3600) or n.weekday() != 6 or n.hour != RESEARCH_HOUR_BKK:
+        weekly_only = RESEARCH_EVERY_DAYS >= 7 and n.weekday() != 6
+        if (st.get("running") or s.t - last < RESEARCH_EVERY_DAYS * 86400 - 3 * 3600) or weekly_only or n.hour != RESEARCH_HOUR_BKK:
             return
         import subprocess
         import sys
@@ -546,6 +578,17 @@ class Manager:
         log.info("research started pid=%s", self.research_proc.pid)
 
     @staticmethod
+    def release_all_pauses() -> None:
+        """โหมดไม่พักบอท: ปล่อยทุกตัวที่ยังถูกพักอยู่ (ช่วงที่พักไปแล้วยังส่งให้บอทเงาประเมิน)"""
+        p = load_pauses()
+        if p:
+            save_pauses({})
+            for b, x in p.items():
+                shadow.record_pause(b, x, now_ts())
+            say("action", f"▶ เลิกพักบอทแล้ว (บอททุกตัวเทรดตลอด · ผู้จัดการเปลี่ยนเป็นทำนาย + เรียนรู้ + ปรับกลยุทธ์ผ่านงานวิจัย) — ปล่อย {', '.join(sorted(p))}",
+                act="resume")
+
+    @staticmethod
     def release_loss_stops() -> None:
         """ปิดเพดานขาดทุนแล้ว → ปล่อยบอทที่ถูกพักเพราะเพดาน/แพ้ติดกันก่อนหน้านี้"""
         p = load_pauses()
@@ -554,7 +597,7 @@ class Manager:
         if freed:
             save_pauses({b: x for b, x in p.items() if b not in freed})
             for b in freed:
-                shadow.record(b, p[b], now_ts())
+                shadow.record_pause(b, p[b], now_ts())
             say("action", f"▶ ปิดเพดานขาดทุนแล้ว (DEMO ลองเต็มที่) — ปล่อย {', '.join(freed)} กลับมาทำงาน", act="resume")
 
     def run(self) -> None:
@@ -562,6 +605,8 @@ class Manager:
             src=self.llm.src if self.llm else "rules")
         if not LOSS_STOPS:
             self.release_loss_stops()
+        if not PAUSE_BOTS:
+            self.release_all_pauses()
         n = 0
         while True:
             try:

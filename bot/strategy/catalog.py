@@ -46,6 +46,7 @@ def build(family: str, symbol: str, params: dict, plan: ManagementPlan | None, t
           mode: str = "rule") -> Strategy:
     cfg_cls, strat_cls, _ = FAMILIES[family]
     kw = dict(params)
+    skip_regimes, skip_sessions = tuple(kw.pop("skip_regimes", ()) or ()), tuple(kw.pop("skip_sessions", ()) or ())
     gold = symbol != "NAS100"          # ทอง / BTC ใช้กรอบเวลา UTC · NAS ใช้เวลานิวยอร์ก
     if family in ("rsi2", "ema", "bb"):
         kw.update(window=ALL_DAY, side_mode=mode)
@@ -65,4 +66,8 @@ def build(family: str, symbol: str, params: dict, plan: ManagementPlan | None, t
     cfg = cfg_cls(tag=tag, symbol=symbol, **kw)
     if plan is not None:
         cfg = replace(cfg, plan=plan)
-    return strat_cls(cfg, timeframe)
+    strat = strat_cls(cfg, timeframe)
+    if skip_regimes or skip_sessions:          # ตัวกรองที่งานวิจัยยืนยันแล้ว (strategy/gate.py)
+        from .gate import Gate
+        return Gate(strat, skip_regimes, skip_sessions)
+    return strat

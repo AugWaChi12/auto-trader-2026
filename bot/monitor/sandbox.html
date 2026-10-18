@@ -266,7 +266,7 @@
   <h3>ออเดอร์เดินทางยังไง</h3>
   <div class="flow">📦 ออเดอร์ → 🛡️ กันส่งซ้ำ → ⚖️ ด่านความเสี่ยง → 📏 ขนาดไม้ → 🏦 MT5</div>
   <h3>ผู้จัดการพอร์ต (หุ่นสีม่วง)</h3>
-  <div>อ่านตลาดทุกนาที สั่งพัก/ให้กลับ/ปิดไม้ของบอททดสอบ ทุกคำสั่งขึ้นในแชทด้านขวา · ★ main (บนเกาะทอง) ทำงานอิสระ ผู้จัดการไม่แตะ</div>
+  <div>อ่านตลาดทุกนาที ทำนายว่าบอทไหนไม่ควรเข้าไม้ (บอทยังเทรดตามปกติ) แล้วตรวจคำทำนายกับไม้จริง · เรียนรู้จุดอ่อนของแต่ละกลยุทธ์ และให้งานวิจัยทุกคืนทดสอบตัวกรองก่อนใส่ให้บอท · ★ main (บนเกาะทอง) ทำงานอิสระ ผู้จัดการไม่แตะ</div>
   <h3>ใช้งาน</h3>
   <div>ลากเพื่อหมุนกล้อง · ล้อเมาส์/สองนิ้วเพื่อซูม · แตะหุ่นยนต์เพื่อดูรายละเอียด</div>
   <div class="note">บัญชี DEMO เงินทดลอง เพื่อการเรียนรู้เท่านั้น — ไม่ใช่คำแนะนำการลงทุน ผลในอดีตไม่รับประกันอนาคต</div>
@@ -835,7 +835,9 @@ async function refreshManager() {
   MGR.pauses = d.pauses || {}; MGR.data = d;
   const msgs = d.messages || [], last = msgs[msgs.length - 1];
   const pz = Object.entries(MGR.pauses).sort();
-  $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ") : "";
+  const calls = d.shadow?.open || [], who = { rules: "กฎ", gemini: "Gemini", claude: "Claude" };
+  $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ")
+    : calls.length ? "📝 ทำนายว่าไม่ควรเข้า: " + calls.map(c => `${c.bot} (${who[c.src] || c.src} · อีก ${minsLeft({ until: c.end })} น.)`).join(" · ") : "";
   const srcs = new Set(msgs.slice(-40).map(m => m.src).filter(Boolean));
   const ai = srcs.has("gemini") ? "✨ Gemini" : srcs.has("claude") ? "🤖 Claude" : "";
   $("brain").textContent = ai ? ai + " + 📏 กฎ" : "📏 สมองตามกฎ";
@@ -870,14 +872,26 @@ function curveSvg(pts) {
 }
 function shadowHtml(sh) {
   const sc = sh?.score || {}, who = { rules: "📏 กฎ", gemini: "✨ Gemini", claude: "🤖 Claude" };
-  const rows = Object.entries(sc).map(([src, x]) => `<tr><td>${who[src] || esc(src)}</td><td class="r">${x.pauses}</td><td class="r">${x.trades}</td>
+  const rows = Object.entries(sc).map(([src, x]) => `<tr><td>${who[src] || esc(src)}</td><td class="r">${x.right}/${x.calls}
+    <small class="k">(${Math.round(x.right / x.calls * 100)}%)</small></td><td class="r">${x.trades}</td>
     <td class="r"><span class="cell ${x.missed <= 0 ? "pos" : "neg"}">${x.missed <= 0 ? "ประหยัด " + money(-x.missed).slice(1) : "พลาด " + money(x.missed).slice(1)}</span></td></tr>`).join("");
-  const rec = (sh?.recent || []).slice(-6).reverse().map(e => `<tr><td>${esc(e.bot)}</td><td>${who[e.src] || esc(e.src)}</td><td class="r">${Math.round((e.end - e.start) / 60)} น.</td>
-    <td class="r">${e.trades}</td><td class="r ${e.missed <= 0 ? "up" : "down"}">${money(e.missed)}</td></tr>`).join("");
-  if (!rows) return '<div class="note">ยังไม่มีผล — บอทเงาจะจำลองช่วงที่ถูกพัก หลังการพักแต่ละครั้งจบ (ประเมินชั่วโมงละครั้ง)</div>';
-  return `<div class="grid"><div><table><tr><th>ผู้สั่งพัก</th><th class="r">ครั้ง</th><th class="r">ไม้ที่เลี่ยง</th><th class="r">ผล</th></tr>${rows}</table>
-    <div class="note">จำลองกลยุทธ์เดิมบนราคาจริงช่วงที่ถูกพัก: "ประหยัด" = ถ้าไม่พักจะขาดทุน · "พลาด" = ถ้าไม่พักจะได้กำไร</div></div>
+  const rec = (sh?.recent || []).slice(-6).reverse().map(e => `<tr><td>${e.paper ? "📝" : "⏸"} ${esc(e.bot)}</td><td>${who[e.src] || esc(e.src)}</td><td class="r">${Math.round((e.end - e.start) / 60)} น.</td>
+    <td class="r">${e.trades}</td><td class="r ${e.missed <= 0 ? "up" : "down"}">${e.trades ? (e.missed < 0 ? "ถูก " : "ผิด ") + money(e.missed) : "ไม่มีไม้"}</td></tr>`).join("");
+  if (!rows && !rec) return '<div class="note">ยังไม่มีผล — ผู้จัดการทำนายว่าบอทไหนไม่ควรเข้าไม้ (บอทยังเทรดตามปกติ) แล้วระบบตรวจกับไม้จริงทุกชั่วโมง</div>';
+  return `<div class="grid"><div><table><tr><th>ผู้ทำนาย</th><th class="r">ถูก</th><th class="r">ไม้</th><th class="r">ถ้าเชื่อ</th></tr>${rows}</table>
+    <div class="note">ผู้จัดการทำนายว่า "บอทนี้ไม่ควรเข้าไม้ช่วงนี้" แต่ไม่ได้พักจริง → ตรวจกับไม้จริง: ไม้ขาดทุน = ทายถูก (ถ้าเชื่อจะประหยัด) · ไม้กำไร = ทายผิด</div></div>
     <div><table><tr><th>ล่าสุด</th><th>ผู้สั่ง</th><th class="r">พัก</th><th class="r">ไม้</th><th class="r">ถ้าไม่พัก</th></tr>${rec}</table></div></div>`;
+}
+const GT = { trend: "เทรนด์", range: "ออกข้าง", mixed: "ไม่ชัดทาง", asia: "เอเชีย", europe: "ยุโรป", us: "อเมริกา", with: "ตามเทรนด์", against: "สวนเทรนด์", flat: "ไม่มีเทรนด์" };
+function lessonsHtml(ls) {
+  if (!ls || !ls.length) return "";
+  return `<div class="note" style="margin-top:10px"><b>จุดอ่อนที่เห็นจากไม้จริง</b> (งานวิจัยทุกคืนจะทดสอบตัวกรองจากจุดนี้):<br>` + ls.map(x => {
+    const [k, v] = x.when.split(":");
+    return `• ${esc((FAM[x.family] || [0, x.family])[1])} ตอน${esc(GT[v] || v)} — ${x.n} ไม้ เฉลี่ย <b class="down">${money(x.avg)}</b>`; }).join("<br>") + "</div>";
+}
+function gateText(p) {
+  const skip = [...(p?.skip_regimes || []), ...(p?.skip_sessions || [])];
+  return skip.length ? "🚧 ไม่เข้าตอน" + skip.map(x => GT[x] || x).join("/") : "";
 }
 function renderPerf() {
   if (!$("perf").classList.contains("open")) return;
@@ -886,7 +900,7 @@ function renderPerf() {
   const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${esc(n === "main" ? "ทอง M15" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
     <td class="r ${(s.today || 0) + (s.floating || 0) >= 0 ? "up" : "down"}">${money((s.today || 0) + (s.floating || 0))}</td>
     <td class="r ${(s.total || 0) >= 0 ? "up" : "down"}">${money(s.total || 0)}</td><td class="r">${s.trades || 0}</td><td class="r">${s.win_rate == null ? "–" : s.win_rate + "%"}</td>
-    <td class="r">${MGR.pauses[n] ? "⏸ พัก" : ""}</td></tr>`).join("");
+    <td class="r">${MGR.pauses[n] ? "⏸ พัก" : esc(gateText(res[n]?.params))}</td></tr>`).join("");
   const learned = m.learned || {}, fams = Object.keys(learned).sort();
   const learn = fams.length ? `<table><tr><th>สาย</th>${Object.values(REG).map(r => `<th class="r">${r}</th>`).join("")}</tr>` + fams.map(f =>
     `<tr><td>${esc((FAM[f] || [0, f])[1])} <span class="k">(${esc(f)})</span></td>` + Object.keys(REG).map(rg => { const c = learned[f][rg];
@@ -895,12 +909,12 @@ function renderPerf() {
   const jr = (m.journal || []).slice().reverse().map(j => `<div class="j"><b>📓 ${esc(j.day)} · <span class="${j.pnl >= 0 ? "up" : "down"}">${money(j.pnl)}</span></b>${esc(j.text)}${j.ai ? `<div class="ai">${j.src === "gemini" ? "✨" : "🤖"} ${esc(j.ai)}</div>` : ""}</div>`).join("")
     || '<div class="note">บันทึกแรกจะขึ้นหลังเที่ยงคืนเวลาไทย</div>';
   const r = m.research || {};
-  const rs = r.running ? "🔬 กำลังวิจัยอยู่ตอนนี้…" : r.summary ? `${esc(r.summary)} <span class="k">(${hhmm(new Date(r.finished * 1000).toISOString())} น.)</span>` : r.error ? `ครั้งล่าสุดไม่สำเร็จ: ${esc(r.error)}` : "รอบแรก: อาทิตย์ ตี 4 เวลาไทย";
+  const rs = r.running ? "🔬 กำลังวิจัยอยู่ตอนนี้…" : r.summary ? `${esc(r.summary)} <span class="k">(${hhmm(new Date(r.finished * 1000).toISOString())} น.)</span>` : r.error ? `ครั้งล่าสุดไม่สำเร็จ: ${esc(r.error)}` : "รอบถัดไป: ตี 4 เวลาไทย";
   $("perfBody").innerHTML = `<div class="grid"><div><h3>กำไรสะสม</h3>${curveSvg(D?.pnl_curve)}</div>
-    <div><h3>ผู้จัดการเรียนรู้อะไรแล้ว</h3>${learn}<div class="note">$/ไม้เฉลี่ยของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้) · ครบ 8 ไม้ขึ้นไป ผู้จัดการใช้ตัดสินพัก/ให้กลับแทนสมมติฐาน</div></div></div>
-    <h3>บอทเงา: การพักของผู้จัดการช่วยจริงไหม (30 วัน)</h3>${shadowHtml(m.shadow)}
-    <h3>อันดับบอท</h3><table><tr><th>บอท</th><th>สาย</th><th class="r">วันนี้</th><th class="r">รวม</th><th class="r">ไม้</th><th class="r">ชนะ</th><th></th></tr>${board}</table>
-    <h3>วิจัยประจำสัปดาห์</h3><div class="j">${rs}</div>
+    <div><h3>ผู้จัดการเรียนรู้อะไรแล้ว</h3>${learn}${lessonsHtml(m.lessons)}<div class="note">$/ไม้เฉลี่ยของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้) · ครบ 8 ไม้ขึ้นไป ผู้จัดการใช้ตัดสินพัก/ให้กลับแทนสมมติฐาน</div></div></div>
+    <h3>คำทำนายของผู้จัดการถูกไหม (30 วัน)</h3>${shadowHtml(m.shadow)}
+    <h3>อันดับบอท</h3><table><tr><th>บอท</th><th>สาย</th><th class="r">วันนี้</th><th class="r">รวม</th><th class="r">ไม้</th><th class="r">ชนะ</th><th class="r">ตัวกรองที่เรียนรู้</th></tr>${board}</table>
+    <h3>งานวิจัยทุกคืน (ตี 4)</h3><div class="j">${rs}</div>
     <h3>บันทึกท้ายวันของผู้จัดการ</h3>${jr}`;
 }
 function setPerf(open) {

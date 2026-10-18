@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from . import config as C
-from .manager_learn import load_summary
+from .manager_learn import Learner, load_summary
 from .shadow import scoreboard
 from .manager import REGIME_TH, Action, Snapshot, market_regime, range_ratio, read_log, say, suits, to_m5
 
@@ -29,8 +29,10 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
 บอท main (ทองคำ M15) ไม่ได้อยู่ใต้การดูแลของคุณ คุณไม่มีเครื่องมือแตะมัน
 
 หน้าที่: อ่านภาพรวมพอร์ตกับตลาดที่ส่งมาทุก {LLM_EVERY_MIN} นาที แล้วตัดสินใจเหมือนผู้จัดการกองทุนที่คุมทีมเทรดเดอร์
-- พักบอทที่กลยุทธ์ไม่เข้ากับสภาพตลาดตอนนี้ (เช่น บอทตามเทรนด์ตอนตลาดออกข้าง บอทสวนเทรนด์ตอนตลาดวิ่งแรง แพ้ติดกัน)
-- ให้บอทที่พักอยู่กลับมาเมื่อสภาพตลาดเหมาะกับมันอีกครั้ง
+- ทำนายว่าบอทไหนไม่ควรเข้าไม้ช่วงนี้ (pause_bot) เช่น สายตามเทรนด์ตอนตลาดออกข้าง สายสวนเทรนด์ตอนตลาดวิ่งแรง
+  ตอนนี้เป็น "โหมดเรียนรู้": บอทไม่ถูกพักจริง เทรดต่อตามปกติ แล้วระบบให้คะแนนคำทำนายของคุณจากไม้จริง (prediction_scoreboard_30d)
+  ทายถูก = ไม้ในช่วงนั้นขาดทุน · ทายผิด = ไม้ในช่วงนั้นกำไร → ใช้คะแนนนี้ปรับวิธีคิดของคุณ ทำนายเฉพาะตอนมั่นใจ
+- resume_bot = ถอนคำทำนายของคุณก่อนหมดเวลา
 - ปิดไม้ที่ค้างอยู่เมื่อมีเหตุผลชัดเจน (กำไรกำลังหดคืน ถือนานแล้วขาดทุน ตลาดกลับทิศแรงสวนไม้)
 - อยู่เฉยๆ ก็เป็นการตัดสินใจที่ดีได้ ถ้าไม่มีเหตุผลชัด ไม่ต้องสั่งอะไร
 
@@ -43,8 +45,10 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
 - ประวัติแชทล่าสุดแนบมาให้ อย่าสั่งกลับไปกลับมาภายในเวลาสั้นๆ
 - "learned_by_strategy_and_regime" = ผลจริงของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้, $/ไม้เฉลี่ย, % ชนะ) ที่สะสมมา — ใช้เป็นหลักฐานประกอบ
   ถ้าไม้ยังน้อย (< 8) อย่าเชื่อมาก
-- "pause_scoreboard_30d" = บอทเงาวัดผลการพักย้อนหลัง แยกตามผู้สั่ง (rules / gemini / claude): missed < 0 = การพักช่วยประหยัด,
-  missed > 0 = พักแล้วพลาดกำไร — ถ้าการพักของคุณพลาดกำไรบ่อย ให้พักน้อยลง
+- "prediction_scoreboard_30d" = คะแนนการตัดสินใจย้อนหลังแยกตามผู้สั่ง (rules / gemini / claude): right/wrong/calls
+  missed < 0 = ถ้าเชื่อจะประหยัด, missed > 0 = ถ้าเชื่อจะพลาดกำไร — ถ้าคุณทายผิดบ่อยกว่ากฎ ให้ทำนายน้อยลง/เปลี่ยนเกณฑ์
+- "lessons" = จุดอ่อนที่ชัดที่สุดจากไม้จริง (สาย × เงื่อนไข) · งานวิจัยทุกคืนจะทดสอบตัวกรองจากจุดอ่อนพวกนี้บนข้อมูลย้อนหลัง
+  ถ้าผ่าน จะใส่ให้บอทเอง (bots.*.gate) — คุณไม่ต้องสั่ง แต่ช่วยอธิบายให้คนดูเข้าใจได้
 
 ทุกรอบให้เรียก say หนึ่งครั้งเสมอ: วิเคราะห์ตลาดและพอร์ตสั้นๆ 1–3 ประโยค เป็นภาษาไทย อ่านง่ายสำหรับคนดูไลฟ์
 ถ้าสั่ง pause/resume/close ให้ใส่เหตุผลสั้นๆ ที่อ้างอิงตัวเลขในข้อมูล
@@ -52,10 +56,10 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
 
 _BOT = {"type": "string", "enum": TEST_BOTS}
 FUNCTIONS = [   # JSON Schema ของแต่ละคำสั่ง — Claude/Gemini แปลงเป็นรูปแบบของตัวเอง
-    {"name": "pause_bot", "description": "หยุดบอททดสอบตัวหนึ่งชั่วคราว (supervisor ปิดโปรเซสจนครบเวลา ไม้ที่ถืออยู่ยังมี SL/TP ที่โบรก)",
+    {"name": "pause_bot", "description": "ทำนายว่าบอทตัวนี้ไม่ควรเข้าไม้ในอีก N นาที (โหมดเรียนรู้: บอทยังเทรดตามปกติ ระบบให้คะแนนจากไม้จริงภายหลัง)",
      "schema": {"type": "object", "additionalProperties": False, "required": ["bot", "minutes", "reason"],
                 "properties": {"bot": _BOT, "minutes": {"type": "integer"}, "reason": {"type": "string"}}}},
-    {"name": "resume_bot", "description": "ให้บอทที่พักอยู่กลับมาทำงานก่อนครบเวลา",
+    {"name": "resume_bot", "description": "ถอนคำทำนายของคุณสำหรับบอทตัวนี้ก่อนหมดเวลา",
      "schema": {"type": "object", "additionalProperties": False, "required": ["bot", "reason"],
                 "properties": {"bot": _BOT, "reason": {"type": "string"}}}},
     {"name": "close_positions", "description": "ปิดไม้ทั้งหมดที่บอทตัวนี้ถืออยู่ทันทีด้วยราคาตลาด",
@@ -70,12 +74,14 @@ FUNCTIONS = [   # JSON Schema ของแต่ละคำสั่ง — Cla
 def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
     now = datetime.now(timezone.utc)
     regime, er = market_regime(s.btc_bars)
+    gates = {b["bot"]: {k: b["params"][k] for k in ("skip_regimes", "skip_sessions") if b["params"].get(k)} or None
+             for b in C.load_m5_bots()}
     bots = {}
     for n, b in sorted(s.test_bots().items()):
         p = pauses.get(n)
         fit = suits(b.get("family"), regime) if regime else None
         bots[n] = {
-            "strategy": b.get("family"), "fits_regime": fit, "running": b["alive"], "state": b.get("state"),
+            "strategy": b.get("family"), "fits_regime": fit, "gate": gates.get(n), "running": b["alive"], "state": b.get("state"),
             "today_usd": b["today"], "total_usd": b["total"], "trades": b["trades"], "win_rate": b["win_rate"],
             "loss_streak": b["streak"], "day_target_hit": b.get("target_hit"),
             "paused": {"minutes_left": int((p["until"] - s.t) / 60), "by": p.get("src", "rules"), "reason": p.get("reason")} if p else None,
@@ -92,7 +98,8 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
                 "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(s.btc_bars)]},
         "bots": bots,
         "learned_by_strategy_and_regime": load_summary(),
-        "pause_scoreboard_30d": scoreboard(),
+        "prediction_scoreboard_30d": scoreboard(),
+        "lessons": Learner().lessons(),
         "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(15)],
     }, ensure_ascii=False, default=str)
 

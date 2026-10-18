@@ -16,6 +16,7 @@ from bot import manager as M
 @pytest.fixture(autouse=True)
 def _state(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(M, "LOSS_STOPS", True)          # เทสต์กฎเพดานขาดทุนด้วย (บนเซิร์ฟเวอร์ปิดไว้)
+    monkeypatch.setattr(M, "PAUSE_BOTS", True)          # เทสต์ชุดเดิมเป็นโหมดพักจริง (บนเซิร์ฟเวอร์ใช้โหมดทำนาย)
     monkeypatch.setattr(M, "LOG_PATH", tmp_path / "manager_log.jsonl")
     monkeypatch.setattr(M, "PAUSES_PATH", tmp_path / "manager_pauses.json")
     monkeypatch.setattr(M, "JOURNAL_PATH", tmp_path / "manager_journal.jsonl")
@@ -361,6 +362,7 @@ def test_lab_retune_keeps_family_per_bot(monkeypatch, tmp_path: Path) -> None:  
     cur = [{"bot": "m5_1", "family": "ema", "symbol": "BTCUSD", "lot": 0.04, "params": {"fast": 9}, "plan": "native"},
            {"bot": "m5_2", "family": "bb", "symbol": "BTCUSD", "lot": 0.04, "params": {"k": 2.0}, "plan": "trail"}]
     monkeypatch.setattr(C, "load_m5_bots", lambda: cur)
+    monkeypatch.setattr(sys, "argv", ["m5_lab", "--no-gates"])
     sl = lambda fam, params, plan: {"family": fam, "symbol": "BTCUSD", "live": {"params": params, "plan": plan},  # noqa: E731
                                     "wf": {"usd_day": 1.0}, "holdout": {"usd_day": 0.5}, "wf_random": None}
     out = tmp_path / "m5_bots.json"
@@ -396,7 +398,7 @@ def test_shadow_records_pause_and_scores_by_source(monkeypatch) -> None:  # noqa
     done = SH.evaluate(lambda tf, n: bars, None)
     assert sorted(e["bot"] for e in done) == ["m5_4", "m5_7"]
     sb = SH.scoreboard()
-    assert sb["gemini"] == {"pauses": 1, "trades": 3, "missed": -12.5} and sb["rules"]["missed"] == 4.0
+    assert sb["gemini"] == {"calls": 1, "right": 1, "wrong": 0, "trades": 3, "missed": -12.5} and sb["rules"]["wrong"] == 1
     assert "ช่วยประหยัด 12.50$" in SH.describe(next(e for e in done if e["bot"] == "m5_4"))
     assert SH.evaluate(lambda tf, n: bars, None) == []                # ไม่ประเมินซ้ำ
 
@@ -419,3 +421,71 @@ def test_watchdog_reports_new_problems_once_and_heals(monkeypatch, tmp_path: Pat
     probs.clear()
     W.run_check()
     assert sent[-1].startswith("✅ กลับมาปกติ")
+
+
+
+def test_gate_blocks_entries_in_skipped_regime_and_session() -> None:
+    from datetime import datetime, timedelta, timezone
+    from bot.core.types import Bar, EnterSignal, ExitSignal, Side
+    from bot.strategy.gate import Gate
+
+    class Inner:
+        tag, symbol, plan, last_bar = "t", "BTCUSD", None, None
+
+        def on_bar(self, bar, account):  # noqa: ANN001, ANN201
+            return [EnterSignal("BTCUSD", Side.BUY, 1.0, None, "t", str(bar.time)), ExitSignal("BTCUSD", "t", "x")]
+
+        def status(self):  # noqa: ANN201
+            return {"state": "ok"}
+    t0 = datetime(2026, 10, 18, 9, 0, tzinfo=timezone.utc)                       # ช่วงยุโรป
+    g = Gate(Inner(), skip_regimes=("trend",))
+    out = []
+    for i in range(26 * 5 + 1):                                                  # ราคาขึ้นตรงๆ = เทรนด์
+        out = g.on_bar(Bar(t0 + timedelta(minutes=i), 100 + i, 100 + i, 100 + i, 100 + i), None)
+    assert g.regime() == "trend" and [type(x).__name__ for x in out] == ["ExitSignal"]   # ทางออกผ่านเสมอ
+    g2 = Gate(Inner(), skip_sessions=("asia",))
+    assert len(g2.on_bar(Bar(t0, 1, 1, 1, 1), None)) == 2                         # 09:00 ไม่ใช่เอเชีย
+    assert len(g2.on_bar(Bar(t0.replace(hour=3), 1, 1, 1, 1), None)) == 1
+    assert g.status()["gate"]["blocked"] >= 1
+
+
+def test_catalog_wraps_strategy_with_gate_params() -> None:
+    from bot.strategy.catalog import build
+    from bot.strategy.gate import Gate
+    s = build("ema", "BTCUSD", {"fast": 9, "slow": 21, "sl_atr": 1.5, "tp_r": 2.0, "max_hold": 24,
+                                "skip_regimes": ["range"], "skip_sessions": []}, None, "M5", "m5_7")
+    assert isinstance(s, Gate) and s.skip_regimes == ("range",) and s.tag == "m5_7"
+    assert not isinstance(build("ema", "BTCUSD", {"fast": 9, "slow": 21, "sl_atr": 1.5, "tp_r": 2.0, "max_hold": 24},
+                                None, "M5", "m5_7"), Gate)
+
+
+
+def test_paper_mode_predicts_instead_of_pausing_and_scores_real_trades(monkeypatch) -> None:  # noqa: ANN001
+    from datetime import datetime, timezone
+    from bot import shadow as SH
+    monkeypatch.setattr(M, "PAUSE_BOTS", False)
+    t0 = M.now_ts() - 5 * 3600
+    m, p = M.Manager(FakeCol()), {}
+    m.execute(M.Action("pause", "m5_8", 60, "สวนเทรนด์", "gemini"), snap(t=t0), p)
+    m.execute(M.Action("pause", "m5_8", 60, "ซ้ำ", "gemini"), snap(t=t0 + 60), p)      # ค้างอยู่แล้ว ไม่จดซ้ำ
+    m.execute(M.Action("pause", "m5_2", 60, "x", "rules"), snap(t=t0), p)
+    assert p == {} and M.load_pauses() == {} and m.recent == []                         # ไม่พักจริง ไม่กินโควตา
+    iso = lambda t: datetime.fromtimestamp(t, timezone.utc).isoformat()  # noqa: E731
+    rows = {"m5_8": [{"open_time": iso(t0 + 600), "profit": -7.0}, {"open_time": iso(t0 + 9000), "profit": 50.0}],
+            "m5_2": [{"open_time": iso(t0 + 300), "profit": 3.0}]}
+    done = SH.evaluate(lambda tf, n: [], None, t0 + 4 * 3600, lambda b: rows.get(b, []))
+    by = {e["bot"]: e for e in done}
+    assert by["m5_8"]["missed"] == -7.0 and by["m5_2"]["missed"] == 3.0            # นับเฉพาะไม้ที่เปิดในช่วงทำนาย
+    sb = SH.scoreboard()
+    assert sb["gemini"]["right"] == 1 and sb["rules"]["wrong"] == 1
+    assert "ทายถูก" in SH.describe(by["m5_8"]) and "ทายผิด" in SH.describe(by["m5_2"])
+    msgs = [x["text"] for x in M.read_log()]
+    assert sum("ทำนาย: m5_8" in t for t in msgs) == 1
+
+
+def test_release_all_pauses_when_paper_mode() -> None:
+    from bot import shadow as SH
+    t = M.now_ts()
+    M.save_pauses({"m5_1": {"until": t + 999, "since": t - 3600, "src": "rules", "tag": "regime", "reason": "x"}})
+    M.Manager.release_all_pauses()
+    assert M.load_pauses() == {} and SH._load()[-1]["bot"] == "m5_1" and not SH._load()[-1]["paper"]

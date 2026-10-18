@@ -1,11 +1,12 @@
 """
-shadow.py — บอทเงา: วัดว่าคำสั่ง "พัก" ของผู้จัดการพอร์ตช่วยจริงไหม
+shadow.py — ให้คะแนนการตัดสินใจของผู้จัดการพอร์ต (state/manager_episodes.jsonl)
 
-ทุกครั้งที่การพักจบ (ครบเวลา / สั่งให้กลับ) → จดช่วงเวลานั้นไว้ (state/manager_episodes.jsonl)
-ชั่วโมงละครั้ง: ดึงแท่งราคาจริงย้อนหลัง → รันกลยุทธ์เดิมของบอทนั้นแบบจำลอง (backtest engine ตัวเดียวกับที่ใช้วิจัย)
-  นับเฉพาะไม้ที่ "จะเปิด" ระหว่างพัก → missed = กำไร/ขาดทุนที่พลาดไป
-  missed < 0 = การพักช่วยประหยัดเงิน · missed > 0 = พักแล้วพลาดกำไร
-สรุปแยกตามผู้สั่ง (กฎ / Gemini / Claude) → หน้า 📈 ผลงาน · แชท · ข้อมูลให้ AI
+สองแบบ:
+  พักจริง (MANAGER_PAUSE=1)  : บอทหยุดไปช่วงหนึ่ง → "บอทเงา" รันกลยุทธ์เดิมแบบจำลองบนราคาจริงช่วงนั้น
+  คำทำนาย (ค่าเริ่มต้น)        : ผู้จัดการทำนายว่า "บอทนี้ไม่ควรเข้าไม้ช่วงนี้" แต่บอทยังเทรด → ดูไม้จริงที่เปิดในช่วงนั้น
+ทั้งสองแบบได้ missed = กำไร/ขาดทุนของไม้ที่ (จะ) เปิดในช่วงนั้น
+  missed < 0 → การตัดสินใจถูก (เชื่อแล้วประหยัด) · missed > 0 → ผิด (เชื่อแล้วพลาดกำไร) · ไม่มีไม้ = ไม่นับ
+สรุปแยกตามผู้สั่ง (กฎ / Gemini / Claude) → แชท · หน้า 📈 ผลงาน · ส่งให้ AI ปรับตัว
 """
 from __future__ import annotations
 
@@ -13,15 +14,17 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 
 from . import config as C
 
 log = logging.getLogger("shadow")
 EPISODES_PATH = C.STATE_DIR / "manager_episodes.jsonl"
-SETTLE_MIN = 10            # รอให้ไม้จำลองที่เปิดช่วงท้ายๆ มีเวลาปิดก่อนประเมิน
+SETTLE_MIN = 10            # พักจริง: รอให้ไม้จำลองช่วงท้ายมีเวลาปิด
+PAPER_SETTLE_MIN = 60      # คำทำนาย: รอไม้จริงที่เปิดช่วงท้ายปิดก่อนนับ
 MAX_BARS = 100_000         # เพดานแท่งที่ MT5 ส่งให้ต่อครั้ง (M1 ≈ 69 วัน)
 MIN_WARMUP_BARS = 20_000   # แท่งก่อนเริ่มพักขั้นต่ำ ให้อินดิเคเตอร์พร้อมเหมือนบอทจริง
+WHO = {"rules": "กฎ", "gemini": "Gemini", "claude": "Claude"}
 
 
 def _load() -> list[dict]:
@@ -33,18 +36,35 @@ def _load() -> list[dict]:
 
 def _save(eps: list[dict]) -> None:
     from .live.fileio import atomic_write
-    atomic_write(EPISODES_PATH, "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in eps[-2000:]))
+    atomic_write(EPISODES_PATH, "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in eps[-3000:]))
 
 
-def record(bot: str, pause: dict, end: float) -> None:
-    """การพักจบแล้ว → จดไว้รอประเมิน (ต้องรู้เวลาเริ่ม)"""
-    start = pause.get("since")
-    if not start or end - start < 60:
-        return
+def record(ep: dict) -> None:
     eps = _load()
-    eps.append({"bot": bot, "start": start, "end": end, "src": pause.get("src") or "rules", "tag": pause.get("tag") or "",
-                "reason": pause.get("reason", ""), "done": False})
+    eps.append({"done": False, "paper": False, "tag": "", "reason": "", **ep})
     _save(eps)
+
+
+def record_pause(bot: str, pause: dict, end: float) -> None:
+    """การพักจริงจบแล้ว → รอบอทเงาประเมิน"""
+    start = pause.get("since")
+    if start and end - start >= 60:
+        record({"bot": bot, "start": start, "end": end, "src": pause.get("src") or "rules", "tag": pause.get("tag") or "",
+                "reason": pause.get("reason", "")})
+
+
+def open_paper(bot: str, src: str, now: float) -> bool:
+    return any(e["paper"] and not e["done"] and e["bot"] == bot and e["src"] == src and e["end"] > now for e in _load())
+
+
+def end_paper(bot: str, src: str, now: float) -> bool:
+    eps, hit = _load(), False
+    for e in eps:
+        if e["paper"] and not e["done"] and e["bot"] == bot and e["src"] == src and e["end"] > now:
+            e["end"], hit = now, True
+    if hit:
+        _save(eps)
+    return hit
 
 
 def simulate(bot: str, bars: list, spec: Any, start: float, end: float) -> tuple[float, int]:
@@ -60,26 +80,42 @@ def simulate(bot: str, bars: list, spec: Any, start: float, end: float) -> tuple
     return round(sum(t.pnl for t in picked), 2), len(picked)
 
 
-def evaluate(fetch_bars: Any, spec: Any, now: float | None = None) -> list[dict]:
-    """ประเมินช่วงพักที่จบแล้ว · fetch_bars(tf, count) -> list[Bar] (เรียกครั้งเดียวต่อ timeframe)"""
+def actual(rows: list[dict], start: float, end: float) -> tuple[float, int]:
+    """ไม้จริงที่เปิดในช่วง [start, end) และปิดแล้ว"""
+    picked = [r for r in rows if start <= datetime.fromisoformat(r["open_time"]).timestamp() < end]
+    return round(sum(r["profit"] for r in picked), 2), len(picked)
+
+
+def evaluate(fetch_bars: Callable[[str, int], list], spec: Any, now: float | None = None,
+             trades_of: Callable[[str], list[dict]] | None = None) -> list[dict]:
+    """ประเมินทุกอันที่ถึงเวลาแล้ว · fetch_bars(tf, count) เรียกครั้งเดียวต่อ timeframe · trades_of(bot) = ไม้จริงที่ปิดแล้ว"""
     now = now or time.time()
     eps = _load()
-    todo = [e for e in eps if not e["done"] and now - e["end"] > SETTLE_MIN * 60 and e["bot"] in C.LIVE_INSTANCES]
+    todo = [e for e in eps if not e["done"] and e["bot"] in C.LIVE_INSTANCES
+            and now - e["end"] > (PAPER_SETTLE_MIN if e["paper"] else SETTLE_MIN) * 60]
     if not todo:
         return []
     cache: dict[str, list] = {}
     out = []
     for e in todo:
-        tf = C.LIVE_INSTANCES[e["bot"]]["tf"]
-        if tf not in cache:
-            cache[tf] = fetch_bars(tf, MAX_BARS)
-        bars = cache[tf]
-        before = sum(1 for b in bars if b.time.timestamp() < e["start"])
-        if before < MIN_WARMUP_BARS:
-            e.update(done=True, skipped="แท่งย้อนหลังไม่พอ")
-            continue
+        # ดึงข้อมูลพัง (MT5 หลุดชั่วคราว) → โยนออกไปทั้งก้อน รายการยังค้างไว้ประเมินรอบหน้า · จำลองพัง → ข้ามรายการนั้นถาวร
+        if e["paper"]:
+            if trades_of is None:
+                continue
+            rows = trades_of(e["bot"])
+        else:
+            tf = C.LIVE_INSTANCES[e["bot"]]["tf"]
+            if tf not in cache:
+                cache[tf] = fetch_bars(tf, MAX_BARS)
+            bars = cache[tf]
         try:
-            missed, n = simulate(e["bot"], bars, spec, e["start"], e["end"])
+            if e["paper"]:
+                missed, n = actual(rows, e["start"], e["end"])
+            else:
+                if sum(1 for b in bars if b.time.timestamp() < e["start"]) < MIN_WARMUP_BARS:
+                    e.update(done=True, skipped="แท่งย้อนหลังไม่พอ")
+                    continue
+                missed, n = simulate(e["bot"], bars, spec, e["start"], e["end"])
         except Exception as ex:  # noqa: BLE001
             log.exception("shadow %s", e["bot"])
             e.update(done=True, skipped=str(ex)[:200])
@@ -91,31 +127,42 @@ def evaluate(fetch_bars: Any, spec: Any, now: float | None = None) -> list[dict]
 
 
 def scoreboard(days: float = 30) -> dict[str, dict]:
-    """ผู้สั่ง → {pauses, trades, missed} ใน N วันล่าสุด · saved = -missed"""
+    """ผู้สั่ง → {calls, right, wrong, trades, missed} ใน N วันล่าสุด (นับเฉพาะครั้งที่มีไม้)"""
     since = time.time() - days * 86400
     sb: dict[str, dict] = {}
     for e in _load():
-        if e.get("done") and "missed" in e and e["end"] >= since:
-            x = sb.setdefault(e["src"], {"pauses": 0, "trades": 0, "missed": 0.0})
-            x["pauses"] += 1
+        if e.get("done") and e.get("trades") and e["end"] >= since:
+            x = sb.setdefault(e["src"], {"calls": 0, "right": 0, "wrong": 0, "trades": 0, "missed": 0.0})
+            x["calls"] += 1
+            x["right" if e["missed"] < 0 else "wrong"] += 1
             x["trades"] += e["trades"]
             x["missed"] = round(x["missed"] + e["missed"], 2)
     return sb
 
 
+def open_calls(now: float | None = None) -> list[dict]:
+    """คำทำนายที่ยังไม่หมดเวลา (หน้าเว็บโชว์ว่าผู้จัดการกำลังคิดว่าตัวไหนไม่ควรเข้า)"""
+    now = now or time.time()
+    return [{k: e.get(k) for k in ("bot", "src", "end", "reason")} for e in _load()
+            if e.get("paper") and not e.get("done") and e["start"] <= now < e["end"]]
+
+
 def recent(limit: int = 20) -> list[dict]:
-    return [{k: e.get(k) for k in ("bot", "src", "tag", "start", "end", "missed", "trades", "reason")}
+    return [{k: e.get(k) for k in ("bot", "src", "tag", "start", "end", "missed", "trades", "reason", "paper")}
             for e in _load() if e.get("done") and "missed" in e][-limit:]
 
 
 def describe(e: dict) -> str:
     mins = int((e["end"] - e["start"]) / 60)
-    who = {"rules": "กฎ", "gemini": "Gemini", "claude": "Claude"}.get(e["src"], e["src"])
-    if e["trades"] == 0:
-        verdict = "ช่วงนั้นกลยุทธ์ไม่เข้าไม้อยู่แล้ว — ไม่ได้ไม่เสีย"
-    elif e["missed"] < 0:
-        verdict = f"ช่วยประหยัด {-e['missed']:.2f}$ ✅"
-    else:
-        verdict = f"พลาดกำไร {e['missed']:.2f}$ ❌"
+    who = WHO.get(e["src"], e["src"])
     when = datetime.fromtimestamp(e["start"], timezone.utc).strftime("%H:%M")
-    return f"🔎 บอทเงา: {e['bot']} ที่{who}สั่งพัก {mins} นาที (เริ่ม {when} UTC) — ถ้าไม่พักจะเปิด {e['trades']} ไม้ {e['missed']:+.2f}$ → {verdict}"
+    if e["paper"]:
+        head = f"📝 ตรวจคำทำนายของ{who}: {e['bot']} ไม่ควรเข้าไม้ {mins} นาที (เริ่ม {when} UTC) — ไม้จริง {e['trades']} ไม้ {e['missed']:+.2f}$"
+        if e["trades"] == 0:
+            return head + " → ช่วงนั้นไม่มีไม้ ไม่นับคะแนน"
+        return head + (f" → ทายถูก ✅ (ถ้าเชื่อจะประหยัด {-e['missed']:.2f}$)" if e["missed"] < 0
+                       else f" → ทายผิด ❌ (ถ้าเชื่อจะพลาดกำไร {e['missed']:.2f}$)")
+    head = f"🔎 บอทเงา: {e['bot']} ที่{who}สั่งพัก {mins} นาที (เริ่ม {when} UTC) — ถ้าไม่พักจะเปิด {e['trades']} ไม้ {e['missed']:+.2f}$"
+    if e["trades"] == 0:
+        return head + " → ไม่ได้ไม่เสีย"
+    return head + (f" → ช่วยประหยัด {-e['missed']:.2f}$ ✅" if e["missed"] < 0 else f" → พลาดกำไร {e['missed']:.2f}$ ❌")
