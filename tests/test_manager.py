@@ -366,3 +366,10 @@ def test_lab_retune_keeps_family_per_bot(monkeypatch, tmp_path: Path) -> None:  
     bots = json.loads(out.read_text(encoding="utf-8"))["bots"]
     assert [b["family"] for b in bots] == ["ema", "bb"] and bots[0]["params"] == {"fast": 12}
     assert [c["bot"] for c in ch] == ["m5_1"]
+
+
+def test_interrupted_research_is_not_stuck_running() -> None:
+    from bot import research_weekly as RW
+    RW.save_status({"started": M.now_ts() - 4 * 3600, "running": True})
+    st = RW.load_status()
+    assert st["running"] is False and "ขัดจังหวะ" in st["error"]

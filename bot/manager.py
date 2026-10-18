@@ -509,7 +509,8 @@ class Manager:
         from .research_weekly import load_status
         st = load_status()
         n = datetime.fromtimestamp(s.t, timezone.utc) + timedelta(hours=7)
-        if s.t - st.get("started", 0) < RESEARCH_EVERY_DAYS * 86400 - 3 * 3600 or n.weekday() != 6 or n.hour != RESEARCH_HOUR_BKK:
+        last = st.get("finished") or 0 if st.get("error") or not st.get("running") else st.get("started", 0)
+        if (st.get("running") or s.t - last < RESEARCH_EVERY_DAYS * 86400 - 3 * 3600) or n.weekday() != 6 or n.hour != RESEARCH_HOUR_BKK:
             return
         import subprocess
         import sys

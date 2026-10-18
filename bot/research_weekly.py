@@ -26,10 +26,14 @@ DATA_DIR = C.ROOT / "data" / "mt5"
 
 
 def load_status() -> dict:
+    """สถานะวิจัยล่าสุด · "กำลังรัน" นานเกิน 3 ชม. = ถูกขัดจังหวะ (เช่น container บอทรีสตาร์ทกลางคัน)"""
     try:
-        return json.loads(STATUS_PATH.read_text(encoding="utf-8"))
+        d = json.loads(STATUS_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
+    if d.get("running") and time.time() - d.get("started", 0) > 3 * 3600:
+        d = {**d, "running": False, "error": "ถูกขัดจังหวะกลางคัน (container บอทรีสตาร์ท) — จะรันใหม่รอบถัดไป"}
+    return d
 
 
 def save_status(d: dict) -> None:
