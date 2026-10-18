@@ -102,6 +102,10 @@ class RemoteMT5:
             raise AttributeError(name)
 
         def call(*args: Any, **kwargs: Any) -> Any:
+            if name in ("order_send", "order_check") and args and not kwargs:
+                # MetaTrader5 5.0.36 (Python ใน Wine) รับแค่ request=… — แบบไม่ระบุชื่อได้ (-2 'Unnamed arguments not allowed')
+                # เจอจริง 18 ต.ค. 2026: ทุกออเดอร์บนเซิร์ฟเวอร์ถูกปฏิเสธด้วยเหตุนี้
+                args, kwargs = (), {"request": args[0]}
             payload = json.dumps(_encode({"args": list(args), "kwargs": kwargs}))
             try:
                 if self._conn is None or self._conn.closed:

@@ -299,3 +299,16 @@ def test_public_view_hides_account_and_logs() -> None:
     v = public_view(d)
     assert v["public"] and "log" not in v and "login" not in v["account"] and "server" not in v["account"]
     assert v["account"]["equity"] == 700.0 and "pid" not in v["bots"]["main"] and len(v["trades"]) == 20
+
+
+def test_remote_mt5_sends_order_request_by_keyword() -> None:
+    """MetaTrader5 5.0.36 ใน Wine ปฏิเสธ order_send(dict) แบบไม่ระบุชื่อ → ต้องส่งเป็น request=…"""
+    from bot import mt5api
+    sent = []
+    r = mt5api.RemoteMT5.__new__(mt5api.RemoteMT5)
+    r._conn, r._addr = NS(closed=False), ("x", 1)
+    r._call = lambda name, payload: sent.append((name, json.loads(payload))) or "null"
+    r.order_send({"symbol": "BITCOIN", "volume": 0.5})
+    r.symbol_info_tick("BITCOIN")
+    assert sent[0] == ("order_send", {"args": [], "kwargs": {"request": {"symbol": "BITCOIN", "volume": 0.5}}})
+    assert sent[1][1]["args"] == ["BITCOIN"]
