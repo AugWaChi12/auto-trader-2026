@@ -1,10 +1,10 @@
 .venv/
 __pycache__/
 .pytest_cache/
-data/
-reports/
+/data/
+/reports/
 *.pyc
-state/
-logs/
+/state/
+/logs/
 .claude/settings.local.json
 deploy/.env
