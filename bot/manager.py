@@ -339,8 +339,10 @@ class RuleBrain:
                 held_h = (s.t - datetime.fromisoformat(o["open_time"]).timestamp()) / 3600
                 if peak >= GIVEBACK_PEAK and pnl <= peak * 0.5:
                     acts.append(Action("close", n, reason=f"{n} กำไรเคยถึง +{peak:.2f}$ เหลือ {pnl:+.2f}$ — ปิดเก็บก่อนหดหมด"))
-                elif held_h >= STALE_HOURS and pnl <= STALE_LOSS:
+                    break                                    # สั่งปิดทั้งบอทแล้ว ไม่ต้องสั่งซ้ำทีละชิ้น
+                if held_h >= STALE_HOURS and pnl <= STALE_LOSS:
                     acts.append(Action("close", n, reason=f"{n} ถือมา {held_h:.1f} ชม. ยังขาดทุน {pnl:+.2f}$ — ตัดทิ้ง ไม่ฝากความหวัง"))
+                    break
         live = {o["ticket"] for b in tests.values() for o in b["open"]}
         self.peaks = {k: v for k, v in self.peaks.items() if k in live}
 

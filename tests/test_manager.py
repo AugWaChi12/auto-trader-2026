@@ -619,3 +619,12 @@ def test_take_profit_closes_bot_when_floating_sum_reaches_target() -> None:
                                      m5_7=bot(opens=[pos(3, profit=49.0)])), {})
     assert ("close", "m5_6") in kinds(acts) and ("close", "m5_7") not in kinds(acts)
     assert sum(1 for a in acts if a.kind == "close" and a.bot == "m5_6") == 1        # ปิดครั้งเดียวทั้งกลุ่ม
+
+
+def test_giveback_closes_once_per_bot_even_with_two_pieces() -> None:
+    b = M.RuleBrain()
+    b.decide(snap(m5_6=bot(opens=[pos(1, profit=40.0), pos(2, profit=40.0)])), {})     # รวม 80 → เป้า $50 ปิดก่อน
+    b2 = M.RuleBrain()
+    b2.peaks = {1: 30.0, 2: 30.0}
+    acts = b2.decide(snap(m5_6=bot(opens=[pos(1, profit=10.0), pos(2, profit=10.0)])), {})
+    assert sum(1 for a in acts if a.kind == "close") == 1
