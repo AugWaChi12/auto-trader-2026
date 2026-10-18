@@ -668,7 +668,7 @@ function toast(text) {
 
 // ------------------------------------------------------------------ แชทผู้จัดการพอร์ต (/api/manager)
 const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️" };
-const SRC = { claude: "🤖 Claude", rules: "📏 กฎ" };
+const SRC = { claude: "🤖 Claude", gemini: "✨ Gemini", rules: "📏 กฎ" };
 const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 60000));
 async function refreshManager() {
@@ -678,7 +678,8 @@ async function refreshManager() {
   const pz = Object.entries(MGR.pauses).sort();
   $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ") : "";
   const srcs = new Set(msgs.slice(-40).map(m => m.src).filter(Boolean));
-  $("brain").textContent = srcs.has("claude") ? "🤖 Claude + 📏 กฎ" : "📏 สมองตามกฎ";
+  const ai = srcs.has("gemini") ? "✨ Gemini" : srcs.has("claude") ? "🤖 Claude" : "";
+  $("brain").textContent = ai ? ai + " + 📏 กฎ" : "📏 สมองตามกฎ";
   robots.forEach(labelRobot);
   const key = last ? last.t + last.text : null;
   if (key === MGR.last) return;

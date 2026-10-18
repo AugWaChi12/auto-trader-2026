@@ -1,0 +1,44 @@
+"""
+manager_gemini.py — สมอง Gemini ของผู้จัดการพอร์ต (เปิดเมื่อมี GEMINI_API_KEY · ส่วนกลางอยู่ใน manager_ai.py)
+
+คีย์ฟรีจาก aistudio.google.com มีเพดานจำนวนครั้ง · ถามทุก 15 นาที = 96 ครั้ง/วัน
+เกินโควตาฟรี/ใช้ tier จ่ายเงิน: gemini-3.8-flash ≈ $0.007 ต่อครั้ง → ≈ $0.7 ต่อวัน (ราคา ต.ค. 2026)
+เปลี่ยนรุ่นได้ด้วย MANAGER_MODEL (เช่น gemini-3.5-flash-lite ถูกกว่า)
+"""
+from __future__ import annotations
+
+import logging
+import os
+from typing import Any
+
+from google import genai
+from google.genai import types
+
+from .manager_ai import FUNCTIONS, SYSTEM, AIBrain
+
+log = logging.getLogger("manager.gemini")
+
+MODEL = os.environ.get("MANAGER_MODEL") or "gemini-3.8-flash"
+
+
+class GeminiBrain(AIBrain):
+    name = "Gemini"
+    src = "gemini"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.client = genai.Client()        # อ่าน GEMINI_API_KEY / GOOGLE_API_KEY จาก environment เอง
+        self.config = types.GenerateContentConfig(
+            system_instruction=SYSTEM,
+            tools=[types.Tool(function_declarations=[
+                types.FunctionDeclaration(name=f["name"], description=f["description"], parameters_json_schema=f["schema"])
+                for f in FUNCTIONS])],
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),   # เรารันคำสั่งเองผ่านขีดจำกัด
+            tool_config=types.ToolConfig(function_calling_config=types.FunctionCallingConfig(mode="ANY")),
+        )
+
+    def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
+        r = self.client.models.generate_content(model=MODEL, contents=prompt, config=self.config)
+        u = r.usage_metadata
+        log.info("gemini %s in=%s out=%s", MODEL, getattr(u, "prompt_token_count", None), getattr(u, "candidates_token_count", None))
+        return [(c.name, dict(c.args or {})) for c in (r.function_calls or [])]

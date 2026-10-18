@@ -10,7 +10,8 @@ manager.py — ผู้จัดการพอร์ต: เฝ้าบอท
 
 สมอง:
   RuleBrain (ค่าเริ่มต้น)  — กฎที่ตรวจสอบได้ทุกข้อ
-  ClaudeBrain (ทางเลือก) — ตั้ง ANTHROPIC_API_KEY ใน deploy/.env แล้วผู้จัดการจะถาม Claude ทุก LLM_EVERY_MIN นาที
+  สมอง AI (ทางเลือก)     — GEMINI_API_KEY → Gemini (manager_gemini.py) · ANTHROPIC_API_KEY → Claude (manager_llm.py)
+                           ถามทุก MANAGER_LLM_MIN นาที (ถ้ามีทั้งสองคีย์ เลือกด้วย MANAGER_AI=gemini|claude)
                            (กฎด้านความปลอดภัยของ RuleBrain ยังทำงานเสมอ)
 แชท: state/manager_log.jsonl (หน้าเว็บอ่านผ่าน /api/manager)
 """
@@ -46,6 +47,15 @@ GIVEBACK_PEAK = 15.0          # ไม้เคยกำไรถึงนี้
 STALE_HOURS, STALE_LOSS = 3.0, -20.0   # ถือนานเกิน และยังขาดทุนเกิน → ตัดทิ้ง
 VOL_SPIKE = 3.0               # ช่วง 15 นาทีล่าสุดกว้างกว่าค่ากลาง 3 ชม. กี่เท่า → พักบอท BTC
 VOL_PAUSE_MIN = 30
+
+# อ่านสภาพตลาด (BTC M5 ย้อนหลัง 2 ชม.) แล้วพักบอทที่สายกลยุทธ์ไม่เข้ากับตลาดตอนนี้
+TREND_FAMILIES = {"ema", "donchian", "momo", "orb", "pullback"}   # ได้เปรียบตอนตลาดวิ่งเป็นทาง
+RANGE_FAMILIES = {"bb", "rsi2", "levels"}                         # ได้เปรียบตอนตลาดเด้งไปมาในกรอบ
+ER_TREND, ER_RANGE = 0.40, 0.20     # efficiency ratio: ระยะที่ราคาไปได้จริง ÷ ระยะที่วิ่งทั้งหมด
+REGIME_CONFIRM = 3                  # ต้องเห็นสภาพเดิมติดกันกี่นาทีถึงจะเชื่อ (กันสั่งกลับไปกลับมา)
+REGIME_PAUSE_MIN = 240               # พักนานสุดเท่านี้ — ปกติได้กลับก่อนเมื่อสภาพตลาดเปลี่ยน
+REGIME_MIN_REST_MIN = 30            # พักเพราะสภาพตลาดอย่างน้อยกี่นาทีก่อนจะให้กลับ
+REGIME_TH = {"trend": "ตลาดวิ่งเป็นเทรนด์", "range": "ตลาดออกข้างในกรอบ", "mixed": "ตลาดยังไม่ชัดทาง"}
 
 
 def now_ts() -> float:
@@ -170,6 +180,36 @@ def range_ratio(bars: list[list], window: int = 15) -> float | None:
     return (max(b[2] for b in last) - min(b[3] for b in last)) / base if base else None
 
 
+def to_m5(bars: list[list], n: int = 36) -> list[list]:
+    """แท่ง M1 → M5 ล่าสุด n แท่ง [เวลา, เปิด, สูง, ต่ำ, ปิด]"""
+    out = []
+    for i in range(len(bars) - (len(bars) % 5), 0, -5)[:n]:
+        ch = bars[i - 5:i]
+        if ch:
+            out.append([ch[0][0], ch[0][1], max(b[2] for b in ch), min(b[3] for b in ch), ch[-1][4]])
+    return out[::-1]
+
+
+def market_regime(bars: list[list]) -> tuple[str | None, float | None]:
+    """trend | range | mixed (None = ข้อมูลไม่พอ) + efficiency ratio ของ BTC M5 24 แท่งล่าสุด"""
+    m5 = to_m5(bars, 25)
+    if len(m5) < 25:
+        return None, None
+    closes = [b[4] for b in m5]
+    path = sum(abs(b - a) for a, b in zip(closes, closes[1:]))
+    er = abs(closes[-1] - closes[0]) / path if path else 0.0
+    return ("trend" if er >= ER_TREND else "range" if er <= ER_RANGE else "mixed"), round(er, 2)
+
+
+def suits(family: str | None, regime: str) -> bool | None:
+    """สายกลยุทธ์นี้เข้ากับสภาพตลาดไหม (None = ไม่ขึ้นกับสภาพตลาด / ตลาดยังไม่ชัด)"""
+    if regime == "trend":
+        return False if family in RANGE_FAMILIES else True if family in TREND_FAMILIES else None
+    if regime == "range":
+        return False if family in TREND_FAMILIES else True if family in RANGE_FAMILIES else None
+    return None
+
+
 # ---------------------------------------------------------------- สมองตามกฎ
 @dataclass
 class Action:
@@ -177,7 +217,8 @@ class Action:
     bot: str | None = None
     minutes: int = 0
     reason: str = ""
-    src: str = "rules"        # rules | claude — หน้าเว็บโชว์ว่าสมองไหนสั่ง
+    src: str = "rules"
+    tag: str = ""             # regime = พักเพราะสภาพตลาด (ให้กลับเองเมื่อตลาดเปลี่ยน)        # rules | claude — หน้าเว็บโชว์ว่าสมองไหนสั่ง
 
 
 class RuleBrain:
@@ -187,6 +228,9 @@ class RuleBrain:
         self.peaks: dict[int, float] = {}       # ticket → กำไรลอยสูงสุดที่เคยเห็น
         self.last_report = 0.0
         self.vol_alerted = 0.0
+        self.regimes: list[str | None] = []      # สภาพตลาดรายนาทีล่าสุด
+        self.regime: str | None = None           # สภาพที่ยืนยันแล้ว
+        self.acted: set[str] = set()             # บอทที่สั่งเพราะสภาพตลาดไปแล้วในรอบสภาพนี้ (ไม่สั่งซ้ำ ถ้า AI สั่งกลับ)
 
     def decide(self, s: Snapshot, pauses: dict[str, dict]) -> list[Action]:
         acts: list[Action] = []
@@ -214,6 +258,8 @@ class RuleBrain:
             for n, b in tests.items():
                 if b["symbol"] == "BTCUSD" and n not in paused and not b["open"]:
                     acts.append(Action("pause", n, VOL_PAUSE_MIN, f"BTC แกว่งแรงผิดปกติ ({rr:.1f}× ของปกติใน 15 นาที) — หลบ {VOL_PAUSE_MIN} นาที"))
+
+        acts += self.regime_moves(s, tests, pauses)
 
         for n, b in tests.items():
             # 3) บอทตัวเดียวเสียหนักวันนี้
@@ -244,6 +290,28 @@ class RuleBrain:
             acts.append(Action("say", reason=self.report(s, pauses, rr)))
         return acts
 
+    def regime_moves(self, s: Snapshot, tests: dict[str, dict], pauses: dict[str, dict]) -> list[Action]:
+        """สภาพตลาดยืนยันแล้ว → พักบอทที่สายไม่เข้ากัน · ให้ตัวที่พักเพราะสภาพตลาดกลับเมื่อเข้ากันอีกครั้ง"""
+        now, er = market_regime(s.btc_bars)
+        self.regimes = (self.regimes + [now])[-REGIME_CONFIRM:]
+        if now is None or len(self.regimes) < REGIME_CONFIRM or len(set(self.regimes)) != 1:
+            return []
+        acts: list[Action] = []
+        if now != self.regime:
+            self.regime, self.acted = now, set()
+            acts.append(Action("say", reason=f"สภาพตลาดเปลี่ยน: {REGIME_TH[now]} (efficiency {er:.2f} จาก BTC M5 2 ชม.)"))
+        for n, b in tests.items():
+            if n in self.acted or b["symbol"] != "BTCUSD":
+                continue
+            fit, p = suits(b.get("family"), now), pauses.get(n)
+            if fit is False and p is None and not b["open"]:
+                self.acted.add(n)
+                acts.append(Action("pause", n, REGIME_PAUSE_MIN, f"{n} สาย {b.get('family')} ไม่ถนัด{REGIME_TH[now]} — พักรอ", tag="regime"))
+            elif fit is not False and p and p.get("tag") == "regime" and s.t - p.get("since", 0) >= REGIME_MIN_REST_MIN * 60:
+                self.acted.add(n)
+                acts.append(Action("resume", n, reason=f"{REGIME_TH[now]} — สาย {b.get('family')} กลับมาลุยได้", tag="regime"))
+        return acts
+
     @staticmethod
     def report(s: Snapshot, pauses: dict[str, dict], rr: float | None) -> str:
         tests = s.test_bots()
@@ -255,6 +323,9 @@ class RuleBrain:
             chg = s.btc_bars[-1][4] - s.btc_bars[-61][4]
             move = f"BTC {s.btc_bars[-1][4]:,.0f} ({chg:+,.0f} ใน 1 ชม.)"
         vol = "" if rr is None else (" · ตลาดเงียบ" if rr < 0.7 else " · ตลาดแกว่งแรง" if rr > 1.8 else " · ความผันผวนปกติ")
+        reg, er = market_regime(s.btc_bars)
+        if reg:
+            vol += f" · {REGIME_TH[reg]} (ER {er:.2f})"
         opens = sum(len(b["open"]) for b in tests.values())
         parts = [f"รายงาน: {move}{vol}", f"บอททดสอบวันนี้รวม {day:+.2f}$ · ถือไม้ {opens} ไม้ · equity ${s.equity:,.2f}"]
         if best and worst and best[0] != worst[0]:
@@ -273,7 +344,12 @@ class Manager:
         self.col = col
         self.brain = RuleBrain()
         self.llm = None
-        if os.environ.get("ANTHROPIC_API_KEY"):
+        which = os.environ.get("MANAGER_AI") or ("gemini" if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+                                                 else "claude" if os.environ.get("ANTHROPIC_API_KEY") else "")
+        if which == "gemini":
+            from .manager_gemini import GeminiBrain
+            self.llm = GeminiBrain()
+        elif which == "claude":
             from .manager_llm import ClaudeBrain
             self.llm = ClaudeBrain()
         self.recent: list[float] = []           # เวลาที่สั่งการ (นับเพดานต่อชั่วโมง)
@@ -302,7 +378,7 @@ class Manager:
         self.recent.append(s.t)
         if a.kind == "pause":
             m = max(1, min(int(a.minutes), MAX_PAUSE_MIN))
-            pauses[a.bot] = {"until": s.t + m * 60, "reason": a.reason}
+            pauses[a.bot] = {"until": s.t + m * 60, "since": s.t, "reason": a.reason, "tag": a.tag, "src": a.src}
             save_pauses(pauses)
             say("action", f"⏸ สั่งพัก {a.bot} {m} นาที — {a.reason}", bot=a.bot, act="pause", minutes=m, src=a.src)
         elif a.kind == "resume":
@@ -337,7 +413,8 @@ class Manager:
                 say("alert", f"⚠️ ทำ {a.kind} {a.bot or ''} ไม่สำเร็จ: {e}")
 
     def run(self) -> None:
-        say("info", f"ผู้จัดการพอร์ตเริ่มงาน ({self.brain_name()}) — เฝ้าบอททดสอบ 9 ตัวทุก {TICK_SEC} วิ · ไม่แตะ main")
+        say("info", f"ผู้จัดการพอร์ตเริ่มงาน ({self.brain_name()}) — เฝ้าบอททดสอบ 9 ตัวทุก {TICK_SEC} วิ · ไม่แตะ main",
+            src=self.llm.src if self.llm else "rules")
         n = 0
         while True:
             try:

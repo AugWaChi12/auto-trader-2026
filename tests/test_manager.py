@@ -19,9 +19,9 @@ def _state(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(M, "PAUSES_PATH", tmp_path / "manager_pauses.json")
 
 
-def bot(today=0.0, streak=0, opens=(), symbol="BTCUSD") -> dict:
+def bot(today=0.0, streak=0, opens=(), symbol="BTCUSD", family="volx") -> dict:
     return {"today": today, "closed_today": today, "total": today, "trades": 5, "win_rate": 50.0, "open": list(opens),
-            "alive": True, "state": "เฝ้าราคา", "family": "ema", "symbol": symbol, "streak": streak, "target_hit": False}
+            "alive": True, "state": "เฝ้าราคา", "family": family, "symbol": symbol, "streak": streak, "target_hit": False}
 
 
 def pos(ticket=1, profit=0.0, hours=0.5) -> dict:
@@ -30,10 +30,20 @@ def pos(ticket=1, profit=0.0, hours=0.5) -> dict:
             "open_price": 100.0, "price": 101.0, "sl": 90.0, "tp": None}
 
 
-def snap(equity=1000.0, **bots) -> M.Snapshot:
+def snap(equity=1000.0, bars=(), t=None, **bots) -> M.Snapshot:
     allb = {"main": bot(), **{f"m5_{i}": bot() for i in range(1, 10)}}
     allb.update(bots)
-    return M.Snapshot(M.now_ts(), equity, equity, allb)
+    return M.Snapshot(t or M.now_ts(), equity, equity, allb, list(bars))
+
+
+def bars(kind: str, n: int = 200) -> list[list]:
+    """แท่ง M1 จำลอง: trend = ขึ้นต่อเนื่อง · range = ขึ้นลงสลับในกรอบ"""
+    out, p = [], 100.0
+    for i in range(n):
+        step = 0.5 if kind == "trend" else (3.0 if (i // 5) % 2 == 0 else -3.0)
+        o, p = p, p + step
+        out.append([f"2026-10-18T00:{i % 60:02d}:00+00:00", o, max(o, p) + .1, min(o, p) - .1, p])
+    return out
 
 
 def kinds(acts) -> list[tuple]:  # noqa: ANN001
@@ -136,6 +146,61 @@ def test_manager_api_is_public(monkeypatch) -> None:  # noqa: ANN001
     M.say("info", "hello")
     d = json.loads(server.manager_payload())
     assert d["messages"][-1]["text"] == "hello" and d["pauses"] == {}
+
+
+def test_market_regime_reads_trend_and_range() -> None:
+    assert M.market_regime(bars("trend"))[0] == "trend"
+    assert M.market_regime(bars("range"))[0] == "range"
+    assert M.market_regime(bars("trend", 60)) == (None, None)
+    assert M.suits("bb", "trend") is False and M.suits("ema", "trend") and M.suits("volx", "trend") is None
+
+
+def test_regime_pauses_mismatched_family_after_confirm_then_resumes() -> None:
+    b, p = M.RuleBrain(), {}
+    fams = dict(m5_1=bot(family="bb"), m5_2=bot(family="ema"), m5_3=bot(family="rsi2", opens=[pos()]))
+    for _ in range(M.REGIME_CONFIRM - 1):
+        assert kinds(b.decide(snap(bars=bars("trend"), **fams), p)) == []        # ยังไม่ยืนยัน
+    acts = b.decide(snap(bars=bars("trend"), **fams), p)
+    assert kinds(acts) == [("pause", "m5_1")]                                  # bb ไม่ถนัดเทรนด์ · ema ถนัด
+    assert next(a for a in acts if a.kind == "pause").tag == "regime"
+    assert ("pause", "m5_3") not in kinds(acts)                                 # ถือไม้อยู่ ไม่พัก
+    assert any("สภาพตลาดเปลี่ยน" in a.reason for a in acts if a.kind == "say")
+    assert kinds(b.decide(snap(bars=bars("trend"), **fams), p)) == []           # ไม่สั่งซ้ำ
+    t0 = M.now_ts()
+    p = {"m5_1": {"until": t0 + 9999, "since": t0 - M.REGIME_MIN_REST_MIN * 60, "tag": "regime"}}
+    for _ in range(M.REGIME_CONFIRM):
+        acts = b.decide(snap(bars=bars("range"), **fams), p)
+    assert ("resume", "m5_1") in kinds(acts) and ("pause", "m5_2") in kinds(acts)
+
+
+def test_pause_records_tag_and_source() -> None:
+    m, s, p = M.Manager(FakeCol()), snap(), {}
+    m.execute(M.Action("pause", "m5_1", 60, "x", "gemini", "regime"), s, p)
+    assert M.load_pauses()["m5_1"]["tag"] == "regime" and M.load_pauses()["m5_1"]["src"] == "gemini"
+
+
+def test_gemini_brain_maps_function_calls_to_actions(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from bot import manager_gemini as G
+    calls = [NS(name="say", args={"text": "BTC วิ่งขึ้นแรง"}), NS(name="resume_bot", args={"bot": "m5_4", "reason": "เทรนด์มา"}),
+             NS(name="pause_bot", args={"bot": "main", "minutes": 60, "reason": "ห้าม"})]
+    seen = {}
+    brain = G.GeminiBrain()
+    brain.client = NS(models=NS(generate_content=lambda **kw: seen.update(kw) or NS(function_calls=calls, usage_metadata=None)))
+    acts = brain.maybe_decide(snap(bars=bars("trend")), {})
+    assert [(a.kind, a.bot, a.src) for a in acts] == [("say", None, "gemini"), ("resume", "m5_4", "gemini")]
+    assert seen["model"] == G.MODEL and '"regime"' in seen["contents"]
+    brain.client = NS(models=NS(generate_content=lambda **kw: (_ for _ in ()).throw(RuntimeError("quota"))))
+    brain.last = 0
+    assert brain.maybe_decide(snap(), {}) == [] and "Gemini" in M.read_log()[-1]["text"]
+
+
+def test_manager_picks_brain_from_keys(monkeypatch) -> None:  # noqa: ANN001
+    for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY", "MANAGER_AI"):
+        monkeypatch.delenv(k, raising=False)
+    assert M.Manager(FakeCol()).llm is None
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    assert M.Manager(FakeCol()).llm.src == "gemini"
 
 
 def test_claude_brain_maps_tool_calls_to_actions(monkeypatch) -> None:  # noqa: ANN001
