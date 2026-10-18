@@ -29,7 +29,7 @@ fi
 ssh "$HOST" 'cd '"$REMOTE"'/deploy && umask 077 && touch .env && if ! grep -q "^PASSWORD=" .env; then printf "CUSTOM_USER=trader\nPASSWORD=%s\n" "$(openssl rand -base64 18 | tr -d "/+=")" >> .env; echo "   สร้างรหัส VNC ใน deploy/.env แล้ว"; fi'
 
 echo ">> เปิด MT5 ก่อน แล้วอ่านเวอร์ชัน rpyc ของมัน (บอทต้องใช้เวอร์ชันเดียวกัน)"
-ssh "$HOST" "cd $REMOTE/deploy && docker compose up -d mt5"
+ssh "$HOST" "cd $REMOTE/deploy && docker compose up -d --build mt5"
 RPYC=$(ssh "$HOST" "for i in \$(seq 1 60); do v=\$(docker exec trader-mt5 sh -c 'find / -path /proc -prune -o -type d -name \"rpyc-*.dist-info\" -print 2>/dev/null | head -1' | sed -E 's/.*rpyc-([0-9.]+)\\.dist-info/\\1/'); [ -n \"\$v\" ] && { echo \$v; exit 0; }; sleep 10; done; echo 5.3.1")
 echo "   rpyc = $RPYC"
 ssh "$HOST" "cd $REMOTE/deploy && grep -q '^RPYC_VERSION=' .env && sed -i 's/^RPYC_VERSION=.*/RPYC_VERSION=$RPYC/' .env || echo 'RPYC_VERSION=$RPYC' >> .env"

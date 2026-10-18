@@ -8,7 +8,10 @@ name: auto-trader
 
 services:
   mt5:
-    image: gmag11/metatrader5_vnc:latest
+    build:
+      context: .
+      dockerfile: mt5.Dockerfile          # image ต้นทาง + Wine staging (กัน MT5 ขึ้น "debugger found")
+    image: auto-trader-mt5:latest
     container_name: trader-mt5
     restart: unless-stopped
     env_file: .env                       # CUSTOM_USER / PASSWORD ของหน้าจอ VNC (deploy.sh สุ่มให้ครั้งแรก)
