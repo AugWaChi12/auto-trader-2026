@@ -23,6 +23,39 @@ log = logging.getLogger("manager.ai")
 LLM_EVERY_MIN = max(5, int(os.environ.get("MANAGER_LLM_MIN") or 15))
 LLM_QUIET_MIN = max(LLM_EVERY_MIN, int(os.environ.get("MANAGER_LLM_QUIET_MIN") or 45))   # พอร์ตว่าง + สภาพตลาดเดิม + ไม่แกว่งแรง → ถามห่างขึ้น
 TEST_BOTS = sorted((n for n in C.LIVE_INSTANCES if n != "main"), key=lambda n: int(n.split("_")[1]))
+# เพดานครั้ง/วัน (โควตา tier ฟรีของ Google · รีเซ็ตเที่ยงคืนเวลาแปซิฟิก) · 0 = ไม่จำกัด · เก็บ 1 ครั้งไว้ให้บันทึกท้ายวัน
+DAILY_MAX = int(os.environ.get("MANAGER_LLM_DAILY_MAX") or 0)
+USAGE_PATH = C.STATE_DIR / "llm_usage.json"
+
+
+def _quota_day() -> str:
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d")
+
+
+def quota_left(reserve: int = 0) -> int:
+    """ครั้งที่ยังเรียกได้วันนี้ (ตามวันของ Google) — ไม่จำกัด = ค่าใหญ่มาก"""
+    if DAILY_MAX <= 0:
+        return 10**9
+    try:
+        u = json.loads(USAGE_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        u = {}
+    used = u.get("n", 0) if u.get("day") == _quota_day() else 0
+    return max(DAILY_MAX - reserve - used, 0)
+
+
+def count_call() -> None:
+    if DAILY_MAX <= 0:
+        return
+    try:
+        u = json.loads(USAGE_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        u = {}
+    day = _quota_day()
+    u = {"day": day, "n": (u.get("n", 0) if u.get("day") == day else 0) + 1}
+    USAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    USAGE_PATH.write_text(json.dumps(u), encoding="utf-8")
 
 SYSTEM = f"""คุณคือผู้จัดการพอร์ตเทรดอัตโนมัติบนบัญชี DEMO (เงินทดลอง) ของ FxPro MT5
 ภายใต้คุณมีบอททดสอบ {len(TEST_BOTS)} ตัว ({", ".join(TEST_BOTS)}) ด้วย lot คงที่ แต่ละตัวใช้กลยุทธ์ที่ผ่านการวิจัยแบบ walk-forward มาเอง
@@ -192,7 +225,10 @@ class AIBrain:
     def maybe_decide(self, s: Snapshot, pauses: dict[str, dict]) -> list[Action]:
         if self.last and s.t - self.last < self._interval_min(s) * 60:
             return []
+        if quota_left(reserve=1) <= 0:            # ครบโควตาวันนี้ → สมองตามกฎทำงานแทน (เก็บ 1 ครั้งให้บันทึกท้ายวัน)
+            return []
         self.last = s.t
+        count_call()
         self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
         try:
             return to_actions(self.ask("ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses)), self.src)

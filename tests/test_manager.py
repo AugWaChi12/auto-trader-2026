@@ -628,3 +628,17 @@ def test_giveback_closes_once_per_bot_even_with_two_pieces() -> None:
     b2.peaks = {1: 30.0, 2: 30.0}
     acts = b2.decide(snap(m5_6=bot(opens=[pos(1, profit=10.0), pos(2, profit=10.0)])), {})
     assert sum(1 for a in acts if a.kind == "close") == 1
+
+
+def test_llm_daily_quota_stops_calls_and_keeps_one_for_journal(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    from bot import manager_ai as A
+    monkeypatch.setattr(A, "DAILY_MAX", 3)
+    monkeypatch.setattr(A, "USAGE_PATH", tmp_path / "usage.json")
+    calls = []
+    brain = A.AIBrain()
+    brain.ask = lambda prompt: calls.append(1) or []
+    monkeypatch.setattr(brain, "_interval_min", lambda s: 0)
+    for i in range(5):
+        brain.last = 0
+        brain.maybe_decide(snap(), {})
+    assert len(calls) == 2 and A.quota_left() == 1                    # เหลือ 1 ไว้บันทึกท้ายวัน

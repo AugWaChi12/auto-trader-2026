@@ -45,5 +45,6 @@ class GeminiBrain(AIBrain):
     def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
         r = self.client.models.generate_content(model=MODEL, contents=prompt, config=self.config)
         u = r.usage_metadata
-        log.info("gemini %s in=%s out=%s", MODEL, getattr(u, "prompt_token_count", None), getattr(u, "candidates_token_count", None))
+        log.info("gemini %s in=%s out=%s think=%s", MODEL, getattr(u, "prompt_token_count", None),
+                 getattr(u, "candidates_token_count", None), getattr(u, "thoughts_token_count", None))
         return [(c.name, dict(c.args or {})) for c in (r.function_calls or [])]

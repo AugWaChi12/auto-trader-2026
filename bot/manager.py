@@ -609,7 +609,9 @@ class Manager:
         if lessons:
             text += " · จุดอ่อนที่เห็น: " + "; ".join(f"{x['family']} ตอน {x['when']} ({x['n']} ไม้ เฉลี่ย {x['avg']:+.2f}$)" for x in lessons)
         ai = ""
-        if self.llm is not None:
+        from .manager_ai import count_call, quota_left
+        if self.llm is not None and quota_left() > 0:
+            count_call()
             try:
                 ai = self.llm.write(
                     "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2–4 ประโยค ภาษาไทย: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
