@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from . import config as C
+from .manager_learn import load_summary
 from .manager import REGIME_TH, Action, Snapshot, market_regime, range_ratio, read_log, say, suits, to_m5
 
 log = logging.getLogger("manager.ai")
@@ -39,6 +40,8 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
   — ไม่ต้องสั่งซ้ำสิ่งที่กฎทำแล้ว แต่ถ้าเห็นต่างจากกฎ สั่ง resume/pause ทับได้ (อธิบายเหตุผล)
 - การพักแต่ละครั้งยาว 15–1440 นาที
 - ประวัติแชทล่าสุดแนบมาให้ อย่าสั่งกลับไปกลับมาภายในเวลาสั้นๆ
+- "learned_by_strategy_and_regime" = ผลจริงของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้, $/ไม้เฉลี่ย, % ชนะ) ที่สะสมมา — ใช้เป็นหลักฐานประกอบ
+  ถ้าไม้ยังน้อย (< 8) อย่าเชื่อมาก
 
 ทุกรอบให้เรียก say หนึ่งครั้งเสมอ: วิเคราะห์ตลาดและพอร์ตสั้นๆ 1–3 ประโยค เป็นภาษาไทย อ่านง่ายสำหรับคนดูไลฟ์
 ถ้าสั่ง pause/resume/close ให้ใส่เหตุผลสั้นๆ ที่อ้างอิงตัวเลขในข้อมูล
@@ -85,6 +88,7 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
                 "regime": REGIME_TH.get(regime) if regime else None, "efficiency_ratio_2h": er,
                 "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(s.btc_bars)]},
         "bots": bots,
+        "learned_by_strategy_and_regime": load_summary(),
         "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(15)],
     }, ensure_ascii=False, default=str)
 
@@ -135,4 +139,8 @@ class AIBrain:
             return []
 
     def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
+        raise NotImplementedError
+
+    def write(self, prompt: str) -> str:
+        """ข้อความธรรมดา (ไม่มีคำสั่ง) — ใช้เขียนบันทึกท้ายวัน"""
         raise NotImplementedError

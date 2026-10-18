@@ -3,6 +3,7 @@ m5_lab.py — ห้องวิจัยของบอททดสอบ 9 ต
 
     python research/m5_lab.py            # วิจัยเต็ม → research/out/m5_lab.json + research/RESULTS_m5.md
     python research/m5_lab.py --assign   # + เขียนงานให้บอท → bot/m5_bots.json (บอทอ่านตอนเริ่ม)
+    python -m bot research               # ประจำสัปดาห์บนเซิร์ฟเวอร์: BTC อย่างเดียว · 1 โปรเซส · ปรับพารามิเตอร์บอทเดิม (retune)
 
 ทุกบอท "วิจัยตัวเอง" ด้วยกติกาเดียวกัน:
   1) ทุกตระกูลกลยุทธ์ × ทุกพารามิเตอร์ × 3 วิธีออก (ตามกลยุทธ์ / trail ATR / ล็อกกำไรแบบไต่) × 2 ตลาด
@@ -158,14 +159,26 @@ def summarize(x: np.ndarray, n_days: float) -> dict:
             "ci95_day": [round(float(x.sum() / n_days - 1.96 * se_day), 1), round(float(x.sum() / n_days + 1.96 * se_day), 1)]}
 
 
-def main() -> None:
-    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+def _arg(name: str, default: str | None = None) -> str | None:
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv[:-1] else default
+
+
+def main(argv: list[str] | None = None) -> list[dict] | None:
+    """argv: --assign · --symbols BTCUSD,... · --workers N · --assign-to path · --retune (คงสายเดิมของแต่ละบอท)"""
+    global SYMBOLS
+    if argv is not None:
+        sys.argv = [sys.argv[0], *argv]
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     assign = "--assign" in sys.argv
+    if _arg("--symbols"):
+        SYMBOLS = _arg("--symbols").split(",")
+    workers = int(_arg("--workers", "24"))
     OUT.mkdir(parents=True, exist_ok=True)
     jobs = [(f, s, pi, plan, "rule") for f in FAMILIES for s in SYMBOLS for pi in range(len(FAMILIES[f][0]))
             for plan in PLANS]
     print(f"backtests: {len(jobs)} ({TF}, lots {LOTS}, เป้า +${TARGET:.0f}/วัน)", flush=True)
-    with ProcessPoolExecutor(24) as ex:
+    with ProcessPoolExecutor(workers) as ex:
         results = {k: (t, p) for k, t, p in ex.map(run, jobs, chunksize=8)}
 
     span = {}
@@ -203,7 +216,7 @@ def main() -> None:
 
     # กลุ่มควบคุมสุ่มทิศ: ใช้ชุดที่ walk-forward เลือก ต่างแค่ทิศ
     print(f"random benchmarks: {len(set(rnd_jobs))}", flush=True)
-    with ProcessPoolExecutor(24) as ex:
+    with ProcessPoolExecutor(workers) as ex:
         rnd = {k: (t, p) for k, t, p in ex.map(run, sorted(set(rnd_jobs)), chunksize=2)}
     for sl in slots:
         f, s = sl["family"], sl["symbol"]
@@ -231,9 +244,37 @@ def main() -> None:
                             "wf_windows": len(v["wins"])} for s, v in span.items()}}
     (OUT / "m5_lab.json").write_text(json.dumps({"meta": meta, "slots": slots}, indent=1, default=str,
                                                 ensure_ascii=False), encoding="utf-8")
+    if "--retune" in sys.argv:
+        return retune(meta, slots, Path(_arg("--assign-to", str(ASSIGN))))
     report(meta, slots)
     if assign:
         write_assignments(meta, slots)
+    return None
+
+
+def retune(meta: dict, slots: list[dict], path: Path) -> list[dict]:
+    """ปรับพารามิเตอร์ใหม่ด้วยข้อมูลล่าสุด แต่บอทแต่ละตัวคงสายเดิม (สถิติ live ต่อบอทจะได้ต่อเนื่อง)
+    คืนรายการ {bot, family, old, new} ของตัวที่เปลี่ยน"""
+    cur = C.load_m5_bots()
+    by = {(z["family"], z["symbol"]): z for z in slots if z["live"]}
+    bots, changes = [], []
+    for b in cur:
+        z = by.get((b["family"], b["symbol"]))
+        if z is None:
+            bots.append(b)
+            continue
+        nb = {**b, "params": z["live"]["params"], "plan": z["live"]["plan"], "wf_usd_day": z["wf"]["usd_day"],
+              "holdout_usd_day": z["holdout"]["usd_day"],
+              "random_usd_day": z["wf_random"]["usd_day"] if z.get("wf_random") else None}
+        bots.append(nb)
+        if (nb["params"], nb["plan"]) != (b["params"], b["plan"]):
+            changes.append({"bot": b["bot"], "family": b["family"], "old": {"params": b["params"], "plan": b["plan"]},
+                            "new": {"params": nb["params"], "plan": nb["plan"]}, "wf_usd_day": nb["wf_usd_day"]})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"generated": pd.Timestamp.now(tz="UTC").isoformat(), "mode": "retune", "meta": meta,
+                                "bots": bots}, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+    print(f"retune: เปลี่ยน {len(changes)}/{len(bots)} ตัว → {path}")
+    return changes
 
 
 def report(meta: dict, slots: list[dict]) -> None:

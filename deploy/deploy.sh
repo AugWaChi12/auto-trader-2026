@@ -18,7 +18,7 @@ fi
 
 echo ">> ส่งโค้ด $(git rev-parse --short HEAD) → $HOST:$REMOTE"
 ssh "$HOST" "mkdir -p $REMOTE/state $REMOTE/logs"
-git archive HEAD bot config deploy research/techniques.json | ssh "$HOST" "tar -x -C $REMOTE"
+git archive HEAD bot config deploy research/techniques.json research/m5_lab.py | ssh "$HOST" "tar -x -C $REMOTE"
 ssh "$HOST" "chmod +x $REMOTE/deploy/*.sh"
 
 echo ">> ครั้งแรก: ค่าตั้งบอท + รหัสหน้าจอ MT5"

@@ -205,6 +205,16 @@ class Collector:
         return out
 
     @staticmethod
+    def _pnl_curve(trades: list[dict], n: int = 300) -> list[list]:
+        """กำไรสะสมจากไม้ที่บอทปิด (ไม่รวมเงินฝาก/ไม้ที่คนเปิดเอง) — ย่อเหลือ ≤ n จุด"""
+        pts, run = [], 0.0
+        for t in sorted((t for t in trades if t["tag"] != "smoke"), key=lambda t: t["close_time"]):
+            run += t["profit"]
+            pts.append([t["close_time"], round(run, 2)])
+        step = max(1, len(pts) // n)
+        return pts[::step] + ([pts[-1]] if pts and (len(pts) - 1) % step else [])
+
+    @staticmethod
     def _stats(trades: list[dict]) -> dict:
         real = [t for t in trades if t["tag"] != "smoke"]
         wins = [t for t in real if t["profit"] > 0]
@@ -260,7 +270,7 @@ class Collector:
                         "floating": round(acc.equity - acc.balance, 2)},
             "terminal": {"connected": bool(term and term.connected), "algo": bool(term and term.trade_allowed)},
             "open": open_pos, "trades": trades[:50], "stats": self._stats(trades), "quotes": quotes,
-            "equity_curve": curve[-500:], "log": self._log_tail(),
+            "equity_curve": curve[-500:], "pnl_curve": self._pnl_curve(trades), "log": self._log_tail(),
         }
 
     # ------------------------------------------------------------------ Signal Radar
@@ -416,7 +426,7 @@ def public_view(d: dict) -> dict:
     return {
         "public": True, "now": d.get("now"), "bots": bots, "per_bot": d.get("per_bot"), "research": d.get("research"),
         "disabled": d.get("disabled"), "open": d.get("open"), "trades": (d.get("trades") or [])[:20],
-        "quotes": d.get("quotes"), "stats": d.get("stats"),
+        "quotes": d.get("quotes"), "stats": d.get("stats"), "pnl_curve": d.get("pnl_curve"),
         "account": {k: acc.get(k) for k in ("balance", "equity", "currency", "demo", "floating")},
         "error": "ระบบกำลังเชื่อมต่อ" if d.get("error") else None,
     }
@@ -425,7 +435,12 @@ def public_view(d: dict) -> dict:
 def manager_payload() -> bytes:
     """แชทของผู้จัดการพอร์ต + บอทที่สั่งพักอยู่ (สาธารณะเห็นได้ — ไม่มีข้อมูลบัญชี)"""
     from .. import manager as M
-    return json.dumps({"messages": M.read_log(80), "pauses": M.load_pauses()}, ensure_ascii=False).encode()
+    from ..manager_learn import load_summary
+    from ..research_weekly import load_status
+    rs = load_status()
+    research = {k: rs.get(k) for k in ("started", "finished", "running", "minutes", "summary", "error")}
+    return json.dumps({"messages": M.read_log(80), "pauses": M.load_pauses(), "learned": load_summary(),
+                       "journal": M.read_journal(14), "research": research}, ensure_ascii=False, default=str).encode()
 
 
 def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:

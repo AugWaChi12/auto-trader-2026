@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir "numpy>=2.0" "pandas>=2.2" tzdata "rpyc==${RPYC_V
 COPY bot ./bot
 COPY config ./config
 COPY research/techniques.json ./research/techniques.json
+COPY research/m5_lab.py ./research/m5_lab.py
 
 # state/ และ logs/ ผูกกับโฟลเดอร์บนเครื่อง (docker-compose.yml) — ค่าตั้ง/สถานะบอทอยู่รอดตอน deploy ใหม่
 CMD ["python", "-m", "bot", "supervise"]

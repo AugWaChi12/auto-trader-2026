@@ -18,6 +18,18 @@ def _state(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(M, "LOSS_STOPS", True)          # เทสต์กฎเพดานขาดทุนด้วย (บนเซิร์ฟเวอร์ปิดไว้)
     monkeypatch.setattr(M, "LOG_PATH", tmp_path / "manager_log.jsonl")
     monkeypatch.setattr(M, "PAUSES_PATH", tmp_path / "manager_pauses.json")
+    monkeypatch.setattr(M, "JOURNAL_PATH", tmp_path / "manager_journal.jsonl")
+    monkeypatch.setattr(M, "RESEARCH_EVERY_DAYS", 0)
+    from bot import manager_learn as LR
+    from bot import research_weekly as RW
+    from bot.live import notify as N
+    monkeypatch.setattr(LR, "TAPE_PATH", tmp_path / "tape.json")
+    monkeypatch.setattr(LR, "LEARN_PATH", tmp_path / "learn.json")
+    monkeypatch.setattr(RW, "STATUS_PATH", tmp_path / "research.json")
+    monkeypatch.setattr(N, "_chat_file", lambda: tmp_path / "telegram_chat.json")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.setattr(M, "_notifier", None)
 
 
 def bot(today=0.0, streak=0, opens=(), symbol="BTCUSD", family="volx") -> dict:
@@ -250,3 +262,107 @@ def test_claude_brain_maps_tool_calls_to_actions(monkeypatch) -> None:  # noqa: 
     assert "main" not in L.TEST_BOTS and seen["model"] == L.MODEL
     assert json.loads(seen["messages"][0]["content"].split("\n", 1)[1])["bots"]["m5_1"]["open"]
     assert brain.maybe_decide(snap(), {}) == []                     # ยังไม่ถึงรอบถัดไป
+
+
+# ---------------------------------------------------------------- เรียนรู้ / สรุปวัน / Telegram / วิจัยประจำสัปดาห์
+def closed(ticket, profit) -> dict:  # noqa: ANN001
+    return {"ticket": ticket, "profit": profit}
+
+
+def test_learner_records_regime_at_open_and_counts_when_closed() -> None:
+    from bot.manager_learn import LEARN_MIN, Learner
+    L = Learner()
+    for k in range(LEARN_MIN):
+        L.observe({"m5_4": {"family": "bb", "open": [pos(100 + k)], "recent": []}}, "trend", .5, M.now_ts())
+        L.observe({"m5_4": {"family": "bb", "open": [], "recent": [closed(100 + k, -3.0)]}}, "range", .1, M.now_ts())
+    assert L.summary()["bb"]["trend"] == {"n": LEARN_MIN, "avg": -3.0, "win_rate": 0}   # นับตามสภาพตอน "เปิด" ไม้
+    assert L.fit("bb", "trend") is False and L.fit("bb", "range") is None
+    L.observe({"m5_4": {"family": "bb", "open": [], "recent": [closed(100, -3.0)]}}, "trend", .5, M.now_ts())
+    assert Learner().summary()["bb"]["trend"]["n"] == LEARN_MIN                         # ไม่นับซ้ำ + บันทึกลงไฟล์แล้ว
+
+
+def test_rule_brain_prefers_learned_results_over_prior() -> None:
+    from bot.manager_learn import Learner
+    L = Learner()
+    L.table = {"ema": {"trend": {"n": 10, "pnl": -40.0, "wins": 2}}}             # สมมติฐานบอก ema ถนัดเทรนด์ แต่ผลจริงเสีย
+    b = M.RuleBrain(L)
+    for _ in range(M.REGIME_CONFIRM):
+        acts = b.decide(snap(bars=bars("trend"), m5_2=bot(family="ema")), {})
+    pause = [a for a in acts if a.kind == "pause" and a.bot == "m5_2"]
+    assert pause and "ผลจริง 10 ไม้" in pause[0].reason
+
+
+def test_journal_written_on_new_day_with_ai_note(monkeypatch) -> None:  # noqa: ANN001
+    m = M.Manager(FakeCol())
+    m.llm = NS(src="gemini", write=lambda prompt: "วันนี้ตลาดออกข้าง พรุ่งนี้ระวังสายตามเทรนด์")
+    M.say("action", "⏸ สั่งพัก m5_1", src="gemini")
+    m.journal(M.bkk_day(), snap(m5_1=bot(today=12.5), m5_2=bot(today=-30)))
+    j = M.read_journal()[-1]
+    assert j["pnl"] == -17.5 and "ดีสุด m5_1" in j["text"] and "gemini 1" in j["text"] and j["ai"].startswith("วันนี้")
+    assert M.read_log()[-1]["kind"] == "journal"
+
+
+def test_telegram_discovers_first_private_chat_and_sends(monkeypatch) -> None:  # noqa: ANN001
+    from bot.live import notify as N
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "x")
+    calls = []
+
+    def fake(self, method, payload=None):  # noqa: ANN001, ANN202
+        calls.append((method, payload))
+        if method == "getUpdates":
+            return {"result": [{"message": {"chat": {"id": 42, "type": "private", "first_name": "A"}}}]}
+        return {"ok": True}
+    monkeypatch.setattr(N.Notifier, "_call", fake)
+    n = N.Notifier("manager")
+    assert not n.enabled and n.discover() == "42"
+    assert N.Notifier("manager").chat == "42"                                     # จำไว้ในไฟล์
+    assert not N.Notifier("trades").enabled                                       # ไม้รายตัวไม่ส่ง เว้นแต่ TELEGRAM_TRADES=1
+    monkeypatch.setattr(M, "_notifier", n)
+    M.say("action", "⏸ สั่งพัก m5_1")
+    M.say("analysis", "รายงานทั่วไป")                                              # ไม่ส่ง
+    sent = [p["text"] for meth, p in calls if meth == "sendMessage"]
+    assert sent[-1] == "⚡ ⏸ สั่งพัก m5_1" and not any("รายงานทั่วไป" in t for t in sent)
+
+
+def test_research_describe_changes() -> None:
+    from bot.research_weekly import describe
+    ch = [{"bot": "m5_2", "family": "ema", "old": {"params": {"fast": 9, "slow": 21}, "plan": "native"},
+           "new": {"params": {"fast": 12, "slow": 21}, "plan": "ratchet"}, "wf_usd_day": -1.5}]
+    t = describe(ch, 33)
+    assert "m5_2 (ema): fast 9→12, วิธีออก native→ratchet" in t and "33 นาที" in t
+    assert "ไม่เปลี่ยนอะไร" in describe([], 30)
+
+
+def test_supervisor_restarts_only_bots_whose_research_changed(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    from bot import config as C
+    from bot import settings
+    from bot.live import supervisor as SV
+    monkeypatch.setattr(settings, "PATH", tmp_path / "bot_settings.json")
+    tuned = tmp_path / "m5_bots.json"
+    monkeypatch.setattr(C, "M5_BOTS_TUNED", tuned)
+    sv = SV.Supervisor()
+    for c in sv.children.values():
+        c.proc = NS(poll=lambda: None)
+    stopped = []
+    monkeypatch.setattr(sv, "stop", lambda c, why: stopped.append(c.name))
+    new = [dict(b) for b in sv.m5]
+    new[1] = {**new[1], "params": {**new[1]["params"], "x": 1}}
+    tuned.write_text(json.dumps({"bots": new}), encoding="utf-8")
+    sv.check_research()
+    assert stopped == [new[1]["bot"]]
+
+
+def test_lab_retune_keeps_family_per_bot(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "research"))
+    import m5_lab
+    from bot import config as C
+    cur = [{"bot": "m5_1", "family": "ema", "symbol": "BTCUSD", "lot": 0.04, "params": {"fast": 9}, "plan": "native"},
+           {"bot": "m5_2", "family": "bb", "symbol": "BTCUSD", "lot": 0.04, "params": {"k": 2.0}, "plan": "trail"}]
+    monkeypatch.setattr(C, "load_m5_bots", lambda: cur)
+    sl = lambda fam, params, plan: {"family": fam, "symbol": "BTCUSD", "live": {"params": params, "plan": plan},  # noqa: E731
+                                    "wf": {"usd_day": 1.0}, "holdout": {"usd_day": 0.5}, "wf_random": None}
+    out = tmp_path / "m5_bots.json"
+    ch = m5_lab.retune({}, [sl("bb", {"k": 2.0}, "trail"), sl("ema", {"fast": 12}, "ratchet")], out)
+    bots = json.loads(out.read_text(encoding="utf-8"))["bots"]
+    assert [b["family"] for b in bots] == ["ema", "bb"] and bots[0]["params"] == {"fast": 12}
+    assert [c["bot"] for c in ch] == ["m5_1"]

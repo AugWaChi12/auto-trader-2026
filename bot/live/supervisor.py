@@ -48,6 +48,8 @@ class Supervisor:
         self.paused: set[str] = set()
         self.settings = S.load()
         self.mtime = self._mtime()
+        self.m5 = C.load_m5_bots()
+        self.m5_mtime = self._m5_mtime()
         self.running = True
 
     @staticmethod
@@ -56,6 +58,28 @@ class Supervisor:
             return S.PATH.stat().st_mtime
         except OSError:
             return 0.0
+
+    @staticmethod
+    def _m5_mtime() -> float:
+        try:
+            return C.M5_BOTS_TUNED.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    def check_research(self) -> None:
+        """วิจัยประจำสัปดาห์เขียนงานใหม่ (state/m5_bots.json) → รีสตาร์ทบอททดสอบที่งานเปลี่ยน"""
+        m = self._m5_mtime()
+        if m == self.m5_mtime:
+            return
+        self.m5_mtime = m
+        new = C.load_m5_bots()
+        old = {b["bot"]: b for b in self.m5}
+        self.m5 = new
+        for b in new:
+            c = self.children.get(b["bot"])
+            o = old.get(b["bot"])
+            if c and c.proc is not None and (o is None or (o["params"], o["plan"], o["family"]) != (b["params"], b["plan"], b["family"])):
+                self.stop(c, "งานวิจัยใหม่")              # รอบถัดไปเปิดใหม่ด้วยพารามิเตอร์ใหม่
 
     def enabled(self, name: str) -> bool:
         if name in ("main", "manager"):
@@ -133,6 +157,7 @@ class Supervisor:
             while self.running:
                 self.check_settings()
                 self.check_pauses()
+                self.check_research()
                 self.tick()
                 time.sleep(POLL)
         except KeyboardInterrupt:

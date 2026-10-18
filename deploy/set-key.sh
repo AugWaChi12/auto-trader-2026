@@ -2,10 +2,11 @@
 # ใส่/เปลี่ยน API key ของผู้จัดการพอร์ตใน deploy/.env แล้วรีสตาร์ทเฉพาะ container บอท (MT5 ไม่ถูกแตะ)
 #   จากเครื่องตัวเอง:  ssh -t root@<server> /opt/auto-trader/deploy/set-key.sh            (Gemini)
 #                      ssh -t root@<server> /opt/auto-trader/deploy/set-key.sh ANTHROPIC_API_KEY
+#                      ssh -t root@<server> /opt/auto-trader/deploy/set-key.sh TELEGRAM_BOT_TOKEN   (แล้วทักบอทใน Telegram 1 ครั้ง)
 # คีย์พิมพ์/วางที่เครื่องผู้ใช้เท่านั้น — ไม่ผ่านแชท ไม่ถูกพิมพ์ออกจอหลังบันทึก
 set -euo pipefail
 NAME="${1:-GEMINI_API_KEY}"
-case "$NAME" in GEMINI_API_KEY|ANTHROPIC_API_KEY) ;; *) echo "ชื่อคีย์ต้องเป็น GEMINI_API_KEY หรือ ANTHROPIC_API_KEY"; exit 1 ;; esac
+case "$NAME" in GEMINI_API_KEY|ANTHROPIC_API_KEY|TELEGRAM_BOT_TOKEN) ;; *) echo "ชื่อคีย์ต้องเป็น GEMINI_API_KEY, ANTHROPIC_API_KEY หรือ TELEGRAM_BOT_TOKEN"; exit 1 ;; esac
 cd "$(dirname "$0")"
 read -r -p "วางคีย์ $NAME แล้วกด Enter: " K
 K="$(printf '%s' "$K" | tr -d '[:space:]')"

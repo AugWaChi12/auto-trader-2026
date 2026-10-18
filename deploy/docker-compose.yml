@@ -43,14 +43,20 @@ services:
       MANAGER_AI: ${MANAGER_AI:-}                  # gemini | claude (ว่าง = ตามคีย์ที่มี, Gemini ก่อน)
       MANAGER_MODEL: ${MANAGER_MODEL:-}            # ว่าง = gemini-3.8-flash / claude-opus-5-5
       MANAGER_LLM_MIN: ${MANAGER_LLM_MIN:-15}      # ถาม AI ทุกกี่นาที
+      # Telegram: ใส่ token ด้วย deploy/set-key.sh TELEGRAM_BOT_TOKEN แล้วทักบอท 1 ครั้ง (chat id จำเอง)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_TRADES: ${TELEGRAM_TRADES:-0}       # 1 = ส่งทุกไม้ของทุกบอทด้วย (ถี่มาก)
+      RESEARCH_EVERY_DAYS: ${RESEARCH_EVERY_DAYS:-7}   # วิจัยปรับพารามิเตอร์อัตโนมัติ (0 = ปิด)
       MT5_HOST: mt5
       MT5_PORT: "8001"
       MT5_PATH: 'C:\Program Files\MetaTrader 5\terminal64.exe'   # path ใน Wine (ฝั่ง container mt5)
     volumes:
       - ../state:/app/state
       - ../logs:/app/logs
+      - ../data:/app/data                # แท่งราคาที่วิจัยประจำสัปดาห์ดึงมา
     depends_on: [mt5]
-    mem_limit: 1200m
+    mem_limit: 1600m                     # บอท 10 ตัว + ผู้จัดการ + วิจัยประจำสัปดาห์ (1 โปรเซส)
     logging: *logs
 
   monitor:

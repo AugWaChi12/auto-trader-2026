@@ -243,7 +243,8 @@ STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
 ]
 
 
-M5_BOTS_FILE = ROOT / "bot" / "m5_bots.json"
+M5_BOTS_FILE = ROOT / "bot" / "m5_bots.json"          # งานจากการวิจัยเต็ม (ติดมากับโค้ด)
+M5_BOTS_TUNED = ROOT / "state" / "m5_bots.json"       # งานที่ปรับพารามิเตอร์ใหม่ทุกสัปดาห์บนเซิร์ฟเวอร์ (python -m bot research) — ถ้ามี ใช้อันนี้ก่อน
 # ล็อกกำไรแบบไต่ของบอท M5 (ดอลลาร์ ที่ทอง 0.04 lot ≈ 0.5 / 1 / 2 ATR ของ M5)
 M5_RATCHET_PLAN = ManagementPlan(partial_r=None, trail_atr_mult=None, lock_tiers=((8.0, 0.5), (17.0, 0.65), (34.0, 0.8)))
 M5_PLANS: dict[str, ManagementPlan | None] = {"native": None, "trail": M1_TRAIL_PLAN, "ratchet": M5_RATCHET_PLAN}
@@ -252,7 +253,8 @@ M5_PLANS: dict[str, ManagementPlan | None] = {"native": None, "trail": M1_TRAIL_
 def load_m5_bots() -> list[dict]:
     import json
     try:
-        return json.loads(M5_BOTS_FILE.read_text(encoding="utf-8"))["bots"]
+        path = M5_BOTS_TUNED if M5_BOTS_TUNED.exists() else M5_BOTS_FILE
+        return json.loads(path.read_text(encoding="utf-8"))["bots"]
     except (OSError, ValueError, KeyError):
         return []
 

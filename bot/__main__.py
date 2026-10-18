@@ -178,6 +178,13 @@ def cmd_manager(a: argparse.Namespace) -> None:
     Manager().run()
 
 
+def cmd_research(a: argparse.Namespace) -> None:
+    from .live.runner import setup_file_logging
+    from .research_weekly import run_weekly
+    setup_file_logging(C.LOG_DIR, "research")
+    run_weekly(download=not a.no_download)
+
+
 def cmd_monitor(a: argparse.Namespace) -> None:
     from .live.awake import keep_awake
     from .monitor.server import serve
@@ -250,6 +257,10 @@ def main() -> None:
 
     mg = sub.add_parser("manager", help="ผู้จัดการพอร์ต: เฝ้าบอททดสอบ สั่งพัก/ปิดไม้ + แชทในหน้า /sandbox")
     mg.set_defaults(fn=cmd_manager)
+
+    rw = sub.add_parser("research", help="วิจัยประจำสัปดาห์: ดึง BTC M5 ล่าสุด → ปรับพารามิเตอร์บอททดสอบ → state/m5_bots.json")
+    rw.add_argument("--no-download", action="store_true", help="ใช้ข้อมูลใน data/mt5 ที่มีอยู่")
+    rw.set_defaults(fn=cmd_research)
 
     a = p.parse_args()
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,

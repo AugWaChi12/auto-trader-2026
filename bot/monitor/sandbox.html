@@ -76,9 +76,33 @@
   .info li i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 6px currentColor; }
   .info .flow { font-size: .92em; }
   .info .note { margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: #fff6d6; font-size: .86em; }
-  .info .x, .card .x { position: absolute; right: 10px; top: 8px; width: 30px; height: 30px; border-radius: 8px; border: 0; background: transparent;
+  .info .x, .card .x, .perf .x { position: absolute; right: 10px; top: 8px; width: 30px; height: 30px; border-radius: 8px; border: 0; background: transparent;
                         cursor: pointer; font-size: 1.2em; font-weight: 700; }
-  .info .x:hover, .card .x:hover { background: rgba(23, 32, 51, .08); }
+  .info .x:hover, .card .x:hover, .perf .x:hover { background: rgba(23, 32, 51, .08); }
+
+  /* ---------- ผลงาน (หน้าต่างกลางจอ) */
+  .perf { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(920px, calc(100vw - 32px));
+          max-height: calc(100vh - 48px); overflow-y: auto; padding: 20px 22px; z-index: 8; display: none; }
+  .perf.open { display: block; }
+  .perf h2 { margin: 0 0 4px; font-size: 1.25em; }
+  .perf .sub { color: var(--muted); font-size: .86em; margin-bottom: 14px; }
+  .perf h3 { margin: 18px 0 8px; font-size: .98em; }
+  .perf .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; }
+  .perf table { width: 100%; border-collapse: collapse; font-size: .86em; }
+  .perf th { text-align: left; color: var(--muted); font-weight: 600; font-size: .9em; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  .perf td { padding: 5px 6px; border-bottom: 1px solid rgba(23, 32, 51, .06); white-space: nowrap; }
+  .perf td.r, .perf th.r { text-align: right; }
+  .perf .cell { display: inline-block; min-width: 64px; padding: 2px 6px; border-radius: 6px; text-align: center; }
+  .perf .cell.pos { background: #e3f7ea; } .perf .cell.neg { background: #ffe9e8; } .perf .cell.na { color: #a0a8b8; }
+  .perf .curve { width: 100%; height: 150px; display: block; }
+  .perf .j { padding: 10px 12px; border-radius: 12px; background: #f6f7fb; margin-bottom: 8px; font-size: .88em; line-height: 1.55; }
+  .perf .j b { display: block; margin-bottom: 2px; }
+  .perf .j .ai { margin-top: 4px; color: #3d2a9e; }
+  .perf .note { font-size: .8em; color: var(--muted); margin-top: 6px; }
+  .backdrop { position: fixed; inset: 0; background: rgba(15, 25, 45, .35); z-index: 7; display: none; }
+  .backdrop.open { display: block; }
+  @media (max-width: 760px) { .perf .grid { grid-template-columns: 1fr; } }
+  html.stream .perf, html.stream .backdrop { display: none !important; }
 
   /* ---------- แจ้งเตือนสั้น (ซ้ายล่าง) */
   .feed { position: fixed; left: var(--gap); bottom: 52px; width: min(440px, 36vw); display: flex; flex-direction: column-reverse; align-items: flex-start;
@@ -220,6 +244,7 @@
 <div class="subbar">
 <nav class="tools" aria-label="เครื่องมือ">
   <button class="tool" id="infoBtn" type="button" aria-expanded="false" aria-controls="info"><span class="ico">ℹ️</span><span class="lbl">วิธีดู</span></button>
+  <button class="tool" id="perfBtn" type="button" aria-haspopup="dialog"><span class="ico">📈</span><span class="lbl">ผลงาน</span></button>
   <button class="tool" id="spinBtn" type="button" aria-pressed="false"><span class="ico">🎥</span><span class="lbl">กล้องหยุด</span></button>
   <a class="tool private" href="/"><span class="ico">📊</span><span class="lbl">แดชบอร์ด</span></a>
   <a class="tool private" href="/settings"><span class="ico">⚙️</span><span class="lbl">ตั้งค่า</span></a>
@@ -245,6 +270,13 @@
   <h3>ใช้งาน</h3>
   <div>ลากเพื่อหมุนกล้อง · ล้อเมาส์/สองนิ้วเพื่อซูม · แตะหุ่นยนต์เพื่อดูรายละเอียด</div>
   <div class="note">บัญชี DEMO เงินทดลอง เพื่อการเรียนรู้เท่านั้น — ไม่ใช่คำแนะนำการลงทุน ผลในอดีตไม่รับประกันอนาคต</div>
+</section>
+<div class="backdrop" id="perfBg"></div>
+<section class="perf glass" id="perf" role="dialog" aria-modal="true" aria-label="ผลงานบอทและผู้จัดการพอร์ต">
+  <button class="x" id="perfX" type="button" aria-label="ปิด">×</button>
+  <h2>📈 ผลงาน</h2>
+  <div class="sub">บัญชี DEMO · ตัวเลขจากไม้ที่ปิดแล้วจริงใน MT5 · อัปเดตทุก 30 วิ ขณะเปิดหน้าต่างนี้</div>
+  <div id="perfBody">กำลังโหลด…</div>
 </section>
 <div class="feed" id="feed" aria-live="polite"></div>
 <aside class="chat glass notranslate" translate="no" aria-label="แชทผู้จัดการพอร์ต">
@@ -794,13 +826,13 @@ function toast(text) {
 }
 
 // ------------------------------------------------------------------ แชทผู้จัดการพอร์ต (/api/manager)
-const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️" };
+const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓" };
 const SRC = { claude: "🤖 Claude", gemini: "✨ Gemini", rules: "📏 กฎ" };
 const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 60000));
 async function refreshManager() {
   let d; try { d = await (await fetch("/api/manager", { cache: "no-store" })).json(); } catch { return; }
-  MGR.pauses = d.pauses || {};
+  MGR.pauses = d.pauses || {}; MGR.data = d;
   const msgs = d.messages || [], last = msgs[msgs.length - 1];
   const pz = Object.entries(MGR.pauses).sort();
   $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ") : "";
@@ -821,6 +853,52 @@ async function refreshManager() {
   }
   MGR.last = key; MGR.first = false;
 }
+
+// ------------------------------------------------------------------ หน้าต่างผลงาน
+const REG = { trend: "เทรนด์", range: "ออกข้าง", mixed: "ไม่ชัดทาง" };
+function curveSvg(pts) {
+  if (!pts || pts.length < 2) return '<div class="note">ยังไม่มีไม้ที่ปิด</div>';
+  const ys = pts.map(p => p[1]), lo = Math.min(0, ...ys), hi = Math.max(0, ...ys), W = 600, H = 150, pad = 6;
+  const x = i => pad + i / (pts.length - 1) * (W - 2 * pad), y = v => H - pad - (v - lo) / ((hi - lo) || 1) * (H - 2 * pad);
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+  const last = ys[ys.length - 1], col = last >= 0 ? "#12a150" : "#e5484d";
+  return `<svg class="curve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="กำไรสะสม ${money(last)}">
+    <line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="#c9cfdb" stroke-dasharray="4 4"/>
+    <path d="${line}L${x(pts.length - 1)},${y(0)}L${x(0)},${y(0)}Z" fill="${col}" opacity=".12"/>
+    <path d="${line}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    <div class="note">กำไร/ขาดทุนสะสมจากไม้ที่ปิด (ทุกบอท) ตอนนี้ <b class="${last >= 0 ? "up" : "down"}">${money(last)}</b></div>`;
+}
+function renderPerf() {
+  if (!$("perf").classList.contains("open")) return;
+  const m = MGR.data || {}, pb = D?.per_bot || {}, res = D?.research || {};
+  const rows = Object.entries(pb).sort((a, z) => (z[1].total || 0) - (a[1].total || 0));
+  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${esc(n === "main" ? "ทอง M15" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
+    <td class="r ${(s.today || 0) + (s.floating || 0) >= 0 ? "up" : "down"}">${money((s.today || 0) + (s.floating || 0))}</td>
+    <td class="r ${(s.total || 0) >= 0 ? "up" : "down"}">${money(s.total || 0)}</td><td class="r">${s.trades || 0}</td><td class="r">${s.win_rate == null ? "–" : s.win_rate + "%"}</td>
+    <td class="r">${MGR.pauses[n] ? "⏸ พัก" : ""}</td></tr>`).join("");
+  const learned = m.learned || {}, fams = Object.keys(learned).sort();
+  const learn = fams.length ? `<table><tr><th>สาย</th>${Object.values(REG).map(r => `<th class="r">${r}</th>`).join("")}</tr>` + fams.map(f =>
+    `<tr><td>${esc((FAM[f] || [0, f])[1])} <span class="k">(${esc(f)})</span></td>` + Object.keys(REG).map(rg => { const c = learned[f][rg];
+      return `<td class="r">${c ? `<span class="cell ${c.avg >= 0 ? "pos" : "neg"}" title="ชนะ ${c.win_rate}%">${money(c.avg)} <small>(${c.n})</small></span>` : '<span class="cell na">–</span>'}</td>`; }).join("") + "</tr>").join("") + "</table>"
+    : '<div class="note">ยังไม่มีไม้ที่ปิดหลังเริ่มเก็บข้อมูล — ผู้จัดการจะเริ่มเห็นรูปแบบเมื่อสะสมไม้ได้</div>';
+  const jr = (m.journal || []).slice().reverse().map(j => `<div class="j"><b>📓 ${esc(j.day)} · <span class="${j.pnl >= 0 ? "up" : "down"}">${money(j.pnl)}</span></b>${esc(j.text)}${j.ai ? `<div class="ai">${j.src === "gemini" ? "✨" : "🤖"} ${esc(j.ai)}</div>` : ""}</div>`).join("")
+    || '<div class="note">บันทึกแรกจะขึ้นหลังเที่ยงคืนเวลาไทย</div>';
+  const r = m.research || {};
+  const rs = r.running ? "🔬 กำลังวิจัยอยู่ตอนนี้…" : r.summary ? `${esc(r.summary)} <span class="k">(${hhmm(new Date(r.finished * 1000).toISOString())} น.)</span>` : r.error ? `ครั้งล่าสุดไม่สำเร็จ: ${esc(r.error)}` : "รอบแรก: อาทิตย์ ตี 4 เวลาไทย";
+  $("perfBody").innerHTML = `<div class="grid"><div><h3>กำไรสะสม</h3>${curveSvg(D?.pnl_curve)}</div>
+    <div><h3>ผู้จัดการเรียนรู้อะไรแล้ว</h3>${learn}<div class="note">$/ไม้เฉลี่ยของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้) · ครบ 8 ไม้ขึ้นไป ผู้จัดการใช้ตัดสินพัก/ให้กลับแทนสมมติฐาน</div></div></div>
+    <h3>อันดับบอท</h3><table><tr><th>บอท</th><th>สาย</th><th class="r">วันนี้</th><th class="r">รวม</th><th class="r">ไม้</th><th class="r">ชนะ</th><th></th></tr>${board}</table>
+    <h3>วิจัยประจำสัปดาห์</h3><div class="j">${rs}</div>
+    <h3>บันทึกท้ายวันของผู้จัดการ</h3>${jr}`;
+}
+function setPerf(open) {
+  $("perf").classList.toggle("open", open); $("perfBg").classList.toggle("open", open);
+  if (open) { refresh(); refreshManager().then(renderPerf); renderPerf(); $("perfX").focus(); }
+}
+$("perfBtn").onclick = () => setPerf(true);
+$("perfX").onclick = $("perfBg").onclick = () => setPerf(false);
+addEventListener("keydown", (e) => { if (e.key === "Escape") setPerf(false); });
+setInterval(renderPerf, 30000);
 
 // พัสดุออเดอร์: หุ่น → ขึ้นสะพาน → ผ่าน 3 ด่าน → หอ MT5
 const boxGeo = new RoundedBoxGeometry(.7, .55, .7, 2, .08), boxMat = mat(0xc98b4a), tapeMat = mat(0xffe08a);

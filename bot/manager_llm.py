@@ -26,6 +26,11 @@ class ClaudeBrain(AIBrain):
         super().__init__()
         self.client = anthropic.Anthropic()
 
+    def write(self, prompt: str) -> str:
+        r = self.client.messages.create(model=MODEL, max_tokens=4000, output_config={"effort": "low"},
+                                        system=SYSTEM, messages=[{"role": "user", "content": prompt}])
+        return "".join(b.text for b in r.content if b.type == "text").strip()[:1500]
+
     def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
         r = self.client.beta.messages.create(
             model=MODEL,

@@ -31,6 +31,9 @@ from . import config as C
 log = logging.getLogger("manager")
 
 LOG_PATH = C.STATE_DIR / "manager_log.jsonl"
+JOURNAL_PATH = C.STATE_DIR / "manager_journal.jsonl"
+RESEARCH_EVERY_DAYS = float(os.environ.get("RESEARCH_EVERY_DAYS") or 7)   # 0 = ไม่วิจัยอัตโนมัติ
+RESEARCH_HOUR_BKK = 4                                                      # วันอาทิตย์ ตี 4 เวลาไทย
 PAUSES_PATH = C.STATE_DIR / "manager_pauses.json"
 TICK_SEC = 60
 REPORT_EVERY_MIN = 30
@@ -65,6 +68,10 @@ def now_ts() -> float:
     return time.time()
 
 
+def bkk_day(t: float | None = None) -> str:
+    return (datetime.fromtimestamp(t if t is not None else time.time(), timezone.utc) + timedelta(hours=7)).strftime("%Y-%m-%d")
+
+
 def minutes_to_new_day() -> int:
     """นาทีถึงเที่ยงคืนเวลาไทย — "วันนี้" ของหน้า monitor นับตามเวลาไทย"""
     n = datetime.now(timezone.utc) + timedelta(hours=7)
@@ -72,14 +79,36 @@ def minutes_to_new_day() -> int:
 
 
 # ---------------------------------------------------------------- แชท + การพัก (ไฟล์ใน state/ ใช้ร่วมกับ supervisor/หน้าเว็บ)
+NOTIFY_KINDS = {"action", "alert", "journal"}     # ส่งเข้า Telegram ด้วย
+_notifier = None
+
+
+def notifier():  # noqa: ANN201
+    global _notifier
+    if _notifier is None:
+        from .live.notify import Notifier
+        _notifier = Notifier("manager")
+    return _notifier
+
+
 def say(kind: str, text: str, **data: Any) -> dict:
-    """kind: analysis 🧠 · action ⚡ · alert ⚠️ · info ℹ️"""
+    """kind: analysis 🧠 · action ⚡ · alert ⚠️ · info ℹ️ · journal 📓"""
     msg = {"t": datetime.now(timezone.utc).isoformat(timespec="seconds"), "kind": kind, "text": text, **data}
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(msg, ensure_ascii=False) + "\n")
     log.info("[%s] %s", kind, text)
+    if kind in NOTIFY_KINDS:
+        icon = {"action": "⚡", "alert": "⚠️", "journal": "📓"}[kind]
+        notifier().send(f"{icon} {text}")
     return msg
+
+
+def read_journal(limit: int = 14) -> list[dict]:
+    try:
+        return [json.loads(x) for x in JOURNAL_PATH.read_text(encoding="utf-8").splitlines()[-limit:] if x.strip()]
+    except (OSError, ValueError):
+        return []
 
 
 def read_log(limit: int = 80) -> list[dict]:
@@ -163,7 +192,7 @@ def build_snapshot(col: Any) -> Snapshot:
                       "total": pb.get("total") or 0, "trades": pb.get("trades") or 0, "win_rate": pb.get("win_rate"),
                       "open": opens, "alive": bool(hb.get("alive")), "state": st.get("state"),
                       "family": res.get("family"), "symbol": st.get("symbol") or res.get("symbol"),
-                      "streak": loss_streak(rows), "target_hit": bool(hb.get("target_hit"))}
+                      "streak": loss_streak(rows), "target_hit": bool(hb.get("target_hit")), "recent": rows}
     bars = (col.bars("BTCUSD", "M1", 200) or {}).get("bars") or []
     return Snapshot(now_ts(), float(acc.get("equity") or 0), float(acc.get("balance") or 0), bots, bars,
                     ((d.get("quotes") or {}).get("BTCUSD") or {}).get("bid"))
@@ -227,7 +256,8 @@ class Action:
 class RuleBrain:
     name = "สมองตามกฎ"
 
-    def __init__(self) -> None:
+    def __init__(self, learner: Any = None) -> None:
+        self.learner = learner                  # manager_learn.Learner — ผลจริงตามสภาพตลาด (None = ใช้สมมติฐานอย่างเดียว)
         self.peaks: dict[int, float] = {}       # ticket → กำไรลอยสูงสุดที่เคยเห็น
         self.last_report = 0.0
         self.vol_alerted = 0.0
@@ -310,14 +340,23 @@ class RuleBrain:
         for n, b in tests.items():
             if n in self.acted or b["symbol"] != "BTCUSD":
                 continue
-            fit, p = suits(b.get("family"), now), pauses.get(n)
+            fit, why, p = *self.fit(b.get("family"), now), pauses.get(n)
             if fit is False and p is None and not b["open"]:
                 self.acted.add(n)
-                acts.append(Action("pause", n, REGIME_PAUSE_MIN, f"{n} สาย {b.get('family')} ไม่ถนัด{REGIME_TH[now]} — พักรอ", tag="regime"))
+                acts.append(Action("pause", n, REGIME_PAUSE_MIN, f"{n} สาย {b.get('family')} ไม่ถนัด{REGIME_TH[now]}{why} — พักรอ", tag="regime"))
             elif fit is not False and p and p.get("tag") == "regime" and s.t - p.get("since", 0) >= REGIME_MIN_REST_MIN * 60:
                 self.acted.add(n)
-                acts.append(Action("resume", n, reason=f"{REGIME_TH[now]} — สาย {b.get('family')} กลับมาลุยได้", tag="regime"))
+                acts.append(Action("resume", n, reason=f"{REGIME_TH[now]} — สาย {b.get('family')} กลับมาลุยได้{why}", tag="regime"))
         return acts
+
+    def fit(self, family: str | None, regime: str) -> tuple[bool | None, str]:
+        """ผลจริงพอแล้ว → เชื่อผลจริง · ยังไม่พอ → สมมติฐานตั้งต้น (suits)"""
+        if self.learner is not None:
+            learned = self.learner.fit(family, regime)
+            c = self.learner.cell(family, regime)
+            if learned is not None and c:
+                return learned, f" (ผลจริง {c['n']} ไม้ เฉลี่ย {c['pnl'] / c['n']:+.2f}$/ไม้)"
+        return suits(family, regime), ""
 
     @staticmethod
     def report(s: Snapshot, pauses: dict[str, dict], rr: float | None) -> str:
@@ -349,7 +388,12 @@ class Manager:
             from .monitor.server import Collector
             col = Collector()
         self.col = col
-        self.brain = RuleBrain()
+        from .manager_learn import Learner
+        self.learner = Learner()
+        self.brain = RuleBrain(self.learner)
+        self.day = bkk_day()
+        self.last_snap: Snapshot | None = None
+        self.research_proc: Any = None
         self.llm = None
         which = os.environ.get("MANAGER_AI") or ("gemini" if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
                                                  else "claude" if os.environ.get("ANTHROPIC_API_KEY") else "")
@@ -402,6 +446,17 @@ class Manager:
 
     def tick(self) -> None:
         s = build_snapshot(self.col)
+        regime, er = market_regime(s.btc_bars)
+        for x in self.learner.observe(s.test_bots(), regime, er, s.t):
+            log.info("learned %s %s %s %+.2f", x["bot"], x["family"], x["regime"], x["profit"])
+        if bkk_day() != self.day:
+            if self.last_snap is not None:
+                self.journal(self.day, self.last_snap)
+            self.day = bkk_day()
+        self.last_snap = s
+        self.maybe_research(s)
+        if notifier().token and not notifier().chat:
+            notifier().discover()
         raw = load_pauses_raw()
         pauses = {b: p for b, p in raw.items() if p.get("until", 0) > s.t}
         expired = sorted(set(raw) - set(pauses))
@@ -418,6 +473,51 @@ class Manager:
             except Exception as e:  # noqa: BLE001
                 log.exception("action failed")
                 say("alert", f"⚠️ ทำ {a.kind} {a.bot or ''} ไม่สำเร็จ: {e}")
+
+    def journal(self, day: str, s: Snapshot) -> None:
+        """สรุปวัน (เขียนตอนขึ้นวันใหม่เวลาไทย) → แชท + Telegram + state/manager_journal.jsonl"""
+        tests = s.test_bots()
+        pnl = round(sum(b["today"] for b in tests.values()), 2)
+        ranked = sorted(tests.items(), key=lambda kv: kv[1]["today"], reverse=True)
+        msgs = [m for m in read_log(2000) if (datetime.fromisoformat(m["t"]) + timedelta(hours=7)).strftime("%Y-%m-%d") == day]
+        acts = [m for m in msgs if m["kind"] == "action"]
+        by_src = {src: sum(1 for m in acts if m.get("src", "rules") == src) for src in {m.get("src", "rules") for m in acts}}
+        text = (f"สรุปวันที่ {day}: บอททดสอบรวม {pnl:+.2f}$ · ดีสุด {ranked[0][0]} {ranked[0][1]['today']:+.2f}$ · "
+                f"แย่สุด {ranked[-1][0]} {ranked[-1][1]['today']:+.2f}$ · ผู้จัดการสั่งงาน {len(acts)} ครั้ง"
+                + (" (" + ", ".join(f"{k} {v}" for k, v in sorted(by_src.items())) + ")" if by_src else "")
+                + f" · equity ${s.equity:,.2f}") if ranked else f"สรุปวันที่ {day}: ไม่มีข้อมูลบอท"
+        ai = ""
+        if self.llm is not None:
+            try:
+                ai = self.llm.write(
+                    "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2–4 ประโยค ภาษาไทย: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
+                    "และพรุ่งนี้จะปรับวิธีคิดอย่างไร (ตอบเป็นข้อความธรรมดา ไม่ต้องเรียกฟังก์ชัน)\n\n"
+                    + json.dumps({"summary": text, "bots": {n: {"strategy": b.get("family"), "today_usd": b["today"]} for n, b in tests.items()},
+                                  "learned": self.learner.summary(), "actions": [m["text"] for m in acts][-30:]}, ensure_ascii=False))
+            except Exception as e:  # noqa: BLE001
+                log.warning("journal ai: %s", e)
+        JOURNAL_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with JOURNAL_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"day": day, "pnl": pnl, "text": text, "ai": ai, "src": self.llm.src if (ai and self.llm) else "rules",
+                                "bots": {n: b["today"] for n, b in tests.items()}, "equity": s.equity}, ensure_ascii=False) + "\n")
+        say("journal", f"📓 {text}" + (f"\n{ai}" if ai else ""), src=self.llm.src if (ai and self.llm) else "rules")
+
+    def maybe_research(self, s: Snapshot) -> None:
+        """วิจัยประจำสัปดาห์: อาทิตย์ตี 4 เวลาไทย (ห่างรอบก่อน ≥ RESEARCH_EVERY_DAYS) → รัน python -m bot research เป็นโปรเซสแยก"""
+        if RESEARCH_EVERY_DAYS <= 0 or (self.research_proc is not None and self.research_proc.poll() is None):
+            return
+        from .research_weekly import load_status
+        st = load_status()
+        n = datetime.fromtimestamp(s.t, timezone.utc) + timedelta(hours=7)
+        if s.t - st.get("started", 0) < RESEARCH_EVERY_DAYS * 86400 - 3 * 3600 or n.weekday() != 6 or n.hour != RESEARCH_HOUR_BKK:
+            return
+        import subprocess
+        import sys
+        C.LOG_DIR.mkdir(parents=True, exist_ok=True)
+        out = (C.LOG_DIR / f"research_{n:%Y%m%d}.log").open("a", encoding="utf-8")
+        self.research_proc = subprocess.Popen([sys.executable, "-m", "bot", "research"], cwd=str(C.ROOT),
+                                              stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+        log.info("research started pid=%s", self.research_proc.pid)
 
     @staticmethod
     def release_loss_stops() -> None:

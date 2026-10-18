@@ -37,6 +37,11 @@ class GeminiBrain(AIBrain):
             tool_config=types.ToolConfig(function_calling_config=types.FunctionCallingConfig(mode="ANY")),
         )
 
+    def write(self, prompt: str) -> str:
+        r = self.client.models.generate_content(model=MODEL, contents=prompt,
+                                                config=types.GenerateContentConfig(system_instruction=SYSTEM))
+        return (r.text or "").strip()[:1500]
+
     def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
         r = self.client.models.generate_content(model=MODEL, contents=prompt, config=self.config)
         u = r.usage_metadata
