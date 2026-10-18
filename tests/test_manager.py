@@ -15,6 +15,7 @@ from bot import manager as M
 
 @pytest.fixture(autouse=True)
 def _state(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr(M, "LOSS_STOPS", True)          # เทสต์กฎเพดานขาดทุนด้วย (บนเซิร์ฟเวอร์ปิดไว้)
     monkeypatch.setattr(M, "LOG_PATH", tmp_path / "manager_log.jsonl")
     monkeypatch.setattr(M, "PAUSES_PATH", tmp_path / "manager_pauses.json")
 
@@ -146,6 +147,17 @@ def test_manager_api_is_public(monkeypatch) -> None:  # noqa: ANN001
     M.say("info", "hello")
     d = json.loads(server.manager_payload())
     assert d["messages"][-1]["text"] == "hello" and d["pauses"] == {}
+
+
+def test_loss_stops_off_by_default_and_old_stops_released(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr(M, "LOSS_STOPS", False)
+    acts = M.RuleBrain().decide(snap(equity=500, m5_3=bot(today=-90, streak=6)), {})
+    assert kinds(acts) == []
+    M.save_pauses({"m5_5": {"until": M.now_ts() + 999, "reason": "m5_5 วันนี้ -135$ ถึงเพดาน -45$"},
+                   "m5_1": {"until": M.now_ts() + 999, "reason": "ไม่ถนัด", "tag": "regime"},
+                   "m5_2": {"until": M.now_ts() + 999, "reason": "เพดาน", "src": "gemini"}})
+    M.Manager.release_loss_stops()
+    assert sorted(M.load_pauses()) == ["m5_1", "m5_2"]
 
 
 def test_market_regime_reads_trend_and_range() -> None:

@@ -34,8 +34,11 @@ LOG_PATH = C.STATE_DIR / "manager_log.jsonl"
 PAUSES_PATH = C.STATE_DIR / "manager_pauses.json"
 TICK_SEC = 60
 REPORT_EVERY_MIN = 30
-MAX_ACTIONS_PER_HOUR = 20
+MAX_ACTIONS_PER_HOUR = 120    # กันบั๊กสั่งรัวเท่านั้น (DEMO ให้ลองได้เต็มที่)
 MAX_PAUSE_MIN = 24 * 60
+
+# เพดานขาดทุน (ข้อ 1, 3, 4 ด้านล่าง) ปิดไว้ — DEMO ให้เรียนรู้จากผลจริง ถูกผิดเต็มที่ · เปิดคืนด้วย MANAGER_STOPS=1
+LOSS_STOPS = os.environ.get("MANAGER_STOPS") == "1"
 
 # เกณฑ์ของสมองตามกฎ (ดอลลาร์ = ของบอทแต่ละตัว เว้นแต่บอกว่าทั้งพอร์ต)
 EQUITY_GUARD = 640.0          # equity ทั้งบัญชีต่ำกว่านี้ → พักบอททดสอบทั้งหมด (ก่อนชนเพดาน $600 ของ RiskManager)
@@ -238,13 +241,13 @@ class RuleBrain:
         paused = set(pauses)
 
         # 1) ทั้งพอร์ต: equity ใกล้เพดาน / เสียรวมเกินเพดานรายวัน → พักทุกตัว
-        if s.equity and s.equity < EQUITY_GUARD:
+        if LOSS_STOPS and s.equity and s.equity < EQUITY_GUARD:
             for b in tests:
                 if b not in paused:
                     acts.append(Action("pause", b, 240, f"equity ${s.equity:,.2f} ใกล้เพดาน $600 — พักบอททดสอบทั้งหมด 4 ชม."))
             return acts
         day = sum(b["today"] for b in tests.values())
-        if day <= PORTFOLIO_DAY_STOP:
+        if LOSS_STOPS and day <= PORTFOLIO_DAY_STOP:
             for b in tests:
                 if b not in paused:
                     acts.append(Action("pause", b, minutes_to_new_day(),
@@ -263,13 +266,13 @@ class RuleBrain:
 
         for n, b in tests.items():
             # 3) บอทตัวเดียวเสียหนักวันนี้
-            if b["today"] <= BOT_DAY_STOP and n not in paused:
+            if LOSS_STOPS and b["today"] <= BOT_DAY_STOP and n not in paused:
                 if b["open"]:
                     acts.append(Action("close", n, reason=f"{n} วันนี้ {b['today']:+.2f}$ — ตัดไม้ที่ค้าง"))
                 acts.append(Action("pause", n, minutes_to_new_day(), f"{n} วันนี้ {b['today']:+.2f}$ ถึงเพดาน {BOT_DAY_STOP:+.0f}$ — พักถึงวันใหม่"))
                 continue
             # 4) แพ้ติดกัน
-            if b["streak"] >= LOSS_STREAK and n not in paused and not b["open"]:
+            if LOSS_STOPS and b["streak"] >= LOSS_STREAK and n not in paused and not b["open"]:
                 acts.append(Action("pause", n, STREAK_PAUSE_MIN, f"{n} แพ้ติดกัน {b['streak']} ไม้ — พัก {STREAK_PAUSE_MIN} นาที ให้ตลาดเปลี่ยนจังหวะ"))
             # 5) ไม้ที่ถืออยู่: กำไรหดคืน / ขาดทุนค้างนาน
             for o in b["open"]:
@@ -412,9 +415,21 @@ class Manager:
                 log.exception("action failed")
                 say("alert", f"⚠️ ทำ {a.kind} {a.bot or ''} ไม่สำเร็จ: {e}")
 
+    @staticmethod
+    def release_loss_stops() -> None:
+        """ปิดเพดานขาดทุนแล้ว → ปล่อยบอทที่ถูกพักเพราะเพดาน/แพ้ติดกันก่อนหน้านี้"""
+        p = load_pauses()
+        freed = sorted(b for b, x in p.items() if not x.get("tag") and x.get("src", "rules") == "rules"
+                       and ("เพดาน" in x.get("reason", "") or "แพ้ติดกัน" in x.get("reason", "")))
+        if freed:
+            save_pauses({b: x for b, x in p.items() if b not in freed})
+            say("action", f"▶ ปิดเพดานขาดทุนแล้ว (DEMO ลองเต็มที่) — ปล่อย {', '.join(freed)} กลับมาทำงาน", act="resume")
+
     def run(self) -> None:
         say("info", f"ผู้จัดการพอร์ตเริ่มงาน ({self.brain_name()}) — เฝ้าบอททดสอบ 9 ตัวทุก {TICK_SEC} วิ · ไม่แตะ main",
             src=self.llm.src if self.llm else "rules")
+        if not LOSS_STOPS:
+            self.release_loss_stops()
         n = 0
         while True:
             try:
