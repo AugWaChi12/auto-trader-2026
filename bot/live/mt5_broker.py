@@ -80,7 +80,8 @@ class Mt5Broker(IMarketData, IAccount, IOrderExecutor):
                  magic: int, state_dir: Path, mt5: Any = None, deviation_points: int = 30,
                  allocation: float | None = None) -> None:
         if mt5 is None:
-            import MetaTrader5 as mt5  # noqa: N813
+            from ..mt5api import load
+            mt5 = load()
         self.mt5 = mt5
         self.symbols = symbols
         self._specs = dict(specs)

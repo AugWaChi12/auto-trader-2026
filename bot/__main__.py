@@ -166,6 +166,11 @@ def cmd_radar_stats(a: argparse.Namespace) -> None:
     runpy.run_path(str(C.ROOT / "research" / "radar_stats.py"), run_name="__main__")
 
 
+def cmd_supervise(a: argparse.Namespace) -> None:
+    from .live.supervisor import Supervisor
+    Supervisor().run()
+
+
 def cmd_monitor(a: argparse.Namespace) -> None:
     from .live.awake import keep_awake
     from .monitor.server import serve
@@ -232,6 +237,9 @@ def main() -> None:
     mo.add_argument("--no-browser", action="store_true")
     mo.add_argument("--charts", action="store_true", help="เปิดหน้ากราฟหลายจอ")
     mo.set_defaults(fn=cmd_monitor)
+
+    sv = sub.add_parser("supervise", help="คุมบอททุกตัว: เปิด / เปิดใหม่เมื่อตาย / ตามค่าในหน้าเว็บ (Linux/Docker)")
+    sv.set_defaults(fn=cmd_supervise)
 
     a = p.parse_args()
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,

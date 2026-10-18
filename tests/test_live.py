@@ -251,3 +251,42 @@ def test_stream_config_validates_and_never_exposes_key(tmp_path: Path, monkeypat
     assert "SECRET1" not in json.dumps(st) and st["has_key"] is True
     cmd = stream.build_cmd(stream.load_cfg(), (0, 0, 540, 960), "out.flv")
     assert "anullsrc" in " ".join(cmd) and "720:1280" in " ".join(cmd)
+
+
+def test_supervisor_follows_settings_file(tmp_path: Path, monkeypatch) -> None:
+    """ปิดบอทในหน้าเว็บ → หยุดเฉพาะตัวนั้น · เปลี่ยน TF → รีสตาร์ทบอททดสอบทุกตัว แต่ไม่แตะ main · ตายแล้วเปิดใหม่"""
+    import os
+    from bot import settings
+    from bot.live import supervisor as sv
+    monkeypatch.setattr(settings, "PATH", tmp_path / "bot_settings.json")
+    started, stopped = [], []
+
+    class FakeProc:
+        def __init__(self): self.returncode = None
+        def poll(self): return self.returncode
+        def terminate(self): self.returncode = 0
+        def wait(self, t=None): return 0
+    monkeypatch.setattr(sv.Supervisor, "start", lambda self, c: (started.append(c.name), setattr(c, "proc", FakeProc()),
+                                                                  setattr(c, "started", 0.0)))
+    s = sv.Supervisor()
+    s.tick()
+    assert "main" in started and "m5_1" in started
+    real_stop = sv.Supervisor.stop
+    monkeypatch.setattr(sv.Supervisor, "stop", lambda self, c, why: (stopped.append(c.name), real_stop(self, c, why)))
+
+    settings.save({**settings.load(), "disabled_bots": ["m5_2"]})
+    os.utime(settings.PATH, (1, 1)); s.mtime = 0                    # บังคับให้เห็นว่าไฟล์เปลี่ยน
+    s.check_settings(); started.clear(); s.tick()
+    assert stopped == ["m5_2"] and "m5_2" not in started
+
+    stopped.clear()
+    settings.save({**settings.load(), "tf": "M1"})
+    os.utime(settings.PATH, (2, 2)); s.mtime = 0
+    s.check_settings()
+    assert "main" not in stopped and "m5_1" in stopped and "m5_2" not in stopped   # m5_2 ปิดอยู่แล้ว
+
+    s.children["main"].proc.returncode = 1                          # main ตาย → เปิดใหม่หลัง backoff
+    started.clear(); s.tick()
+    assert s.children["main"].proc is None and "main" not in started
+    s.children["main"].next_start = 0; s.tick()
+    assert "main" in started

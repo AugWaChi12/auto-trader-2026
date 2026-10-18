@@ -6,3 +6,5 @@ reports/
 *.pyc
 state/
 logs/
+.claude/settings.local.json
+deploy/.env

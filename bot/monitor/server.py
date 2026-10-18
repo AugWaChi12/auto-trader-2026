@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import threading
 import time
 from collections import defaultdict
@@ -54,14 +55,20 @@ def _exit_reason(comment: str) -> str:
 
 class Collector:
     def __init__(self) -> None:
-        import MetaTrader5 as mt5
-        self.mt5 = mt5
+        self._mt5 = None                  # ต่อ MT5 ตอนใช้จริง: บน Docker container MT5 อาจยังไม่พร้อมตอนหน้าเว็บเปิด
         self._lock = threading.Lock()
         self._cache: dict[str, tuple[float, Any]] = {}
         self._ok = False
         self._names: dict[str, str] = {}
         self.bots = {name: spec["magic"] for name, spec in C.LIVE_INSTANCES.items()}
         self.by_magic = {m: n for n, m in self.bots.items()}
+
+    @property
+    def mt5(self) -> Any:
+        if self._mt5 is None:
+            from ..mt5api import load
+            self._mt5 = load()
+        return self._mt5
 
     # ------------------------------------------------------------------ cache + การเชื่อมต่อ
     def _cached(self, key: str, fn) -> Any:  # noqa: ANN001
@@ -327,6 +334,9 @@ def settings_payload() -> dict:
             "limits": _settings.LIMITS, "bots": [n for n in C.LIVE_INSTANCES if n != "main"]}
 
 
+SUPERVISED = sys.platform != "win32"   # Linux/Docker: python -m bot supervise อ่าน state/bot_settings.json แล้วเปิด/ปิดเอง
+
+
 def _ps(command: str, wait: bool) -> None:
     import subprocess
     args = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command]
@@ -335,11 +345,16 @@ def _ps(command: str, wait: bool) -> None:
 
 
 def stop_bot(name: str) -> None:
+    if SUPERVISED:
+        time.sleep(3)              # supervisor เช็กไฟล์ทุก 1 วิ แล้วหยุดบอท (รอให้หยุดก่อนปิดไม้ กันบอทเปิดไม้ใหม่แข่ง)
+        return
     _ps("Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'bot live --instance %s(\\s|$)' } | "
         "ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" % name, wait=True)
 
 
 def start_bot(name: str) -> None:
+    if SUPERVISED:
+        return
     _ps(f"& '{C.ROOT / 'start_bot.ps1'}' -Instance {name}", wait=False)
 
 
@@ -380,6 +395,8 @@ def stream_action(body: dict) -> dict:
 
 def restart_test_bots() -> None:
     """รัน restart_bots.ps1 แบบไม่รอ (ใช้เวลาราว 10–30 วิ) — บอทอ่านค่าใหม่ตอนเริ่ม"""
+    if SUPERVISED:
+        return                     # supervisor เห็นไฟล์ค่าตั้งเปลี่ยน → รีสตาร์ทบอททดสอบเอง
     import subprocess
     script = C.ROOT / "restart_bots.ps1"
     subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)], cwd=str(C.ROOT),
@@ -463,7 +480,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
 
 def serve(port: int = 8765, open_browser: bool = True, page: str = "") -> None:
     col = Collector()
-    srv = ThreadingHTTPServer(("127.0.0.1", port), make_handler(col))
+    import os
+    srv = ThreadingHTTPServer((os.environ.get("MONITOR_HOST", "127.0.0.1"), port), make_handler(col))
     url = f"http://127.0.0.1:{port}"
     print(f"monitor: {url}   กราฟหลายจอ: {url}/charts   Signal Radar: {url}/radar   คลังเทคนิค: {url}/techniques   (Ctrl+C เพื่อปิด)")
     if open_browser:

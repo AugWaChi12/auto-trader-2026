@@ -1,0 +1,63 @@
+# Auto trader บน Linux (ทาง A): MT5 ใน Wine + บอททุกตัว + หน้า monitor
+#   deploy/deploy.sh จากเครื่อง dev สั่งทุกอย่างให้ · บนเซิร์ฟเวอร์: cd /opt/auto-trader/deploy && docker compose ps
+#
+# ไม่มี port ไหนเปิดออกอินเทอร์เน็ต: ผูกกับ 127.0.0.1 ของเครื่องเท่านั้น → เข้าจากคอมด้วย SSH tunnel
+#   ssh -L 3000:127.0.0.1:3000 -L 8765:127.0.0.1:8765 root@<server>
+#   http://localhost:3000 = หน้าจอ MT5 (ล็อกอินบัญชี demo)   ·   http://localhost:8765 = monitor
+name: auto-trader
+
+services:
+  mt5:
+    image: gmag11/metatrader5_vnc:latest
+    container_name: trader-mt5
+    restart: unless-stopped
+    env_file: .env                       # CUSTOM_USER / PASSWORD ของหน้าจอ VNC (deploy.sh สุ่มให้ครั้งแรก)
+    volumes:
+      - mt5_config:/config               # MT5 + บัญชีที่ล็อกอินไว้ อยู่รอดตอนรีสตาร์ท
+    ports:
+      - "127.0.0.1:3000:3000"            # หน้าจอ MT5 ผ่านเว็บ
+    mem_limit: 2g
+    logging: &logs
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  bots:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        RPYC_VERSION: ${RPYC_VERSION:-5.3.1}
+    image: auto-trader:latest
+    container_name: trader-bots
+    restart: unless-stopped
+    command: ["python", "-m", "bot", "supervise"]
+    environment:
+      MT5_HOST: mt5
+      MT5_PORT: "8001"
+    volumes:
+      - ../state:/app/state
+      - ../logs:/app/logs
+    depends_on: [mt5]
+    mem_limit: 1200m
+    logging: *logs
+
+  monitor:
+    image: auto-trader:latest
+    container_name: trader-monitor
+    restart: unless-stopped
+    command: ["python", "-m", "bot", "monitor", "--no-browser"]
+    environment:
+      MT5_HOST: mt5
+      MT5_PORT: "8001"
+      MONITOR_HOST: 0.0.0.0              # ใน container ต้องรับจากนอก — ด้านนอกยังผูกแค่ 127.0.0.1
+    volumes:
+      - ../state:/app/state
+      - ../logs:/app/logs
+    ports:
+      - "127.0.0.1:8765:8765"
+    depends_on: [mt5, bots]
+    mem_limit: 300m
+    logging: *logs
+
+volumes:
+  mt5_config:

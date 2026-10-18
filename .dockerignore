@@ -1,0 +1,10 @@
+.venv/
+.git/
+data/
+state/
+logs/
+reports/
+research/out/
+**/__pycache__/
+.pytest_cache/
+deploy/.env
