@@ -35,6 +35,7 @@ services:
     environment:
       MT5_HOST: mt5
       MT5_PORT: "8001"
+      MT5_PATH: 'C:\Program Files\MetaTrader 5\terminal64.exe'   # path ใน Wine (ฝั่ง container mt5)
     volumes:
       - ../state:/app/state
       - ../logs:/app/logs
@@ -50,6 +51,7 @@ services:
     environment:
       MT5_HOST: mt5
       MT5_PORT: "8001"
+      MT5_PATH: 'C:\Program Files\MetaTrader 5\terminal64.exe'   # path ใน Wine (ฝั่ง container mt5)
       MONITOR_HOST: 0.0.0.0              # ใน container ต้องรับจากนอก — ด้านนอกยังผูกแค่ 127.0.0.1
     volumes:
       - ../state:/app/state

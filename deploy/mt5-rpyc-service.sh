@@ -5,6 +5,7 @@
 # ทำไมไม่ใช้ของ image (เจอจริง 18 ต.ค. 2026):
 #   1) start.sh เรียก "python3 -m mt5linux" แต่ mt5linux 1.1.1 ใช้ f-string แบบ Python 3.12 บน Python 3.11 → SyntaxError
 #   2) image ลง numpy 2.x ใน Wine แต่ MetaTrader5 5.0.36 สร้างกับ numpy 1.x → import MetaTrader5 พัง (_ARRAY_API not found)
+#   3) rpyc 6: python -m rpyc.cli.rpyc_classic ไม่เปิด server
 # log: /config/mt5-rpyc.log
 PYDIR="/config/.wine/drive_c/Program Files (x86)/Python39-32"
 LOG=/config/mt5-rpyc.log
@@ -21,4 +22,5 @@ if ! $RUN wine "$PYDIR/python.exe" -c "import MetaTrader5" </dev/null >>"$LOG" 2
 fi
 
 echo "[mt5-rpyc] $(date -Is) starting RPyC classic server on :8001" >>"$LOG"
-exec $RUN wine "$PYDIR/python.exe" -m rpyc.cli.rpyc_classic --host 0.0.0.0 -p 8001 </dev/null >>"$LOG" 2>&1
+# หมายเหตุ: "python -m rpyc.cli.rpyc_classic" ของ rpyc 6 แค่ import แล้วจบ (exit 0) ไม่เปิด server → เปิด ThreadedServer เอง
+exec $RUN wine "$PYDIR/python.exe" -u -c "from rpyc import SlaveService; from rpyc.utils.server import ThreadedServer; print('rpyc classic server :8001', flush=True); ThreadedServer(SlaveService, hostname='0.0.0.0', port=8001, reuse_addr=True).start()" </dev/null >>"$LOG" 2>&1
