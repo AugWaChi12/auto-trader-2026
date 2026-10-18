@@ -14,6 +14,7 @@ services:
     env_file: .env                       # CUSTOM_USER / PASSWORD ของหน้าจอ VNC (deploy.sh สุ่มให้ครั้งแรก)
     volumes:
       - mt5_config:/config               # MT5 + บัญชีที่ล็อกอินไว้ อยู่รอดตอนรีสตาร์ท
+      - ./mt5-rpyc-service.sh:/custom-services.d/mt5-rpyc:ro   # ช่อง Python (port 8001) — แทนตัวของ image ที่พัง
     ports:
       - "127.0.0.1:3000:3000"            # หน้าจอ MT5 ผ่านเว็บ
     mem_limit: 2g
