@@ -437,10 +437,12 @@ def manager_payload() -> bytes:
     from .. import manager as M
     from ..manager_learn import load_summary
     from ..research_weekly import load_status
+    from ..shadow import recent, scoreboard
     rs = load_status()
     research = {k: rs.get(k) for k in ("started", "finished", "running", "minutes", "summary", "error")}
     return json.dumps({"messages": M.read_log(80), "pauses": M.load_pauses(), "learned": load_summary(),
-                       "journal": M.read_journal(14), "research": research}, ensure_ascii=False, default=str).encode()
+                       "journal": M.read_journal(14), "research": research,
+                       "shadow": {"score": scoreboard(), "recent": recent(15)}}, ensure_ascii=False, default=str).encode()
 
 
 def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:

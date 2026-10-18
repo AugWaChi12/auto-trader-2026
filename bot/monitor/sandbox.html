@@ -868,6 +868,17 @@ function curveSvg(pts) {
     <path d="${line}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
     <div class="note">กำไร/ขาดทุนสะสมจากไม้ที่ปิด (ทุกบอท) ตอนนี้ <b class="${last >= 0 ? "up" : "down"}">${money(last)}</b></div>`;
 }
+function shadowHtml(sh) {
+  const sc = sh?.score || {}, who = { rules: "📏 กฎ", gemini: "✨ Gemini", claude: "🤖 Claude" };
+  const rows = Object.entries(sc).map(([src, x]) => `<tr><td>${who[src] || esc(src)}</td><td class="r">${x.pauses}</td><td class="r">${x.trades}</td>
+    <td class="r"><span class="cell ${x.missed <= 0 ? "pos" : "neg"}">${x.missed <= 0 ? "ประหยัด " + money(-x.missed).slice(1) : "พลาด " + money(x.missed).slice(1)}</span></td></tr>`).join("");
+  const rec = (sh?.recent || []).slice(-6).reverse().map(e => `<tr><td>${esc(e.bot)}</td><td>${who[e.src] || esc(e.src)}</td><td class="r">${Math.round((e.end - e.start) / 60)} น.</td>
+    <td class="r">${e.trades}</td><td class="r ${e.missed <= 0 ? "up" : "down"}">${money(e.missed)}</td></tr>`).join("");
+  if (!rows) return '<div class="note">ยังไม่มีผล — บอทเงาจะจำลองช่วงที่ถูกพัก หลังการพักแต่ละครั้งจบ (ประเมินชั่วโมงละครั้ง)</div>';
+  return `<div class="grid"><div><table><tr><th>ผู้สั่งพัก</th><th class="r">ครั้ง</th><th class="r">ไม้ที่เลี่ยง</th><th class="r">ผล</th></tr>${rows}</table>
+    <div class="note">จำลองกลยุทธ์เดิมบนราคาจริงช่วงที่ถูกพัก: "ประหยัด" = ถ้าไม่พักจะขาดทุน · "พลาด" = ถ้าไม่พักจะได้กำไร</div></div>
+    <div><table><tr><th>ล่าสุด</th><th>ผู้สั่ง</th><th class="r">พัก</th><th class="r">ไม้</th><th class="r">ถ้าไม่พัก</th></tr>${rec}</table></div></div>`;
+}
 function renderPerf() {
   if (!$("perf").classList.contains("open")) return;
   const m = MGR.data || {}, pb = D?.per_bot || {}, res = D?.research || {};
@@ -887,6 +898,7 @@ function renderPerf() {
   const rs = r.running ? "🔬 กำลังวิจัยอยู่ตอนนี้…" : r.summary ? `${esc(r.summary)} <span class="k">(${hhmm(new Date(r.finished * 1000).toISOString())} น.)</span>` : r.error ? `ครั้งล่าสุดไม่สำเร็จ: ${esc(r.error)}` : "รอบแรก: อาทิตย์ ตี 4 เวลาไทย";
   $("perfBody").innerHTML = `<div class="grid"><div><h3>กำไรสะสม</h3>${curveSvg(D?.pnl_curve)}</div>
     <div><h3>ผู้จัดการเรียนรู้อะไรแล้ว</h3>${learn}<div class="note">$/ไม้เฉลี่ยของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้) · ครบ 8 ไม้ขึ้นไป ผู้จัดการใช้ตัดสินพัก/ให้กลับแทนสมมติฐาน</div></div></div>
+    <h3>บอทเงา: การพักของผู้จัดการช่วยจริงไหม (30 วัน)</h3>${shadowHtml(m.shadow)}
     <h3>อันดับบอท</h3><table><tr><th>บอท</th><th>สาย</th><th class="r">วันนี้</th><th class="r">รวม</th><th class="r">ไม้</th><th class="r">ชนะ</th><th></th></tr>${board}</table>
     <h3>วิจัยประจำสัปดาห์</h3><div class="j">${rs}</div>
     <h3>บันทึกท้ายวันของผู้จัดการ</h3>${jr}`;

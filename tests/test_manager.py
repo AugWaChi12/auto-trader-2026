@@ -26,6 +26,8 @@ def _state(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(LR, "TAPE_PATH", tmp_path / "tape.json")
     monkeypatch.setattr(LR, "LEARN_PATH", tmp_path / "learn.json")
     monkeypatch.setattr(RW, "STATUS_PATH", tmp_path / "research.json")
+    from bot import shadow as SH
+    monkeypatch.setattr(SH, "EPISODES_PATH", tmp_path / "episodes.jsonl")
     monkeypatch.setattr(N, "_chat_file", lambda: tmp_path / "telegram_chat.json")
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
@@ -373,3 +375,47 @@ def test_interrupted_research_is_not_stuck_running() -> None:
     RW.save_status({"started": M.now_ts() - 4 * 3600, "running": True})
     st = RW.load_status()
     assert st["running"] is False and "ขัดจังหวะ" in st["error"]
+
+
+
+def test_shadow_records_pause_and_scores_by_source(monkeypatch) -> None:  # noqa: ANN001
+    from datetime import datetime, timedelta, timezone
+    from bot import shadow as SH
+    from bot.core.types import Bar
+    t0 = M.now_ts() - 3 * 3600
+    m, p = M.Manager(FakeCol()), {}
+    s = snap(t=t0)
+    m.execute(M.Action("pause", "m5_4", 60, "สวนเทรนด์", "gemini", "regime"), s, p)
+    m.execute(M.Action("resume", "m5_4", reason="กลับ", src="gemini"), snap(t=t0 + 3600), p)
+    M.save_pauses({"m5_7": {"until": t0 + 1800, "since": t0, "reason": "x", "src": "rules"}})
+    monkeypatch.setattr(M, "build_snapshot", lambda col: snap(t=t0 + 7200))
+    m.tick()                                                          # m5_7 ครบเวลา → จดช่วงพัก
+    start = datetime.now(timezone.utc) - timedelta(minutes=SH.MIN_WARMUP_BARS + 600)
+    bars = [Bar(start + timedelta(minutes=i), 1, 1, 1, 1) for i in range(SH.MIN_WARMUP_BARS + 600)]
+    monkeypatch.setattr(SH, "simulate", lambda bot, b, spec, a, z: (-12.5, 3) if bot == "m5_4" else (4.0, 1))
+    done = SH.evaluate(lambda tf, n: bars, None)
+    assert sorted(e["bot"] for e in done) == ["m5_4", "m5_7"]
+    sb = SH.scoreboard()
+    assert sb["gemini"] == {"pauses": 1, "trades": 3, "missed": -12.5} and sb["rules"]["missed"] == 4.0
+    assert "ช่วยประหยัด 12.50$" in SH.describe(next(e for e in done if e["bot"] == "m5_4"))
+    assert SH.evaluate(lambda tf, n: bars, None) == []                # ไม่ประเมินซ้ำ
+
+
+def test_watchdog_reports_new_problems_once_and_heals(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("watchdog", Path(__file__).resolve().parent.parent / "deploy" / "watchdog.py")
+    W = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(W)
+    monkeypatch.setattr(W, "MEMO", tmp_path / "memo.json")
+    sent, cmds = [], []
+    monkeypatch.setattr(W, "tg", lambda method, fields, file=None: sent.append(fields["text"]))
+    monkeypatch.setattr(W, "sh", lambda *c, timeout=0: cmds.append(c) or "")
+    probs = {"down:trader-bots": "container trader-bots ไม่ทำงาน"}
+    monkeypatch.setattr(W, "check", lambda: dict(probs))
+    W.run_check()
+    W.run_check()                                                     # ปัญหาเดิม ไม่ส่งซ้ำ ไม่ซ่อมซ้ำ (cooldown)
+    assert len(sent) == 1 and "trader-bots" in sent[0] and "เปิด container bots ใหม่" in sent[0]
+    assert sum(1 for c in cmds if "up" in c) == 1
+    probs.clear()
+    W.run_check()
+    assert sent[-1].startswith("✅ กลับมาปกติ")

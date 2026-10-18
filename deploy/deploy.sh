@@ -36,6 +36,7 @@ ssh "$HOST" "cd $REMOTE/deploy && grep -q '^RPYC_VERSION=' .env && sed -i 's/^RP
 
 echo ">> build + รันบอทและ monitor"
 ssh "$HOST" "cd $REMOTE/deploy && docker compose --env-file .env up -d --build && docker image prune -f >/dev/null && docker compose ps"
+ssh "$HOST" "python3 $REMOTE/deploy/watchdog.py --install >/dev/null && echo '   ตัวเฝ้าระบบ (cron ทุก 5 นาที + สำรองข้อมูลตี 3:30) พร้อมแล้ว'"
 echo
 echo "ต่อไป (ครั้งแรกเท่านั้น): ล็อกอินบัญชี demo ใน MT5 บนเซิร์ฟเวอร์"
 echo "  1) ssh -L 3000:127.0.0.1:3000 -L 8765:127.0.0.1:8765 $HOST"

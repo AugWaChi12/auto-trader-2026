@@ -27,6 +27,7 @@ from statistics import median
 from typing import Any
 
 from . import config as C
+from . import shadow
 
 log = logging.getLogger("manager")
 
@@ -394,6 +395,7 @@ class Manager:
         self.day = bkk_day()
         self.last_snap: Snapshot | None = None
         self.research_proc: Any = None
+        self.last_shadow = 0.0
         self.llm = None
         which = os.environ.get("MANAGER_AI") or ("gemini" if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
                                                  else "claude" if os.environ.get("ANTHROPIC_API_KEY") else "")
@@ -433,8 +435,10 @@ class Manager:
             save_pauses(pauses)
             say("action", f"⏸ สั่งพัก {a.bot} {m} นาที — {a.reason}", bot=a.bot, act="pause", minutes=m, src=a.src)
         elif a.kind == "resume":
-            if pauses.pop(a.bot, None) is not None:
+            p = pauses.pop(a.bot, None)
+            if p is not None:
                 save_pauses(pauses)
+                shadow.record(a.bot, p, s.t)
                 say("action", f"▶ ให้ {a.bot} กลับมาทำงาน — {a.reason}", bot=a.bot, act="resume", src=a.src)
         elif a.kind == "close":
             res = self.col.close_bot_positions(a.bot)
@@ -455,6 +459,13 @@ class Manager:
             self.day = bkk_day()
         self.last_snap = s
         self.maybe_research(s)
+        if s.t - self.last_shadow >= 3600:
+            self.last_shadow = s.t
+            try:
+                for e in shadow.evaluate(self.fetch_bars, C.DEFAULT_SPECS["BTCUSD"], s.t):
+                    say("info", shadow.describe(e), src=e["src"], bot=e["bot"], shadow=e["missed"])
+            except Exception:  # noqa: BLE001 — บอทเงาพังต้องไม่ทำให้ผู้จัดการหยุดตัดสินใจ
+                log.exception("shadow evaluate failed")
         if notifier().token and not notifier().chat:
             notifier().discover()
         raw = load_pauses_raw()
@@ -462,6 +473,7 @@ class Manager:
         expired = sorted(set(raw) - set(pauses))
         for b in expired:
             say("action", f"▶ ครบเวลาพัก — {b} กลับมาทำงาน", bot=b, act="resume")
+            shadow.record(b, raw[b], s.t)
         if expired:
             save_pauses(pauses)                 # ล้างตัวที่หมดเวลาออกจากไฟล์
         actions = self.brain.decide(s, pauses)
@@ -473,6 +485,19 @@ class Manager:
             except Exception as e:  # noqa: BLE001
                 log.exception("action failed")
                 say("alert", f"⚠️ ทำ {a.kind} {a.bot or ''} ไม่สำเร็จ: {e}")
+
+    def fetch_bars(self, tf: str, count: int) -> list:
+        """แท่งที่ปิดแล้วล่าสุดของ BTC (ให้บอทเงาจำลอง) — แปลงเวลา server → UTC แบบเดียวกับบอทจริง"""
+        from .core.timeutil import UTC, server_to_utc
+        from .core.types import Bar
+        mt5 = self.col.mt5
+        rates = mt5.copy_rates_from_pos(self.col._name("BTCUSD"), getattr(mt5, f"TIMEFRAME_{tf}"), 1, count)
+        if rates is None:
+            raise ConnectionError(f"copy_rates_from_pos: {mt5.last_error()}")
+        pt = C.DEFAULT_SPECS["BTCUSD"].point
+        return [Bar(server_to_utc(datetime.fromtimestamp(int(r["time"]), UTC).replace(tzinfo=None), C.SERVER_TIME_MODE),
+                    float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"]), float(r["spread"]) * pt,
+                    float(r["tick_volume"])) for r in rates]
 
     def journal(self, day: str, s: Snapshot) -> None:
         """สรุปวัน (เขียนตอนขึ้นวันใหม่เวลาไทย) → แชท + Telegram + state/manager_journal.jsonl"""
@@ -528,6 +553,8 @@ class Manager:
                        and ("เพดาน" in x.get("reason", "") or "แพ้ติดกัน" in x.get("reason", "")))
         if freed:
             save_pauses({b: x for b, x in p.items() if b not in freed})
+            for b in freed:
+                shadow.record(b, p[b], now_ts())
             say("action", f"▶ ปิดเพดานขาดทุนแล้ว (DEMO ลองเต็มที่) — ปล่อย {', '.join(freed)} กลับมาทำงาน", act="resume")
 
     def run(self) -> None:
@@ -537,6 +564,10 @@ class Manager:
             self.release_loss_stops()
         n = 0
         while True:
+            try:
+                (C.STATE_DIR / "manager_heartbeat").write_text(str(time.time()))   # deploy/watchdog.py ดูว่าผู้จัดการยังเดิน
+            except OSError:
+                pass
             try:
                 self.tick()
             except ConnectionError as e:

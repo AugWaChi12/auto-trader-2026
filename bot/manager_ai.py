@@ -15,6 +15,7 @@ from typing import Any
 
 from . import config as C
 from .manager_learn import load_summary
+from .shadow import scoreboard
 from .manager import REGIME_TH, Action, Snapshot, market_regime, range_ratio, read_log, say, suits, to_m5
 
 log = logging.getLogger("manager.ai")
@@ -42,6 +43,8 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
 - ประวัติแชทล่าสุดแนบมาให้ อย่าสั่งกลับไปกลับมาภายในเวลาสั้นๆ
 - "learned_by_strategy_and_regime" = ผลจริงของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้, $/ไม้เฉลี่ย, % ชนะ) ที่สะสมมา — ใช้เป็นหลักฐานประกอบ
   ถ้าไม้ยังน้อย (< 8) อย่าเชื่อมาก
+- "pause_scoreboard_30d" = บอทเงาวัดผลการพักย้อนหลัง แยกตามผู้สั่ง (rules / gemini / claude): missed < 0 = การพักช่วยประหยัด,
+  missed > 0 = พักแล้วพลาดกำไร — ถ้าการพักของคุณพลาดกำไรบ่อย ให้พักน้อยลง
 
 ทุกรอบให้เรียก say หนึ่งครั้งเสมอ: วิเคราะห์ตลาดและพอร์ตสั้นๆ 1–3 ประโยค เป็นภาษาไทย อ่านง่ายสำหรับคนดูไลฟ์
 ถ้าสั่ง pause/resume/close ให้ใส่เหตุผลสั้นๆ ที่อ้างอิงตัวเลขในข้อมูล
@@ -89,6 +92,7 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
                 "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(s.btc_bars)]},
         "bots": bots,
         "learned_by_strategy_and_regime": load_summary(),
+        "pause_scoreboard_30d": scoreboard(),
         "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(15)],
     }, ensure_ascii=False, default=str)
 
