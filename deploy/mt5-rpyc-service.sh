@@ -9,5 +9,10 @@ PYDIR="/config/.wine/drive_c/Program Files (x86)/Python39-32"
 until [ -d "$PYDIR/Lib/site-packages/rpyc" ] && [ -d "$PYDIR/Lib/site-packages/MetaTrader5" ]; do sleep 10; done
 sleep 20
 cd /config || exit 1
+RUN="s6-setuidgid abc env HOME=/config WINEPREFIX=/config/.wine WINEDEBUG=-all DISPLAY=:1"
+# บั๊กที่สองของ image: ลง numpy 2.x แต่ MetaTrader5 5.0.36 สร้างกับ numpy 1.x → import MetaTrader5 พัง (_ARRAY_API not found)
+if ! $RUN wine "$PYDIR/python.exe" -c "import MetaTrader5" >/dev/null 2>&1; then
+  $RUN wine "$PYDIR/python.exe" -m pip install --no-cache-dir --quiet "numpy<2"
+fi
 exec s6-setuidgid abc env HOME=/config WINEPREFIX=/config/.wine WINEDEBUG=-all DISPLAY=:1 \
     wine "$PYDIR/python.exe" -m rpyc.cli.rpyc_classic --host 0.0.0.0 -p 8001
