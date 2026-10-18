@@ -351,12 +351,13 @@ function setInfo(open) { $("info").classList.toggle("open", open); $("infoBtn").
 $("infoBtn").onclick = () => setInfo(!$("info").classList.contains("open"));
 $("infoX").onclick = () => setInfo(false);
 addEventListener("keydown", (e) => { if (e.key === "Escape") { setInfo(false); $("card").style.display = "none"; } });
-$("chatHead").onclick = () => { if (document.documentElement.classList.contains("portrait")) document.querySelector(".chat").classList.toggle("open"); };
+$("chatHead").onclick = () => { if (document.documentElement.classList.contains("portrait")) { document.querySelector(".chat").classList.toggle("open"); toLatest(); } };
 // หุบแชทผู้จัดการให้เหลือแค่หัว (จำไว้ในเบราว์เซอร์นี้)
 function setFold(folded) {
   document.querySelector(".chat").classList.toggle("collapsed", folded);
   $("chatFold").setAttribute("aria-expanded", folded ? "false" : "true");
   try { localStorage.setItem("village.chatFold", folded ? "1" : "0"); } catch {}
+  if (!folded) toLatest();                       // ขยาย → ไปข้อความล่าสุดเลย
 }
 $("chatFold").onclick = (e) => { e.stopPropagation(); setFold(!document.querySelector(".chat").classList.contains("collapsed")); };
 try { if (localStorage.getItem("village.chatFold") === "1") setFold(true); } catch {}
@@ -893,6 +894,8 @@ function toast(text) {
 }
 
 // ------------------------------------------------------------------ แชทผู้จัดการพอร์ต (/api/manager)
+const CHAT_MAX = 10;                       // แสดงเฉพาะข้อความล่าสุด
+const toLatest = () => requestAnimationFrame(() => { const l = $("chat"); l.scrollTop = l.scrollHeight; });
 const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓" };
 const SRC = { claude: "🤖 Claude", gemini: "✨ Gemini", rules: "📏 กฎ" };
 const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
@@ -900,7 +903,7 @@ const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 6
 async function refreshManager() {
   let d; try { d = await (await fetch("/api/manager", { cache: "no-store" })).json(); } catch { return; }
   MGR.pauses = d.pauses || {}; MGR.data = d;
-  const msgs = d.messages || [], last = msgs[msgs.length - 1];
+  const msgs = (d.messages || []).slice(-CHAT_MAX), last = msgs[msgs.length - 1];
   const pz = Object.entries(MGR.pauses).sort();
   const calls = d.shadow?.open || [], who = { rules: "กฎ", gemini: "Gemini", claude: "Claude" };
   $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ")
@@ -914,7 +917,7 @@ async function refreshManager() {
   const list = $("chat"), stick = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
   list.innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${esc(m.kind)}"><div class="meta"><span>${KIND[m.kind] || "•"} ${hhmm(m.t)} น.</span>${m.src ? `<span class="src">${SRC[m.src] || esc(m.src)}</span>` : ""}</div>${esc(m.text)}</div>`).join("")
     : '<div class="empty">ยังไม่มีข้อความจากผู้จัดการ</div>';
-  if (stick || MGR.first) list.scrollTop = list.scrollHeight;
+  if (stick || MGR.first || document.querySelector(".chat.collapsed")) toLatest();
   if (last) {
     const short = last.text.length > 90 ? last.text.slice(0, 88) + "…" : last.text;
     boss.userData.bubble.element.textContent = (KIND[last.kind] || "🧠") + " " + short;
