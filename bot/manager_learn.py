@@ -31,6 +31,43 @@ def _save(path, data: Any) -> None:  # noqa: ANN001
     atomic_write(path, json.dumps(data, ensure_ascii=False, indent=1))
 
 
+LATE_MAX_H = 12           # ไม้ที่ไม่เคยเห็นตอนเปิด แต่เปิดภายใน N ชม. → คำนวณบริบทย้อนให้ระหว่างทำงาน (เก่ากว่านั้น = งาน backfill)
+CTX_MIN_BARS = 125        # แท่ง M1 ก่อนเปิดไม้ที่ต้องมี (สภาพตลาด = M5 25 แท่ง · ทิศ = 120 นาที)
+_TIMES: dict = {}         # เวลาแท่งที่แปลงแล้วของชุดแท่งล่าสุด (backfill เรียกซ้ำหลายร้อยไม้บนชุดเดียวกัน)
+
+
+def _ts(iso: str) -> float:
+    from datetime import datetime, timezone
+    d = datetime.fromisoformat(iso)
+    return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).timestamp()
+
+
+def context_at(bars: list[list], open_time: str, side: str | None) -> dict:
+    """สภาพตลาดตอนเปิดไม้ คำนวณย้อนจากแท่ง M1 [เวลา, เปิด, สูง, ต่ำ, ปิด] ด้วยสูตรเดียวกับรอบสด (manager.tick)
+    แท่งไม่พอ/ไม่ครอบเวลาเปิด → regime None (ยังได้ session เพราะรู้จากเวลาเปิด)"""
+    from datetime import datetime
+    from .strategy.gate import session_of
+    from .manager import market_regime
+    out: dict = {"regime": None, "er": None, "trend": None,
+                 "session": session_of(datetime.fromisoformat(open_time).hour)}
+    t = _ts(open_time)
+    key = (id(bars), len(bars), bars[0][0] if bars else None, bars[-1][0] if bars else None)
+    if _TIMES.get("key") != key:
+        _TIMES.update(key=key, times=[_ts(b[0]) for b in bars])
+    from bisect import bisect_right
+    cut = bars[:bisect_right(_TIMES["times"], t)]
+    if len(cut) < CTX_MIN_BARS or t - _ts(cut[-1][0]) > 300:
+        return out
+    rg, er = market_regime(cut)
+    if not rg:
+        return out
+    move = cut[-1][4] - cut[-121][4]
+    td = 0 if rg != "trend" else (1 if move > 0 else -1)
+    sd = 1 if side == "BUY" else -1
+    out.update(regime=rg, er=er, trend="flat" if td == 0 else "with" if sd == td else "against")
+    return out
+
+
 class Learner:
     def __init__(self) -> None:
         self.tape: dict[str, dict] = _load(TAPE_PATH, {})
@@ -40,9 +77,10 @@ class Learner:
         self.counted: list[str] = d.get("counted", [])
 
     def observe(self, bots: dict[str, dict], regime: str | None, er: float | None, t: float, trend_dir: int = 0,
-                by_symbol: dict[str, tuple] | None = None) -> list[dict]:
+                by_symbol: dict[str, tuple] | None = None, bars: dict[str, list] | None = None) -> list[dict]:
         """จดไม้ใหม่ + นับไม้ที่ปิดแล้ว · trend_dir = ทิศราคา 2 ชม. (+1/-1/0)
-        by_symbol = ตลาด → (สภาพ, ER, ทิศ) ของแต่ละตลาด (ไม่ส่ง = ใช้ค่าเดียวกันทุกบอท) · คืนรายการไม้ที่เพิ่งนับ"""
+        by_symbol = ตลาด → (สภาพ, ER, ทิศ) ของแต่ละตลาด (ไม่ส่ง = ใช้ค่าเดียวกันทุกบอท) · คืนรายการไม้ที่เพิ่งนับ
+        bars = ตลาด → แท่ง M1 ล่าสุด: ไม้ที่ไม่เคยเห็นตอนเปิด (เปิด-ปิดภายในรอบเดียว / ผู้จัดการรีสตาร์ท) → คำนวณบริบทย้อนจากแท่ง"""
         from datetime import datetime
         from .strategy.gate import session_of
         changed, learned = False, []
@@ -53,37 +91,73 @@ class Learner:
                 k = str(o["ticket"])
                 if k not in self.tape and k not in self.counted and regime:
                     side = 1 if o.get("side") == "BUY" else -1
-                    self.tape[k] = {"bot": name, "family": b.get("family"), "regime": regime, "er": er, "t": t,
+                    self.tape[k] = {"bot": name, "family": b.get("family"), "symbol": o.get("symbol") or b.get("symbol"),
+                                    "regime": regime, "er": er, "t": t, "ctx_src": "live",
                                     "session": session_of(datetime.fromisoformat(o["open_time"]).hour) if o.get("open_time") else None,
                                     "trend": "flat" if trend_dir == 0 else "with" if side == trend_dir else "against"}
                     changed = True
             for r in b.get("recent", []):
                 k = str(r["ticket"])
-                rec = self.tape.get(k)
-                if rec is None or k in self.counted:
+                if k in self.counted:
                     continue
-                cell = self.table.setdefault(rec["family"] or "?", {}).setdefault(rec["regime"], {"n": 0, "pnl": 0.0, "wins": 0})
-                cell["n"] += 1
-                cell["pnl"] = round(cell["pnl"] + r["profit"], 2)
-                cell["wins"] += r["profit"] > 0
-                for key in (f"sess:{rec.get('session')}", f"trend:{rec.get('trend')}"):
-                    if "None" in key:
-                        continue
-                    c2 = self.detail.setdefault(rec["family"] or "?", {}).setdefault(key, {"n": 0, "pnl": 0.0, "wins": 0})
-                    c2["n"] += 1
-                    c2["pnl"] = round(c2["pnl"] + r["profit"], 2)
-                    c2["wins"] += r["profit"] > 0
-                self.counted = (self.counted + [k])[-5000:]
-                del self.tape[k]
-                learned.append({**r, **rec, "profit": r["profit"]})
+                rec = self.tape.get(k)
+                if rec is None:
+                    if not r.get("open_time") or t - _ts(r["open_time"]) > LATE_MAX_H * 3600:
+                        continue                # ไม้เก่า (ก่อนเริ่มงาน) → ให้ backfill ตัดสิน ไม่เดาบริบท
+                    sym = r.get("symbol") or b.get("symbol")
+                    rec = {"bot": name, "family": b.get("family"), "symbol": sym,
+                           **context_at((bars or {}).get(sym) or [], r["open_time"], r.get("side")), "t": t}
+                    rec["ctx_src"] = "late" if rec["regime"] else "none"
+                self._count(k, rec, r, learned)
                 changed = True
         stale = [k for k, v in self.tape.items() if t - v["t"] > 7 * 86400]     # ไม้ที่หาผลไม่เจอเกิน 7 วัน
         for k in stale:
             del self.tape[k]
             changed = True
         if changed:
-            _save(TAPE_PATH, self.tape)
-            _save(LEARN_PATH, {"table": self.table, "detail": self.detail, "counted": self.counted})
+            self._save_all()
+        return learned
+
+    def _count(self, k: str, rec: dict, r: dict, learned: list[dict]) -> None:
+        """นับไม้ที่ปิดแล้ว 1 ไม้ · ไม่รู้สภาพตลาดตอนเปิด → ไม่เข้าตาราง (แต่ยังส่งออกไปเป็นแถวใน dataset)"""
+        if rec.get("regime"):
+            cell = self.table.setdefault(rec["family"] or "?", {}).setdefault(rec["regime"], {"n": 0, "pnl": 0.0, "wins": 0})
+            cell["n"] += 1
+            cell["pnl"] = round(cell["pnl"] + r["profit"], 2)
+            cell["wins"] += r["profit"] > 0
+            for key in (f"sess:{rec.get('session')}", f"trend:{rec.get('trend')}"):
+                if "None" in key:
+                    continue
+                c2 = self.detail.setdefault(rec["family"] or "?", {}).setdefault(key, {"n": 0, "pnl": 0.0, "wins": 0})
+                c2["n"] += 1
+                c2["pnl"] = round(c2["pnl"] + r["profit"], 2)
+                c2["wins"] += r["profit"] > 0
+        self.counted = (self.counted + [k])[-5000:]
+        self.tape.pop(k, None)
+        learned.append({**r, **rec, "profit": r["profit"]})
+
+    def _save_all(self) -> None:
+        _save(TAPE_PATH, self.tape)
+        _save(LEARN_PATH, {"table": self.table, "detail": self.detail, "counted": self.counted})
+
+    def backfill(self, rows: dict[str, list[dict]], bots: dict[str, dict], bars: dict[str, list], since: str | None) -> list[dict]:
+        """เติมไม้ที่ปิดแล้วแต่ยังไม่เคยนับ (ตอนเริ่มงาน) · rows = บอท → ไม้จริงจาก MT5 · bots = บอท → {family, symbol}
+        since = เวลาที่ชุดกลยุทธ์ปัจจุบันเริ่มใช้ (ไม้ก่อนหน้านั้นเป็นกลยุทธ์อื่น → ไม่นับ กันข้อมูลปนกัน)"""
+        cut = _ts(since) if since else 0.0
+        learned: list[dict] = []
+        for name, rs in rows.items():
+            meta = bots.get(name) or {}
+            for r in sorted(rs, key=lambda x: x.get("close_time") or ""):
+                k = str(r.get("ticket"))
+                if k in self.counted or k in self.tape or not r.get("open_time") or _ts(r["open_time"]) < cut:
+                    continue
+                sym = r.get("symbol") or meta.get("symbol")
+                rec = {"bot": name, "family": meta.get("family"), "symbol": sym,
+                       **context_at(bars.get(sym) or [], r["open_time"], r.get("side")), "t": _ts(r["open_time"])}
+                rec["ctx_src"] = "backfill" if rec["regime"] else "none"
+                self._count(k, rec, r, learned)
+        if learned:
+            self._save_all()
         return learned
 
     def cell(self, family: str | None, regime: str) -> dict | None:

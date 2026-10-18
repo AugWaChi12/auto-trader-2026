@@ -38,6 +38,7 @@ RESEARCH_HOUR_BKK = 4                                                      # ต
 EXPLORE_HOUR_BKK = 6                                                       # ล่า edge: วันอาทิตย์ 6 โมงเช้า (หลังวิจัยประจำวันเสร็จ)
 PAUSES_PATH = C.STATE_DIR / "manager_pauses.json"
 TICK_SEC = 60
+BACKFILL_BARS = 20_000        # แท่ง M1 ย้อนหลังตอนเติมไม้ตกหล่น (~14 วัน)
 REPORT_EVERY_MIN = 30
 MAX_ACTIONS_PER_HOUR = 120    # กันบั๊กสั่งรัวเท่านั้น (DEMO ให้ลองได้เต็มที่)
 MAX_PAUSE_MIN = 24 * 60
@@ -482,7 +483,7 @@ class Manager:
             move = (bars[-1][4] - bars[-121][4]) if len(bars) > 121 else 0.0
             by_symbol[sym] = (rg, er, 0 if rg != "trend" else (1 if move > 0 else -1))
         btc = by_symbol.get("BTCUSD", (None, None, 0))
-        learned = self.learner.observe(s.test_bots(), btc[0], btc[1], s.t, btc[2], by_symbol)
+        learned = self.learner.observe(s.test_bots(), btc[0], btc[1], s.t, btc[2], by_symbol, s.bars)
         if learned:
             from . import dataset
             assigned = {b["bot"]: b for b in C.load_m5_bots()}
@@ -500,7 +501,7 @@ class Manager:
         if s.t - self.last_shadow >= 3600:
             self.last_shadow = s.t
             try:
-                for e in shadow.evaluate(self.fetch_bars, C.DEFAULT_SPECS["BTCUSD"], s.t,
+                for e in shadow.evaluate(self.fetch_bars, C.DEFAULT_SPECS.get, s.t,
                                          lambda bot: self.col.trades_page(bot, 1, 200).get("rows", [])):
                     say("info", shadow.describe(e), src=e["src"], bot=e["bot"], shadow=e["missed"])
             except Exception:  # noqa: BLE001 — บอทเงาพังต้องไม่ทำให้ผู้จัดการหยุดตัดสินใจ
@@ -539,18 +540,47 @@ class Manager:
         say("analysis", f"📝 {who} ทำนาย: {a.bot} ไม่ควรเข้าไม้ {m} นาที — {a.reason} (บอทยังเทรดตามปกติ · ให้คะแนนจากไม้จริงภายหลัง)",
             src=a.src, bot=a.bot, act="paper", minutes=m)
 
-    def fetch_bars(self, tf: str, count: int) -> list:
-        """แท่งที่ปิดแล้วล่าสุดของ BTC (ให้บอทเงาจำลอง) — แปลงเวลา server → UTC แบบเดียวกับบอทจริง"""
+    def fetch_bars(self, symbol: str, tf: str, count: int) -> list:
+        """แท่งที่ปิดแล้วล่าสุดของตลาดนั้น (ให้บอทเงาจำลอง) — แปลงเวลา server → UTC แบบเดียวกับบอทจริง
+        MT5 ตอบ 'Invalid params' ถ้าขอเกินจำนวนแท่งที่มี (M5 มีน้อยกว่า M1) → ลดจำนวนลงแล้วลองใหม่"""
         from .core.timeutil import UTC, server_to_utc
         from .core.types import Bar
         mt5 = self.col.mt5
-        rates = mt5.copy_rates_from_pos(self.col._name("BTCUSD"), getattr(mt5, f"TIMEFRAME_{tf}"), 1, count)
+        rates = None
+        for n in sorted({count, min(count, 50_000), min(count, 30_000)}, reverse=True):
+            rates = mt5.copy_rates_from_pos(self.col._name(symbol), getattr(mt5, f"TIMEFRAME_{tf}"), 1, n)
+            if rates is not None and len(rates):
+                break
         if rates is None:
-            raise ConnectionError(f"copy_rates_from_pos: {mt5.last_error()}")
-        pt = C.DEFAULT_SPECS["BTCUSD"].point
+            raise ConnectionError(f"copy_rates_from_pos {symbol} {tf}: {mt5.last_error()}")
+        pt = C.DEFAULT_SPECS[symbol].point
         return [Bar(server_to_utc(datetime.fromtimestamp(int(r["time"]), UTC).replace(tzinfo=None), C.SERVER_TIME_MODE),
                     float(r["open"]), float(r["high"]), float(r["low"]), float(r["close"]), float(r["spread"]) * pt,
                     float(r["tick_volume"])) for r in rates]
+
+    def backfill(self) -> None:
+        """ตอนเริ่มงาน: เติมไม้ที่ปิดแล้วแต่ยังไม่อยู่ใน dataset (ไม้ที่หล่นตอนรีสตาร์ท / ก่อนมีระบบนี้)
+        นับเฉพาะไม้ตั้งแต่ชุดกลยุทธ์ปัจจุบันเริ่มใช้ = ล่าสุดระหว่าง จัดบอทชุดนี้ (bot/m5_bots.json → generated)
+        กับ แก้ค่าตั้งล่าสุด (timeframe/lot ใน state/bot_settings.json) — กันผลของกลยุทธ์/ค่าตั้งเก่าปนเข้ามา"""
+        import json as _json
+        from . import dataset
+        from . import settings as _settings
+        try:
+            meta = {b["bot"]: b for b in C.load_m5_bots()}
+            marks = [_json.loads(C.M5_BOTS_FILE.read_text(encoding="utf-8")).get("generated")]
+            if _settings.PATH.exists():
+                marks.append(datetime.fromtimestamp(_settings.PATH.stat().st_mtime, timezone.utc).isoformat())
+            since = max((m for m in marks if m), key=lambda m: datetime.fromisoformat(m).timestamp(), default=None)
+            rows = {name: self.col.trades_page(name, 1, 2000).get("rows", []) for name in meta if name in C.LIVE_INSTANCES}
+            syms = sorted({b.get("symbol") for b in meta.values() if b.get("symbol")})
+            bars = {sym: (self.col.bars(sym, "M1", BACKFILL_BARS) or {}).get("bars") or [] for sym in syms}
+            learned = self.learner.backfill(rows, meta, bars, since)
+            added = dataset.append([dataset.row(x, meta, shadow._load()) for x in learned])
+            if added:
+                n_ctx = sum(1 for x in learned if x.get("regime"))
+                log.info("backfill: เติม %d ไม้ลง dataset (รู้สภาพตลาดตอนเปิด %d ไม้)", added, n_ctx)
+        except Exception:  # noqa: BLE001 — เติมย้อนหลังพังต้องไม่ทำให้ผู้จัดการหยุดงาน
+            log.exception("backfill failed")
 
     def journal(self, day: str, s: Snapshot) -> None:
         """สรุปวัน (เขียนตอนขึ้นวันใหม่เวลาไทย) → แชท + Telegram + state/manager_journal.jsonl"""
@@ -654,6 +684,7 @@ class Manager:
             self.release_loss_stops()
         if not PAUSE_BOTS:
             self.release_all_pauses()
+        self.backfill()
         n = 0
         while True:
             try:

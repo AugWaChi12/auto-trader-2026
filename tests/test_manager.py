@@ -54,11 +54,11 @@ def snap(equity=1000.0, bars=(), t=None, **bots) -> M.Snapshot:
 
 def bars(kind: str, n: int = 200) -> list[list]:
     """แท่ง M1 จำลอง: trend = ขึ้นต่อเนื่อง · range = ขึ้นลงสลับในกรอบ"""
-    out, p = [], 100.0
+    out, p, t0 = [], 100.0, datetime(2026, 10, 18, 0, 0, tzinfo=timezone.utc)
     for i in range(n):
         step = 0.5 if kind == "trend" else (3.0 if (i // 5) % 2 == 0 else -3.0)
         o, p = p, p + step
-        out.append([f"2026-10-18T00:{i % 60:02d}:00+00:00", o, max(o, p) + .1, min(o, p) - .1, p])
+        out.append([(t0 + timedelta(minutes=i)).isoformat(), o, max(o, p) + .1, min(o, p) - .1, p])
     return out
 
 
@@ -501,3 +501,42 @@ def test_regime_is_per_symbol_for_gold_and_btc_bots() -> None:
     assert ("pause", "m5_4") in kinds(acts) and ("pause", "m5_12") not in kinds(acts)   # ทองออกข้าง → bb ถนัด
     assert b.regime == {"BTCUSD": "trend", "XAUUSD": "range"}
     assert any("— ทอง" in a.reason for a in acts if a.kind == "say")
+
+
+def test_late_trade_and_backfill_recover_context_from_bars(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+    from datetime import datetime, timezone
+    from bot import dataset as DS
+    from bot.manager_learn import Learner
+    monkeypatch.setattr(DS, "PATH", tmp_path / "dataset.csv")
+    bs = bars("trend")
+    ot = bs[-5][0]
+    t_now = datetime.fromisoformat(bs[-1][0]).replace(tzinfo=timezone.utc).timestamp()
+    L = Learner()
+    rec_trade = {"ticket": 999, "open_time": ot, "close_time": bs[-1][0], "side": "BUY", "profit": -12.0, "symbol": "BTCUSD"}
+    learned = L.observe({"m5_5": {"family": "momo", "symbol": "BTCUSD", "open": [], "recent": [rec_trade]}},
+                        "range", 0.1, t_now, 0, {"BTCUSD": ("range", 0.1, 0)}, {"BTCUSD": bs})
+    assert len(learned) == 1 and learned[0]["regime"] == "trend" and learned[0]["ctx_src"] == "late"
+    assert L.table["momo"]["trend"]["n"] == 1
+    meta = {"m5_5": {"family": "momo", "symbol": "BTCUSD"}, "m5_10": {"family": "donchian", "symbol": "XAUUSD"}}
+    gold_trade = {"ticket": 1000, "open_time": ot, "close_time": bs[-1][0], "side": "SELL", "profit": 8.5, "symbol": "XAUUSD"}
+    bf = L.backfill({"m5_5": [rec_trade], "m5_10": [gold_trade]}, meta, {"XAUUSD": bs}, bs[0][0])
+    assert len(bf) == 1 and bf[0]["ticket"] == 1000 and bf[0]["ctx_src"] == "backfill"
+    added = DS.append([DS.row(x, meta, []) for x in learned + bf])
+    assert added == 2 and DS.append([DS.row(x, meta, []) for x in learned]) == 0
+    rows = DS.load()
+    assert [int(r["island"]) for r in rows] == [1, 2] and [r["symbol"] for r in rows] == ["BTCUSD", "XAUUSD"]
+
+
+def test_shadow_failed_fetch_does_not_block_other_episodes() -> None:
+    from datetime import datetime, timedelta, timezone
+    from bot import shadow as SH
+    from bot.core.types import Bar
+    t0 = M.now_ts() - 5 * 3600
+    SH.record({"bot": "m5_2", "start": t0, "end": t0 + 1800, "src": "rules", "paper": False})
+    SH.record({"bot": "m5_10", "start": t0, "end": t0 + 1800, "src": "rules", "paper": True})
+    iso = datetime.fromtimestamp(t0 + 300, timezone.utc).isoformat()
+    def bad_fetch(sym: str, tf: str, n: int) -> list:
+        raise ConnectionError("Invalid params")
+    done = SH.evaluate(bad_fetch, None, t0 + 4 * 3600, lambda b: [{"open_time": iso, "profit": -5.0}] if b == "m5_10" else [])
+    assert [e["bot"] for e in done] == ["m5_10"] and done[0]["missed"] == -5.0
+    assert any(e["bot"] == "m5_2" and not e["done"] for e in SH._load())

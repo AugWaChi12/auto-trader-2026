@@ -67,13 +67,15 @@ def end_paper(bot: str, src: str, now: float) -> bool:
     return hit
 
 
+def symbol_of(bot: str) -> str:
+    return next((b["symbol"] for b in C.load_m5_bots() if b["bot"] == bot), "BTCUSD")
+
+
 def simulate(bot: str, bars: list, spec: Any, start: float, end: float) -> tuple[float, int]:
-    """รันกลยุทธ์ของบอทนี้บนแท่งจริง → (กำไร/ขาดทุนรวม, จำนวนไม้) ของไม้ที่เปิดในช่วง [start, end)"""
+    """รันกลยุทธ์ของบอทนี้บนแท่งจริงของตลาดที่บอทเทรด → (กำไร/ขาดทุนรวม, จำนวนไม้) ของไม้ที่เปิดในช่วง [start, end)"""
     from .backtest.runner import run_backtest
     inst = C.LIVE_INSTANCES[bot]
-    sym = next((b["symbol"] for b in C.load_m5_bots() if b["bot"] == bot), "BTCUSD")
-    if sym != "BTCUSD":                 # บอทเงาดึงแท่งเฉพาะ BTC (โหมดพักจริงเท่านั้นที่ใช้ส่วนนี้)
-        return 0.0, 0
+    sym = symbol_of(bot)
     strategies = C.build_strategies([bot], [sym], inst["tf"])
     if not strategies:
         return 0.0, 0
@@ -89,28 +91,47 @@ def actual(rows: list[dict], start: float, end: float) -> tuple[float, int]:
     return round(sum(r["profit"] for r in picked), 2), len(picked)
 
 
-def evaluate(fetch_bars: Callable[[str, int], list], spec: Any, now: float | None = None,
+FETCH_GIVE_UP_SEC = 2 * 86400   # ดึงแท่งไม่ได้นานเกินนี้ → เลิกรอ จดว่าข้าม
+
+
+def evaluate(fetch_bars: Callable[[str, str, int], list], spec: Any, now: float | None = None,
              trades_of: Callable[[str], list[dict]] | None = None) -> list[dict]:
-    """ประเมินทุกอันที่ถึงเวลาแล้ว · fetch_bars(tf, count) เรียกครั้งเดียวต่อ timeframe · trades_of(bot) = ไม้จริงที่ปิดแล้ว"""
+    """ประเมินทุกอันที่ถึงเวลาแล้ว · fetch_bars(symbol, tf, count) เรียกครั้งเดียวต่อ (ตลาด, timeframe)
+    spec = spec_of(symbol) หรือ spec ตัวเดียว · trades_of(bot) = ไม้จริงที่ปิดแล้ว"""
     now = now or time.time()
     eps = _load()
     todo = [e for e in eps if not e["done"] and e["bot"] in C.LIVE_INSTANCES
             and now - e["end"] > (PAPER_SETTLE_MIN if e["paper"] else SETTLE_MIN) * 60]
     if not todo:
         return []
-    cache: dict[str, list] = {}
+    cache: dict[tuple, list | None] = {}
     out = []
     for e in todo:
-        # ดึงข้อมูลพัง (MT5 หลุดชั่วคราว) → โยนออกไปทั้งก้อน รายการยังค้างไว้ประเมินรอบหน้า · จำลองพัง → ข้ามรายการนั้นถาวร
+        # ดึงข้อมูลพัง (MT5 หลุดชั่วคราว) → ข้ามเฉพาะรายการนั้นไว้รอบหน้า (ไม่ลากรายการอื่นพังไปด้วย) · จำลองพัง → ข้ามถาวร
         if e["paper"]:
             if trades_of is None:
                 continue
-            rows = trades_of(e["bot"])
+            try:
+                rows = trades_of(e["bot"])
+            except Exception:  # noqa: BLE001
+                log.exception("shadow trades %s", e["bot"])
+                continue
         else:
-            tf = C.LIVE_INSTANCES[e["bot"]]["tf"]
-            if tf not in cache:
-                cache[tf] = fetch_bars(tf, MAX_BARS)
-            bars = cache[tf]
+            sym, tf = symbol_of(e["bot"]), C.LIVE_INSTANCES[e["bot"]]["tf"]
+            if (sym, tf) not in cache:
+                try:
+                    try:
+                        cache[(sym, tf)] = fetch_bars(sym, tf, MAX_BARS)
+                    except TypeError:
+                        cache[(sym, tf)] = fetch_bars(tf, MAX_BARS)  # type: ignore[call-arg]
+                except Exception as ex:  # noqa: BLE001
+                    log.warning("shadow: ดึงแท่ง %s %s ไม่ได้ (%s) — รอรอบหน้า", sym, tf, ex)
+                    cache[(sym, tf)] = None
+            bars = cache[(sym, tf)]
+            if bars is None:
+                if now - e["end"] > FETCH_GIVE_UP_SEC:
+                    e.update(done=True, skipped="ดึงแท่งไม่ได้เกิน 2 วัน")
+                continue
         try:
             if e["paper"]:
                 missed, n = actual(rows, e["start"], e["end"])
@@ -118,7 +139,7 @@ def evaluate(fetch_bars: Callable[[str, int], list], spec: Any, now: float | Non
                 if sum(1 for b in bars if b.time.timestamp() < e["start"]) < MIN_WARMUP_BARS:
                     e.update(done=True, skipped="แท่งย้อนหลังไม่พอ")
                     continue
-                missed, n = simulate(e["bot"], bars, spec, e["start"], e["end"])
+                missed, n = simulate(e["bot"], bars, spec(sym) if callable(spec) else spec, e["start"], e["end"])
         except Exception as ex:  # noqa: BLE001
             log.exception("shadow %s", e["bot"])
             e.update(done=True, skipped=str(ex)[:200])
