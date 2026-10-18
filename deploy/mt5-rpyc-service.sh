@@ -21,6 +21,13 @@ if ! $RUN wine "$PYDIR/python.exe" -c "import MetaTrader5" </dev/null >>"$LOG" 2
   $RUN wine "$PYDIR/python.exe" -m pip install --no-cache-dir --quiet "numpy<2" </dev/null >>"$LOG" 2>&1
 fi
 
+# ปัญหาที่ 4: หลัง recreate container บางครั้ง start.sh ไม่เปิด terminal → หน้าจอ VNC ดำ บอทต่อไม่ได้ (เจอ 18 ต.ค.)
+if ! pgrep -f "terminal64.exe" >/dev/null; then
+  echo "[mt5-rpyc] $(date -Is) terminal64.exe not running -> starting it" >>"$LOG"
+  $RUN wine "/config/.wine/drive_c/Program Files/MetaTrader 5/terminal64.exe" </dev/null >/dev/null 2>&1 &
+  sleep 20
+fi
+
 echo "[mt5-rpyc] $(date -Is) starting RPyC classic server on :8001" >>"$LOG"
 # หมายเหตุ: "python -m rpyc.cli.rpyc_classic" ของ rpyc 6 แค่ import แล้วจบ (exit 0) ไม่เปิด server → เปิด ThreadedServer เอง
 exec $RUN wine "$PYDIR/python.exe" -u -c "from rpyc import SlaveService; from rpyc.utils.server import ThreadedServer; print('rpyc classic server :8001', flush=True); ThreadedServer(SlaveService, hostname='0.0.0.0', port=8001, reuse_addr=True).start()" </dev/null >>"$LOG" 2>&1
