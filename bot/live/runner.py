@@ -59,6 +59,8 @@ class LiveRunner:
         self.profile = profile or spec["profile"]
         self.state_dir = C.instance_state_dir(instance)
         self.state_dir.mkdir(parents=True, exist_ok=True)
+        from ..strategy.gate import Gate
+        Gate.LOG_DIR = self.state_dir          # ตัวกรองโหมดสังเกตจดไม้ที่ "จะบล็อก" ไว้ที่นี่ (ให้ผู้จัดการพิสูจน์กับผลจริง)
         self.warmup_bars = spec.get("warmup", C.WARMUP_BARS)
         self.broker = Mt5Broker(self.symbols, C.DEFAULT_SPECS, self.tf, C.SERVER_TIME_MODE, self.magic, self.state_dir,
                                 allocation=spec.get("allocation"))

@@ -891,7 +891,22 @@ function lessonsHtml(ls) {
 }
 function gateText(p) {
   const skip = [...(p?.skip_regimes || []), ...(p?.skip_sessions || [])];
-  return skip.length ? "🚧 ไม่เข้าตอน" + skip.map(x => GT[x] || x).join("/") : "";
+  if (!skip.length) return "";
+  return (p.gate_mode === "observe" ? "👀 สังเกต: " : "🚧 ใช้จริง: ") + "ไม่เข้าตอน" + skip.map(x => GT[x] || x).join("/");
+}
+function reportHtml(r) {
+  if (!r || !r.generated) return '<div class="note">รายงานแรกจะสร้างหลังเที่ยงคืนเวลาไทย (ต้องมีไม้ที่ปิดหลังเริ่มเก็บข้อมูล)</div>';
+  const o = r.overall || {};
+  return `<div class="j"><b>ไม้จริง ${r.trades} ไม้${o.n ? ` · ${money(o.avg)}/ไม้ (ช่วง 95% ${o.ci ? money(o.ci[0]) + " ถึง " + money(o.ci[1]) : "–"}) · ${esc(o.sig || "")}` : ""}</b>
+    ${(r.conclusions || []).map(c => "• " + esc(c)).join("<br>")}<br><a href="/report" target="_blank" rel="noopener">เปิดรายงานฉบับเต็ม →</a>
+    <span class="private"> · <a href="/api/dataset.csv" download="research_dataset.csv">ดาวน์โหลดข้อมูลดิบ (CSV)</a></span></div>`;
+}
+function exploreHtml(e) {
+  if (!e || !e.finished) return '<div class="note">รอบแรก: วันอาทิตย์ 6 โมงเช้าเวลาไทย</div>';
+  const found = e.found || [], top = e.top || [];
+  const row = z => `${esc(z.tf)} ${esc((FAM[z.family] || [0, z.family])[1])}: walk-forward <b class="${z.wf.usd_day >= 0 ? "up" : "down"}">${money(z.wf.usd_day)}/วัน</b> (${z.wf.n} ไม้) · 2 เดือนล่าสุด ${money(z.holdout.usd_day)}/วัน`;
+  return `<div class="j">${found.length ? "🎯 <b>เจอตัวที่ผ่านเกณฑ์</b> (ยังไม่ใส่ให้บอทเอง):<br>" + found.map(row).join("<br>")
+    : "ยังไม่พบตัวที่ผ่านเกณฑ์ (walk-forward บวก + 2 เดือนล่าสุดบวก + ชนะกลุ่มสุ่ม) · ใกล้สุด:<br>" + top.slice(0, 3).map(row).join("<br>")}</div>`;
 }
 function renderPerf() {
   if (!$("perf").classList.contains("open")) return;
@@ -914,6 +929,8 @@ function renderPerf() {
     <div><h3>ผู้จัดการเรียนรู้อะไรแล้ว</h3>${learn}${lessonsHtml(m.lessons)}<div class="note">$/ไม้เฉลี่ยของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้) · ครบ 8 ไม้ขึ้นไป ผู้จัดการใช้ตัดสินพัก/ให้กลับแทนสมมติฐาน</div></div></div>
     <h3>คำทำนายของผู้จัดการถูกไหม (30 วัน)</h3>${shadowHtml(m.shadow)}
     <h3>อันดับบอท</h3><table><tr><th>บอท</th><th>สาย</th><th class="r">วันนี้</th><th class="r">รวม</th><th class="r">ไม้</th><th class="r">ชนะ</th><th class="r">ตัวกรองที่เรียนรู้</th></tr>${board}</table>
+    <h3>รายงานวิจัยจากไม้จริง</h3>${reportHtml(m.report)}
+    <h3>ล่า edge ใหม่ (BTC M15/H1 · ทุกวันอาทิตย์)</h3>${exploreHtml(m.explore)}
     <h3>งานวิจัยทุกคืน (ตี 4)</h3><div class="j">${rs}</div>
     <h3>บันทึกท้ายวันของผู้จัดการ</h3>${jr}`;
 }

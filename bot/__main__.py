@@ -182,7 +182,11 @@ def cmd_research(a: argparse.Namespace) -> None:
     from .live.runner import setup_file_logging
     from .research_weekly import run_weekly
     setup_file_logging(C.LOG_DIR, "research")
-    run_weekly(download=not a.no_download)
+    if a.explore:
+        from .research_weekly import run_explore
+        run_explore()
+    else:
+        run_weekly(download=not a.no_download)
 
 
 def cmd_monitor(a: argparse.Namespace) -> None:
@@ -260,6 +264,7 @@ def main() -> None:
 
     rw = sub.add_parser("research", help="วิจัยประจำสัปดาห์: ดึง BTC M5 ล่าสุด → ปรับพารามิเตอร์บอททดสอบ → state/m5_bots.json")
     rw.add_argument("--no-download", action="store_true", help="ใช้ข้อมูลใน data/mt5 ที่มีอยู่")
+    rw.add_argument("--explore", action="store_true", help="ล่า edge: ทุกสายบน BTC M15/H1 (ไม่ใส่ให้บอท แค่รายงาน)")
     rw.set_defaults(fn=cmd_research)
 
     a = p.parse_args()

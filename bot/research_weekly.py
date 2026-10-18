@@ -52,10 +52,12 @@ def _gate_text(params: dict) -> str:
 
 def _diff(old: dict, new: dict) -> str:
     """อธิบายพารามิเตอร์ที่เปลี่ยนแบบสั้น: fast 9→12 · วิธีออก native→ratchet · ตัวกรองใหม่"""
-    gk = ("skip_regimes", "skip_sessions")
+    gk = ("skip_regimes", "skip_sessions", "gate_mode")
     parts = [f"{k} {old['params'].get(k)}→{v}" for k, v in new["params"].items() if k not in gk and old["params"].get(k) != v]
     if any((old["params"].get(k) or []) != (new["params"].get(k) or []) for k in gk):
-        parts.append(f"ตัวกรอง: {_gate_text(new['params'])}")
+        mode = {"observe": " (โหมดสังเกต: ยังไม่บล็อกจริง รอพิสูจน์กับไม้จริง)",
+                "active": " (✅ ใช้จริงแล้ว — ไม้จริงยืนยัน)"}.get(new["params"].get("gate_mode"), "")
+        parts.append(f"ตัวกรอง: {_gate_text(new['params'])}{mode}")
     if old["plan"] != new["plan"]:
         parts.append(f"วิธีออก {old['plan']}→{new['plan']}")
     return ", ".join(parts) or "–"
@@ -92,6 +94,12 @@ def run_weekly(download: bool = True) -> list[dict]:
                                 C.DEFAULT_SPECS["BTCUSD"])
         sys.path.insert(0, str(C.ROOT / "research"))
         import m5_lab  # noqa: PLC0415 — โหลดตอนใช้ (มี numpy/pandas หนัก)
+        from .dataset import gate_evidence
+        from .strategy.gate import signature
+        for b in C.load_m5_bots():                       # หลักฐานไม้จริงของตัวกรองโหมดสังเกต → ใช้ตัดสินเลื่อนขั้น
+            p = b["params"]
+            if p.get("skip_regimes") or p.get("skip_sessions"):
+                m5_lab.GATE_EVIDENCE[b["bot"]] = gate_evidence(b["bot"], signature(p.get("skip_regimes") or [], p.get("skip_sessions") or []))
         changes = m5_lab.main(["--symbols", "BTCUSD", "--workers", os.environ.get("RESEARCH_WORKERS", "1"),
                                "--retune", "--assign-to", str(C.M5_BOTS_TUNED)]) or []
     except Exception as e:  # noqa: BLE001
@@ -105,3 +113,60 @@ def run_weekly(download: bool = True) -> list[dict]:
                  "changes": changes, "summary": text})
     say("journal", text)
     return changes
+
+
+# ---------------------------------------------------------------- ล่า edge ใหม่ (อาทิตย์ละครั้ง · ไม่ใส่ให้บอทเอง)
+EXPLORE_PATH = C.STATE_DIR / "explorer.json"
+EXPLORE_TFS = ("M15", "H1")
+
+
+def load_explore() -> dict:
+    try:
+        return json.loads(EXPLORE_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def is_edge(z: dict) -> bool:
+    """เกณฑ์เดียวกับงานวิจัยหลัก: walk-forward บวก (ไม้พอ) · 2 เดือนล่าสุดยังบวก · ชนะกลุ่มสุ่มทิศ"""
+    wf, ho, rnd = z["wf"], z["holdout"], z.get("wf_random")
+    return wf["n"] >= 30 and wf["usd_day"] > 0 and ho["usd_day"] > 0 and (rnd is None or wf["usd_day"] > rnd["usd_day"])
+
+
+def run_explore(tfs: tuple[str, ...] = EXPLORE_TFS) -> list[dict]:
+    """ลองทุกสายกลยุทธ์บน BTC timeframe ใหญ่ขึ้น (ต้นทุนสเปรดต่อไม้กินกำไรน้อยกว่า M1/M5) → รายงานตัวที่ผ่านเกณฑ์ ให้ผู้ใช้ตัดสินใจเอง"""
+    if hasattr(os, "nice"):
+        try:
+            os.nice(19)
+        except OSError:
+            pass
+    t0 = time.time()
+    say("info", f"🧭 เริ่มล่า edge ประจำสัปดาห์: ทุกสายกลยุทธ์บน BTC {'/'.join(tfs)} (walk-forward + เทียบกลุ่มสุ่ม)")
+    sys.path.insert(0, str(C.ROOT / "research"))
+    import m5_lab  # noqa: PLC0415
+    rows = []
+    try:
+        for tf in tfs:
+            for z in m5_lab.main(["--symbols", "BTCUSD", "--workers", os.environ.get("RESEARCH_WORKERS", "1"), "--tf", tf, "--explore"]) or []:
+                rows.append({"tf": tf, "family": z["family"], "wf": z["wf"], "holdout": z["holdout"],
+                             "random": z.get("wf_random"), "live": z["live"], "edge": is_edge(z)})
+    except Exception as e:  # noqa: BLE001
+        log.exception("explore failed")
+        say("alert", f"🧭 ล่า edge ไม่สำเร็จ: {e}")
+        return []
+    rows.sort(key=lambda r: r["wf"]["usd_day"], reverse=True)
+    found = [r for r in rows if r["edge"]]
+    from .live.fileio import atomic_write
+    atomic_write(EXPLORE_PATH, json.dumps({"finished": time.time(), "minutes": round((time.time() - t0) / 60, 1),
+                                           "rows": rows, "found": found}, ensure_ascii=False, indent=1, default=str))
+    if found:
+        lines = [f"{r['tf']} {r['family']}: walk-forward {r['wf']['usd_day']:+.2f}$/วัน ({r['wf']['n']} ไม้) · "
+                 f"2 เดือนล่าสุด {r['holdout']['usd_day']:+.2f}$/วัน" for r in found[:5]]
+        say("journal", "🎯 ล่า edge เจอตัวที่ผ่านเกณฑ์! " + " · ".join(lines)
+            + " — ยังไม่ใส่ให้บอทเอง (เปลี่ยน timeframe) บอกผู้ช่วยได้ถ้าจะลองบน DEMO")
+    else:
+        best = rows[0] if rows else None
+        say("journal", f"🧭 ล่า edge ประจำสัปดาห์เสร็จ ({(time.time() - t0) / 60:.0f} นาที): ยังไม่พบตัวที่ผ่านเกณฑ์"
+            + (f" · ใกล้สุด {best['tf']} {best['family']} walk-forward {best['wf']['usd_day']:+.2f}$/วัน, "
+               f"2 เดือนล่าสุด {best['holdout']['usd_day']:+.2f}$/วัน" if best else ""))
+    return found

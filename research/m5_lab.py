@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
 
@@ -41,7 +42,7 @@ from bot.strategy.levels import ALWAYS_OPEN  # noqa: E402
 import logging  # noqa: E402
 logging.disable(logging.WARNING)   # ข้อความ "ถึงเป้ารายวัน" ของ backtest เป็นพันบรรทัด
 
-TF = "M5"
+TF = os.environ.get("LAB_TF", "M5")   # --tf ตั้งผ่าน env ให้โปรเซสลูก (Windows spawn) เห็นค่าเดียวกัน
 DATA = ROOT / "data" / "mt5"
 OUT = ROOT / "research" / "out"
 ASSIGN = ROOT / "bot" / "m5_bots.json"
@@ -88,9 +89,31 @@ def make(family: str, symbol: str, params: dict, plan: str, mode: str = "rule", 
     return build(family, symbol, params, C.M5_PLANS[plan], TF, tag, mode)
 
 
+def resample(bars: list, tf: str) -> list:
+    """แท่ง M5 → timeframe ที่ใหญ่กว่า (M15/H1/H4) — ใช้ล่า edge ที่ timeframe อื่นโดยไม่ต้องดึงข้อมูลเพิ่ม"""
+    from bot.core.types import TIMEFRAME_MINUTES, Bar
+    sec = TIMEFRAME_MINUTES[tf] * 60
+    out, cur, key = [], None, None
+    for b in bars:
+        k = int(b.time.timestamp()) // sec
+        if k != key:
+            if cur:
+                out.append(Bar(**cur))
+            key = k
+            cur = {"time": pd.Timestamp(k * sec, unit="s", tz="UTC").to_pydatetime(), "open": b.open, "high": b.high,
+                   "low": b.low, "close": b.close, "spread": b.spread, "volume": b.volume}
+        else:
+            cur.update(high=max(cur["high"], b.high), low=min(cur["low"], b.low), close=b.close,
+                       spread=max(cur["spread"], b.spread), volume=cur["volume"] + b.volume)
+    if cur:
+        out.append(Bar(**cur))
+    return out[:-1]          # แท่งสุดท้ายอาจยังไม่ครบ
+
+
 @lru_cache(maxsize=2)
 def _market(symbol: str):
-    bars = load_bars(bars_path(DATA, symbol, TF))
+    path = bars_path(DATA, symbol, TF)
+    bars = load_bars(path) if path.exists() else resample(load_bars(bars_path(DATA, symbol, "M5")), TF)
     spec = load_spec(DATA, symbol, C.DEFAULT_SPECS[symbol])
     news = NewsCalendar.default(C.NEWS_CSV, (bars[0].time.year, bars[-1].time.year), C.NEWS_BLACKOUT_MIN)
     return bars, spec, news
@@ -165,7 +188,7 @@ def _arg(name: str, default: str | None = None) -> str | None:
 
 def main(argv: list[str] | None = None) -> list[dict] | None:
     """argv: --assign · --symbols BTCUSD,... · --workers N · --assign-to path · --retune (คงสายเดิมของแต่ละบอท)"""
-    global SYMBOLS
+    global SYMBOLS, TF
     if argv is not None:
         sys.argv = [sys.argv[0], *argv]
     if hasattr(sys.stdout, "reconfigure"):
@@ -174,6 +197,9 @@ def main(argv: list[str] | None = None) -> list[dict] | None:
     if _arg("--symbols"):
         SYMBOLS = _arg("--symbols").split(",")
     workers = int(_arg("--workers", "24"))
+    if _arg("--tf"):
+        TF = os.environ["LAB_TF"] = _arg("--tf")
+        _market.cache_clear()
     OUT.mkdir(parents=True, exist_ok=True)
     jobs = [(f, s, pi, plan, "rule") for f in FAMILIES for s in SYMBOLS for pi in range(len(FAMILIES[f][0]))
             for plan in PLANS]
@@ -242,9 +268,12 @@ def main(argv: list[str] | None = None) -> list[dict] | None:
             "markets": {s: {"data": [str(v["start"]), str(v["end"])], "holdout_from": str(v["hold"]),
                             "wf_days": round(v["wf_days"]), "holdout_days": round(v["hold_days"]),
                             "wf_windows": len(v["wins"])} for s, v in span.items()}}
-    (OUT / "m5_lab.json").write_text(json.dumps({"meta": meta, "slots": slots}, indent=1, default=str,
+    (OUT / ("m5_lab.json" if TF == "M5" else f"lab_{TF}.json")).write_text(json.dumps({"meta": meta, "slots": slots}, indent=1, default=str,
                                                 ensure_ascii=False), encoding="utf-8")
+    if "--explore" in sys.argv:
+        return slots
     if "--retune" in sys.argv:
+        _LAST.update(results=results, span=span)
         return retune(meta, slots, Path(_arg("--assign-to", str(ASSIGN))))
     report(meta, slots)
     if assign:
@@ -256,6 +285,11 @@ def main(argv: list[str] | None = None) -> list[dict] | None:
 GATE_REGIMES = [(), ("trend",), ("range",), ("mixed",), ("trend", "mixed"), ("range", "mixed")]
 GATE_SESSIONS = [(), ("asia",), ("europe",), ("us",)]
 GATE_MIN_GAIN = 0.5          # $/ไม้ (ครึ่งที่แย่กว่า) ต้องดีขึ้นอย่างน้อยเท่านี้ถึงจะใช้ตัวกรอง
+PARAM_MIN_GAIN = 0.5         # พารามิเตอร์ใหม่ต้องดีกว่าชุดเดิมอย่างน้อยเท่านี้ ($/ไม้) ถึงจะเปลี่ยน — กันเปลี่ยนไปมาทุกคืนเพราะสุ่ม
+# เลื่อนตัวกรองจาก "สังเกต" → "ใช้จริง": ไม้จริงที่ตัวกรองจะบล็อก ≥ PROMOTE_N ไม้ เฉลี่ยขาดทุน และ t ≤ PROMOTE_T
+PROMOTE_N, PROMOTE_T = 20, -1.0
+GATE_EVIDENCE: dict[str, dict] = {}   # research_weekly ใส่ให้: บอท → หลักฐานไม้จริงของตัวกรองปัจจุบัน (dataset.gate_evidence)
+_LAST: dict = {}                      # ผลรอบล่าสุดของ main() ให้ retune เทียบชุดพารามิเตอร์เดิม
 
 
 def run_custom(args: tuple) -> tuple:
@@ -266,6 +300,23 @@ def run_custom(args: tuple) -> tuple:
     t = np.array([tr.open_time.timestamp() for tr in res.trades], dtype=float)
     p = np.array([tr.pnl for tr in res.trades], dtype=float)
     return key, t, p
+
+
+def keep_current(b: dict, z: dict) -> bool:
+    """ชุดพารามิเตอร์เดิมยังสู้ชุดใหม่ได้ (ต่างไม่ถึง PARAM_MIN_GAIN $/ไม้ ในช่วงเลือกเดียวกัน) → ไม่เปลี่ยน"""
+    res, span = _LAST.get("results"), _LAST.get("span")
+    if not res or not span or b["symbol"] not in span:
+        return False
+    base = {k: v for k, v in b["params"].items() if k not in ("skip_regimes", "skip_sessions", "gate_mode")}
+    grid = FAMILIES[b["family"]][0]
+    if base not in grid:
+        return False
+    key = (b["family"], b["symbol"], grid.index(base), b["plan"], "rule")
+    if key not in res:
+        return False
+    end = span[b["symbol"]]["end"]
+    cur_sc = score(*res[key], end - pd.DateOffset(months=TRAIN_M), end + pd.Timedelta(days=1))
+    return bool(np.isfinite(cur_sc)) and z["live_score"] < cur_sc + PARAM_MIN_GAIN
 
 
 def gate_search(bots: list[dict], workers: int) -> dict[str, dict]:
@@ -313,24 +364,34 @@ def gate_search(bots: list[dict], workers: int) -> dict[str, dict]:
 def retune(meta: dict, slots: list[dict], path: Path) -> list[dict]:
     """ปรับพารามิเตอร์ใหม่ด้วยข้อมูลล่าสุด แต่บอทแต่ละตัวคงสายเดิม (สถิติ live ต่อบอทจะได้ต่อเนื่อง)
     คืนรายการ {bot, family, old, new} ของตัวที่เปลี่ยน"""
+    from bot.strategy.gate import signature
+    gk = ("skip_regimes", "skip_sessions", "gate_mode")
     cur = C.load_m5_bots()
     by = {(z["family"], z["symbol"]): z for z in slots if z["live"]}
     bots = []
     for b in cur:
         z = by.get((b["family"], b["symbol"]))
-        if z is None:
-            bots.append(dict(b))
+        if z is None or keep_current(b, z):
+            bots.append({**b, "params": {k: v for k, v in b["params"].items() if k not in gk}})
             continue
         bots.append({**b, "params": dict(z["live"]["params"]), "plan": z["live"]["plan"], "wf_usd_day": z["wf"]["usd_day"],
-                     "holdout_usd_day": z["holdout"]["usd_day"],
+                     "wf_usd_trade": z["wf"].get("usd_trade"), "holdout_usd_day": z["holdout"]["usd_day"],
                      "random_usd_day": z["wf_random"]["usd_day"] if z.get("wf_random") else None})
     gates = gate_search(bots, int(_arg("--workers", "24"))) if "--no-gates" not in sys.argv else {}
     changes = []
     for b, old in zip(bots, cur):
         g = gates.get(b["bot"])
-        b["params"] = {k: v for k, v in b["params"].items() if k not in ("skip_regimes", "skip_sessions")}
-        if g and (g["skip_regimes"] or g["skip_sessions"]):
-            b["params"].update(skip_regimes=g["skip_regimes"], skip_sessions=g["skip_sessions"])
+        op = old["params"]
+        old_sig = signature(op.get("skip_regimes") or [], op.get("skip_sessions") or []) if (op.get("skip_regimes") or op.get("skip_sessions")) else ""
+        new_sig = signature(g["skip_regimes"], g["skip_sessions"]) if g and (g["skip_regimes"] or g["skip_sessions"]) else ""
+        if new_sig:
+            # ตัวกรองใหม่เริ่มที่ "สังเกต" เสมอ · ตัวเดิมที่ยังผ่าน → คงโหมด และเลื่อนเป็น "ใช้จริง" เมื่อไม้จริงยืนยัน
+            mode = (op.get("gate_mode") or "observe") if new_sig == old_sig else "observe"
+            ev = GATE_EVIDENCE.get(b["bot"]) if new_sig == old_sig else None
+            if mode == "observe" and ev and ev["n"] >= PROMOTE_N and (ev["avg"] or 0) < 0 and (ev["t"] or 0) <= PROMOTE_T:
+                mode = "active"
+                g["promoted"] = ev
+            b["params"].update(skip_regimes=g["skip_regimes"], skip_sessions=g["skip_sessions"], gate_mode=mode)
         b["gate_test"] = g
         if (b["params"], b["plan"]) != (old["params"], old["plan"]):
             changes.append({"bot": b["bot"], "family": b["family"], "old": {"params": old["params"], "plan": old["plan"]},

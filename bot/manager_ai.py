@@ -71,6 +71,11 @@ FUNCTIONS = [   # JSON Schema ของแต่ละคำสั่ง — Cla
 ]
 
 
+def _report_conclusions() -> list[str]:
+    from .live_report import load
+    return load().get("conclusions") or []
+
+
 def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
     now = datetime.now(timezone.utc)
     regime, er = market_regime(s.btc_bars)
@@ -100,6 +105,7 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
         "learned_by_strategy_and_regime": load_summary(),
         "prediction_scoreboard_30d": scoreboard(),
         "lessons": Learner().lessons(),
+        "research_report_conclusions": _report_conclusions(),
         "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(15)],
     }, ensure_ascii=False, default=str)
 

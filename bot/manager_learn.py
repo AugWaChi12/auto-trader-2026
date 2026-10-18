@@ -14,7 +14,7 @@ from . import config as C
 
 TAPE_PATH = C.STATE_DIR / "manager_tape.json"
 LEARN_PATH = C.STATE_DIR / "manager_learn.json"
-LEARN_MIN = 8             # ไม้ขั้นต่ำต่อช่อง (สาย × สภาพตลาด) ก่อนเชื่อผลจริงแทนสมมติฐาน
+LEARN_MIN = 30            # ไม้ขั้นต่ำต่อช่อง (สาย × สภาพตลาด) ก่อนเชื่อผลจริงแทนสมมติฐาน (น้อยกว่านี้ = ดวงยังมีผลมาก)
 LEARN_BAD = -1.0          # $/ไม้ เฉลี่ยต่ำกว่านี้ = ไม่เหมาะ
 LEARN_GOOD = 0.0          # $/ไม้ เฉลี่ยตั้งแต่นี้ = เหมาะ (ระหว่างนั้น = ยังไม่ตัดสิน)
 
@@ -71,7 +71,7 @@ class Learner:
                     c2["wins"] += r["profit"] > 0
                 self.counted = (self.counted + [k])[-5000:]
                 del self.tape[k]
-                learned.append({**rec, "profit": r["profit"]})
+                learned.append({**r, **rec, "profit": r["profit"]})
                 changed = True
         stale = [k for k, v in self.tape.items() if t - v["t"] > 7 * 86400]     # ไม้ที่หาผลไม่เจอเกิน 7 วัน
         for k in stale:

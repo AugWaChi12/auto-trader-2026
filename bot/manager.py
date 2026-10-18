@@ -35,6 +35,7 @@ LOG_PATH = C.STATE_DIR / "manager_log.jsonl"
 JOURNAL_PATH = C.STATE_DIR / "manager_journal.jsonl"
 RESEARCH_EVERY_DAYS = float(os.environ.get("RESEARCH_EVERY_DAYS") or 1)   # ทุกคืน (7 = เฉพาะวันอาทิตย์ · 0 = ไม่วิจัยอัตโนมัติ)
 RESEARCH_HOUR_BKK = 4                                                      # ตี 4 เวลาไทย
+EXPLORE_HOUR_BKK = 6                                                       # ล่า edge: วันอาทิตย์ 6 โมงเช้า (หลังวิจัยประจำวันเสร็จ)
 PAUSES_PATH = C.STATE_DIR / "manager_pauses.json"
 TICK_SEC = 60
 REPORT_EVERY_MIN = 30
@@ -460,12 +461,19 @@ class Manager:
         b = s.btc_bars
         move = (b[-1][4] - b[-121][4]) if len(b) > 121 else 0.0
         trend_dir = 0 if regime != "trend" else (1 if move > 0 else -1)
-        for x in self.learner.observe(s.test_bots(), regime, er, s.t, trend_dir):
-            log.info("learned %s %s %s %+.2f", x["bot"], x["family"], x["regime"], x["profit"])
+        learned = self.learner.observe(s.test_bots(), regime, er, s.t, trend_dir)
+        if learned:
+            from . import dataset
+            assigned = {b["bot"]: b for b in C.load_m5_bots()}
+            eps = shadow._load()
+            dataset.append([dataset.row(x, assigned, eps) for x in learned])
+            for x in learned:
+                log.info("learned %s %s %s %+.2f", x["bot"], x["family"], x["regime"], x["profit"])
         if bkk_day() != self.day:
             if self.last_snap is not None:
                 self.journal(self.day, self.last_snap)
             self.day = bkk_day()
+            self.report(weekly=datetime.fromisoformat(self.day).weekday() == 0)   # ขึ้นวันจันทร์ = ครบสัปดาห์
         self.last_snap = s
         self.maybe_research(s)
         if s.t - self.last_shadow >= 3600:
@@ -558,6 +566,16 @@ class Manager:
                                 "bots": {n: b["today"] for n, b in tests.items()}, "equity": s.equity}, ensure_ascii=False) + "\n")
         say("journal", f"📓 {text}" + (f"\n{ai}" if ai else ""), src=self.llm.src if (ai and self.llm) else "rules")
 
+    def report(self, weekly: bool) -> None:
+        """รายงานวิจัยจากไม้จริง: เขียนใหม่ทุกคืน · ส่งสรุปเข้า Telegram สัปดาห์ละครั้ง"""
+        from . import live_report
+        try:
+            r = live_report.write()
+            if weekly:
+                say("journal", live_report.telegram_summary(r))
+        except Exception:  # noqa: BLE001
+            log.exception("live report failed")
+
     def maybe_research(self, s: Snapshot) -> None:
         """วิจัยประจำสัปดาห์: อาทิตย์ตี 4 เวลาไทย (ห่างรอบก่อน ≥ RESEARCH_EVERY_DAYS) → รัน python -m bot research เป็นโปรเซสแยก"""
         if RESEARCH_EVERY_DAYS <= 0 or (self.research_proc is not None and self.research_proc.poll() is None):
@@ -566,16 +584,24 @@ class Manager:
         st = load_status()
         n = datetime.fromtimestamp(s.t, timezone.utc) + timedelta(hours=7)
         last = st.get("finished") or 0 if st.get("error") or not st.get("running") else st.get("started", 0)
+        if n.weekday() == 6 and n.hour == EXPLORE_HOUR_BKK and RESEARCH_EVERY_DAYS > 0:
+            from .research_weekly import load_explore
+            if s.t - (load_explore().get("finished") or 0) > 6 * 86400:
+                self._spawn(["research", "--explore"], f"explore_{n:%Y%m%d}")
+                return
         weekly_only = RESEARCH_EVERY_DAYS >= 7 and n.weekday() != 6
         if (st.get("running") or s.t - last < RESEARCH_EVERY_DAYS * 86400 - 3 * 3600) or weekly_only or n.hour != RESEARCH_HOUR_BKK:
             return
+        self._spawn(["research"], f"research_{n:%Y%m%d}")
+
+    def _spawn(self, args: list[str], logname: str) -> None:
         import subprocess
         import sys
         C.LOG_DIR.mkdir(parents=True, exist_ok=True)
-        out = (C.LOG_DIR / f"research_{n:%Y%m%d}.log").open("a", encoding="utf-8")
-        self.research_proc = subprocess.Popen([sys.executable, "-m", "bot", "research"], cwd=str(C.ROOT),
+        out = (C.LOG_DIR / f"{logname}.log").open("a", encoding="utf-8")
+        self.research_proc = subprocess.Popen([sys.executable, "-m", "bot", *args], cwd=str(C.ROOT),
                                               stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
-        log.info("research started pid=%s", self.research_proc.pid)
+        log.info("%s started pid=%s", args, self.research_proc.pid)
 
     @staticmethod
     def release_all_pauses() -> None:

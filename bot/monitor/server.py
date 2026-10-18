@@ -439,12 +439,46 @@ def manager_payload() -> bytes:
     from ..research_weekly import load_status
     from ..manager_learn import Learner
     from ..shadow import open_calls, recent, scoreboard
+    from ..live_report import load as load_report
+    from ..research_weekly import load_explore
+    rep, ex = load_report(), load_explore()
     rs = load_status()
     research = {k: rs.get(k) for k in ("started", "finished", "running", "minutes", "summary", "error")}
     return json.dumps({"messages": M.read_log(80), "pauses": M.load_pauses(), "learned": load_summary(),
                        "journal": M.read_journal(14), "research": research,
                        "shadow": {"score": scoreboard(), "recent": recent(15), "open": open_calls()},
-                       "lessons": Learner().lessons(limit=6)}, ensure_ascii=False, default=str).encode()
+                       "lessons": Learner().lessons(limit=6),
+                       "report": {k: rep.get(k) for k in ("generated", "trades", "period", "overall", "conclusions")},
+                       "explore": {"finished": ex.get("finished"), "found": ex.get("found"), "top": (ex.get("rows") or [])[:5]}}, ensure_ascii=False, default=str).encode()
+
+
+def report_page() -> bytes:
+    """รายงานวิจัยจากไม้จริง (Markdown → HTML แบบเรียบง่าย ไม่ต้องใช้ไลบรารี)"""
+    import html
+    import re
+    from ..live_report import MD_PATH
+    md = MD_PATH.read_text(encoding="utf-8") if MD_PATH.exists() else "# รายงานวิจัยจากไม้จริง\n\nยังไม่มีรายงาน — สร้างครั้งแรกหลังเที่ยงคืนเวลาไทย\n"
+    body = []
+    for ln in md.splitlines():
+        t = html.escape(ln)
+        t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
+        t = re.sub(r"`(.+?)`", r"<code>\1</code>", t)
+        if t.startswith("# "):
+            body.append(f"<h1>{t[2:]}</h1>")
+        elif t.startswith("## "):
+            body.append(f"<h2>{t[3:]}</h2>")
+        elif t.startswith("- "):
+            body.append(f"<li>{t[2:]}</li>")
+        elif t.startswith("_") and t.endswith("_"):
+            body.append(f"<p class=n>{t[1:-1]}</p>")
+        elif t:
+            body.append(f"<p>{t}</p>")
+    return ("<!doctype html><html lang=th><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>รายงานวิจัยจากไม้จริง · หมู่บ้านบอท</title><link href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap' rel=stylesheet>"
+            "<style>body{font-family:'IBM Plex Sans Thai',system-ui,sans-serif;max-width:860px;margin:0 auto;padding:24px 16px 60px;color:#172033;background:#f6f8fc;line-height:1.65}"
+            "h1{font-size:1.5em}h2{font-size:1.1em;margin-top:28px;border-bottom:1px solid #dde3ee;padding-bottom:4px}li{margin:4px 0}"
+            "code{background:#eef1f7;padding:1px 6px;border-radius:6px}.n{color:#5f6b85;font-size:.9em}a{color:#4b33c9}</style></head><body>"
+            "<p><a href='/sandbox'>← กลับหมู่บ้านบอท</a></p>" + "\n".join(body) + "</body></html>").encode()
 
 
 def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
@@ -472,6 +506,11 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/manager":
                 self._send(manager_payload(), "application/json")
+            elif url.path == "/report":
+                self._send(report_page(), "text/html")
+            elif url.path == "/api/dataset.csv":            # ส่วนตัวเท่านั้น (หน้าสาธารณะไม่มีเส้นทางนี้)
+                from ..dataset import PATH as DS
+                self._send(DS.read_bytes() if DS.exists() else b"", "text/csv")
             elif url.path == "/api/version":
                 # หน้าเว็บเช็กทุก 10 วิ — ไฟล์หน้าเปลี่ยน = รีโหลดตัวเอง (หน้าต่างไลฟ์ไม่ต้องปิด LIVE Studio จึงจับภาพต่อได้)
                 page = PAGES.get(parse_qs(url.query).get("page", ["/sandbox"])[0])
@@ -509,6 +548,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
             elif url.path == "/api/manager":
                 self._send(manager_payload(), "application/json")
+            elif url.path == "/report":
+                self._send(report_page(), "text/html")
             elif url.path == "/api/version":
                 self._send(json.dumps({"v": int(PAGES["/sandbox"].stat().st_mtime)}).encode(), "application/json")
             else:

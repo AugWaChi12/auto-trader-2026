@@ -287,12 +287,12 @@ def test_learner_records_regime_at_open_and_counts_when_closed() -> None:
 def test_rule_brain_prefers_learned_results_over_prior() -> None:
     from bot.manager_learn import Learner
     L = Learner()
-    L.table = {"ema": {"trend": {"n": 10, "pnl": -40.0, "wins": 2}}}             # สมมติฐานบอก ema ถนัดเทรนด์ แต่ผลจริงเสีย
+    L.table = {"ema": {"trend": {"n": 40, "pnl": -160.0, "wins": 8}}}             # สมมติฐานบอก ema ถนัดเทรนด์ แต่ผลจริงเสีย
     b = M.RuleBrain(L)
     for _ in range(M.REGIME_CONFIRM):
         acts = b.decide(snap(bars=bars("trend"), m5_2=bot(family="ema")), {})
     pause = [a for a in acts if a.kind == "pause" and a.bot == "m5_2"]
-    assert pause and "ผลจริง 10 ไม้" in pause[0].reason
+    assert pause and "ผลจริง 40 ไม้" in pause[0].reason
 
 
 def test_journal_written_on_new_day_with_ai_note(monkeypatch) -> None:  # noqa: ANN001

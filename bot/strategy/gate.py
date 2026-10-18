@@ -5,9 +5,14 @@ gate.py — ตัวกรองที่ผู้จัดการพอร�
   skip_regimes  : trend / range / mixed — สภาพตลาดจาก efficiency ratio ของ M5 25 แท่ง (ตัวเดียวกับที่ผู้จัดการใช้)
   skip_sessions : asia (00–07 UTC) / europe (07–13) / us (13–24)
 ไม่ใช่การ "พักบอท": บอทยังทำงานตลอด แค่กลยุทธ์ถูกปรับให้ไม่เข้าไม้ในจังหวะที่ผลจริง + ทดสอบย้อนหลังบอกว่าเสียเปรียบ
+
+สองโหมด (การทดลองแบบ A/B บนไม้จริง — กันตัวกรองที่ดีแค่ในข้อมูลย้อนหลัง):
+  observe : ไม่บล็อก แค่จดว่า "ไม้นี้ฉันจะบล็อก" (state/<บอท>/gate_flags.jsonl) → เทียบผลไม้ที่ถูกจด vs ไม่ถูกจด
+  active  : บล็อกจริง — ได้เลื่อนขั้นเมื่อไม้จริงที่ถูกจดในโหมด observe ขาดทุนชัดพอ (research_weekly.gate_evidence)
 """
 from __future__ import annotations
 
+import json
 from collections import deque
 
 from ..core.interfaces import IAccount
@@ -32,11 +37,20 @@ def session_of(hour_utc: int) -> str:
     return next(k for k, (a, b) in SESSIONS.items() if a <= hour_utc < b)
 
 
+def signature(skip_regimes: tuple | list, skip_sessions: tuple | list) -> str:
+    return ",".join(sorted(skip_regimes)) + "|" + ",".join(sorted(skip_sessions))
+
+
 class Gate(Strategy):
-    def __init__(self, inner: Strategy, skip_regimes: tuple[str, ...] = (), skip_sessions: tuple[str, ...] = ()) -> None:
+    LOG_DIR = None          # บอทจริงตั้งเป็น state/<บอท> ตอนเริ่ม (live/runner.py) · backtest/วิจัย = ไม่จดไฟล์
+
+    def __init__(self, inner: Strategy, skip_regimes: tuple[str, ...] = (), skip_sessions: tuple[str, ...] = (),
+                 mode: str = "active") -> None:
         self.inner = inner
         self.tag, self.symbol, self.plan = inner.tag, inner.symbol, inner.plan
         self.skip_regimes, self.skip_sessions = tuple(skip_regimes), tuple(skip_sessions)
+        self.mode = mode
+        self.sig = signature(self.skip_regimes, self.skip_sessions)
         self.m5: deque[float] = deque(maxlen=ER_BARS)     # ราคาปิดของแท่ง M5 ที่ปิดแล้ว
         self._bucket: int | None = None
         self._last_close = 0.0
@@ -60,12 +74,27 @@ class Gate(Strategy):
         rg = self.regime()
         if (rg is not None and rg in self.skip_regimes) or session_of(bar.time.hour) in self.skip_sessions:
             self.blocked += 1
+            if self.mode == "observe":
+                self._flag(bar, sigs, rg)
+                return sigs
             return [s for s in sigs if not isinstance(s, EnterSignal)]
         return sigs
+
+    def _flag(self, bar: Bar, sigs: list[Signal], rg: str | None) -> None:
+        if self.LOG_DIR is None:
+            return
+        try:
+            with (self.LOG_DIR / "gate_flags.jsonl").open("a", encoding="utf-8") as f:
+                for s in sigs:
+                    if isinstance(s, EnterSignal):
+                        f.write(json.dumps({"t": bar.time.isoformat(), "key": s.key, "side": s.side.name, "gate": self.sig,
+                                            "regime": rg, "session": session_of(bar.time.hour)}) + "\n")
+        except OSError:
+            pass
 
     def status(self) -> dict:
         st = dict(self.inner.status())
         if st:
-            st["gate"] = {"skip_regimes": list(self.skip_regimes), "skip_sessions": list(self.skip_sessions),
+            st["gate"] = {"skip_regimes": list(self.skip_regimes), "skip_sessions": list(self.skip_sessions), "mode": self.mode,
                           "regime": self.regime(), "blocked": self.blocked}
         return st
