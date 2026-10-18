@@ -18,6 +18,15 @@ until [ -d "$PYDIR/Lib/site-packages/rpyc" ] && [ -d "$PYDIR/Lib/site-packages/M
 sleep 20
 cd /config || exit 1
 
+# ปัญหาที่ 6: เปลี่ยนรุ่น Wine (stable 10 → staging 11) แต่ prefix ใน /config ยังเป็นไฟล์รุ่นเก่า
+#   → ฝั่ง 32 บิตพัง (SystemFunction036 unimplemented, urandom/crypto ใช้ไม่ได้, MT5 IPC "Hash calculation failed")
+#   แก้: wineboot -u ครั้งเดียวต่อรุ่น Wine (จำรุ่นไว้ใน /config/.wine-booted)
+WV=$(wine --version 2>/dev/null)
+if [ "$(cat /config/.wine-booted 2>/dev/null)" != "$WV" ]; then
+  echo "[mt5-rpyc] $(date -Is) updating Wine prefix for $WV" >>"$LOG"
+  $RUN wine wineboot -u </dev/null >>"$LOG" 2>&1 && echo "$WV" > /config/.wine-booted
+fi
+
 if ! pgrep -f "terminal64.exe" >/dev/null; then
   echo "[mt5-rpyc] $(date -Is) terminal64.exe not running -> starting it" >>"$LOG"
   $RUN wine "/config/.wine/drive_c/Program Files/MetaTrader 5/terminal64.exe" </dev/null >/dev/null 2>&1 &
