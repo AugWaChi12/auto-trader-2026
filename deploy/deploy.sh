@@ -25,7 +25,8 @@ echo ">> ครั้งแรก: ค่าตั้งบอท + รหัส
 if ! ssh "$HOST" "test -f $REMOTE/state/bot_settings.json" && [[ -f state/bot_settings.json ]]; then
   scp -q state/bot_settings.json "$HOST:$REMOTE/state/bot_settings.json"
 fi
-ssh "$HOST" "cd $REMOTE/deploy && test -f .env || { umask 077; printf 'CUSTOM_USER=trader\nPASSWORD=%s\n' \"\$(openssl rand -base64 18 | tr -d '/+=')\" > .env; echo '   สร้าง deploy/.env (รหัส VNC) แล้ว'; }"
+# เช็กว่ามีรหัสจริง (ไม่ใช่แค่มีไฟล์) — ครั้งแรกเคยได้ .env ที่มีแต่ RPYC_VERSION แล้วหน้าจอ MT5 ขึ้น 401
+ssh "$HOST" 'cd '"$REMOTE"'/deploy && umask 077 && touch .env && if ! grep -q "^PASSWORD=" .env; then printf "CUSTOM_USER=trader\nPASSWORD=%s\n" "$(openssl rand -base64 18 | tr -d "/+=")" >> .env; echo "   สร้างรหัส VNC ใน deploy/.env แล้ว"; fi'
 
 echo ">> เปิด MT5 ก่อน แล้วอ่านเวอร์ชัน rpyc ของมัน (บอทต้องใช้เวอร์ชันเดียวกัน)"
 ssh "$HOST" "cd $REMOTE/deploy && docker compose up -d mt5"
