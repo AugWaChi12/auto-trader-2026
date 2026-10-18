@@ -18,6 +18,7 @@ services:
     volumes:
       - mt5_config:/config               # MT5 + บัญชีที่ล็อกอินไว้ อยู่รอดตอนรีสตาร์ท
       - ./mt5-rpyc-service.sh:/custom-services.d/mt5-rpyc:ro   # ช่อง Python (port 8001) — แทนตัวของ image ที่พัง
+      - ./mt5_rpyc_server.py:/custom-files/mt5_rpyc_server.py:ro
     ports:
       - "127.0.0.1:3000:3000"            # หน้าจอ MT5 ผ่านเว็บ
     mem_limit: 2g
