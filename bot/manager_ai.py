@@ -25,6 +25,8 @@ LLM_QUIET_MIN = max(LLM_EVERY_MIN, int(os.environ.get("MANAGER_LLM_QUIET_MIN") o
 TEST_BOTS = sorted((n for n in C.LIVE_INSTANCES if n != "main"), key=lambda n: int(n.split("_")[1]))
 # เพดานครั้ง/วัน (โควตา tier ฟรีของ Google · รีเซ็ตเที่ยงคืนเวลาแปซิฟิก) · 0 = ไม่จำกัด · เก็บ 1 ครั้งไว้ให้บันทึกท้ายวัน
 DAILY_MAX = int(os.environ.get("MANAGER_LLM_DAILY_MAX") or 0)
+# รุ่นฉลาดสำหรับจังหวะสำคัญ (มีไม้เปิด / สภาพตลาดเปลี่ยน / แกว่งแรง / บันทึกท้ายวัน) · 0 = ไม่ใช้ · เก็บ 1 ครั้งให้บันทึกท้ายวัน
+SMART_DAILY_MAX = int(os.environ.get("MANAGER_SMART_DAILY_MAX") or 0)
 USAGE_PATH = C.STATE_DIR / "llm_usage.json"
 
 
@@ -33,29 +35,32 @@ def _quota_day() -> str:
     return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d")
 
 
-def quota_left(reserve: int = 0) -> int:
-    """ครั้งที่ยังเรียกได้วันนี้ (ตามวันของ Google) — ไม่จำกัด = ค่าใหญ่มาก"""
-    if DAILY_MAX <= 0:
-        return 10**9
+def _usage() -> dict[str, int]:
     try:
         u = json.loads(USAGE_PATH.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        u = {}
-    used = u.get("n", 0) if u.get("day") == _quota_day() else 0
-    return max(DAILY_MAX - reserve - used, 0)
+        return {}
+    if u.get("day") != _quota_day():
+        return {}
+    n = u.get("n", {})
+    return n if isinstance(n, dict) else {"main": n}
 
 
-def count_call() -> None:
-    if DAILY_MAX <= 0:
+def quota_left(reserve: int = 0, key: str = "main") -> int:
+    """ครั้งที่ยังเรียกได้วันนี้ (ตามวันของ Google) ของรุ่นปกติ (main) / รุ่นฉลาด (smart) — ไม่จำกัด = ค่าใหญ่มาก"""
+    cap = SMART_DAILY_MAX if key == "smart" else DAILY_MAX
+    if cap <= 0:
+        return 0 if key == "smart" else 10**9
+    return max(cap - reserve - _usage().get(key, 0), 0)
+
+
+def count_call(key: str = "main") -> None:
+    if (SMART_DAILY_MAX if key == "smart" else DAILY_MAX) <= 0:
         return
-    try:
-        u = json.loads(USAGE_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        u = {}
-    day = _quota_day()
-    u = {"day": day, "n": (u.get("n", 0) if u.get("day") == day else 0) + 1}
+    n = _usage()
+    n[key] = n.get(key, 0) + 1
     USAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    USAGE_PATH.write_text(json.dumps(u), encoding="utf-8")
+    USAGE_PATH.write_text(json.dumps({"day": _quota_day(), "n": n}), encoding="utf-8")
 
 SYSTEM = f"""คุณคือผู้จัดการพอร์ตเทรดอัตโนมัติบนบัญชี DEMO (เงินทดลอง) ของ FxPro MT5
 ภายใต้คุณมีบอททดสอบ {len(TEST_BOTS)} ตัว ({", ".join(TEST_BOTS)}) ด้วย lot คงที่ แต่ละตัวใช้กลยุทธ์ที่ผ่านการวิจัยแบบ walk-forward มาเอง
@@ -210,28 +215,35 @@ class AIBrain:
         self.last_error = 0.0
         self.last_regimes: dict[str, str | None] = {}
 
-    def _interval_min(self, s: Snapshot) -> int:
+    def _important(self, s: Snapshot) -> str | None:
+        """จังหวะสำคัญ (ถามถี่ขึ้น + ใช้รุ่นฉลาดถ้าโควตาเหลือ) — None = ช่วงปกติ"""
         if any(b.get("open") for b in s.test_bots().values()):
-            return LLM_EVERY_MIN
+            return "มีไม้เปิด"
         regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
         last_rg = getattr(self, "last_regimes", None)
         if last_rg and regimes != last_rg:
-            return LLM_EVERY_MIN
+            return "สภาพตลาดเปลี่ยน"
         rr = range_ratio(s.btc_bars)
         if rr is not None and rr >= 2.2:
-            return LLM_EVERY_MIN
-        return LLM_QUIET_MIN
+            return "ตลาดแกว่งแรง"
+        return None
+
+    def _interval_min(self, s: Snapshot) -> int:
+        return LLM_EVERY_MIN if self._important(s) else LLM_QUIET_MIN
 
     def maybe_decide(self, s: Snapshot, pauses: dict[str, dict]) -> list[Action]:
         if self.last and s.t - self.last < self._interval_min(s) * 60:
             return []
-        if quota_left(reserve=1) <= 0:            # ครบโควตาวันนี้ → สมองตามกฎทำงานแทน (เก็บ 1 ครั้งให้บันทึกท้ายวัน)
+        smart = bool(self._important(s)) and quota_left(reserve=1, key="smart") > 0
+        if not smart and quota_left(reserve=1) <= 0:   # ครบโควตาวันนี้ → สมองตามกฎทำงานแทน (เก็บ 1 ครั้งให้บันทึกท้ายวัน)
             return []
         self.last = s.t
-        count_call()
+        count_call("smart" if smart else "main")
         self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
         try:
-            return to_actions(self.ask("ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses)), self.src)
+            # รุ่นฉลาดติดป้าย src แยก (เช่น gemini_smart) → คะแนนคำทำนายเทียบสองรุ่นได้จากไม้จริง
+            return to_actions(self.ask("ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses), smart=smart),
+                              f"{self.src}_smart" if smart else self.src)
         except Exception as e:  # noqa: BLE001 — AI ล่มต้องไม่ทำให้ผู้จัดการหยุด
             log.warning("%s: %s", self.name, e)
             if s.t - self.last_error > 3600:
@@ -239,9 +251,9 @@ class AIBrain:
                 say("alert", f"สมอง {self.name} ติดต่อไม่ได้ ({type(e).__name__}) — ใช้สมองตามกฎต่อไปก่อน", src="rules")
             return []
 
-    def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
+    def ask(self, prompt: str, smart: bool = False) -> list[tuple[str, dict[str, Any]]]:
         raise NotImplementedError
 
-    def write(self, prompt: str) -> str:
+    def write(self, prompt: str, smart: bool = False) -> str:
         """ข้อความธรรมดา (ไม่มีคำสั่ง) — ใช้เขียนบันทึกท้ายวัน"""
         raise NotImplementedError

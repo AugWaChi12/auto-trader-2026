@@ -45,6 +45,8 @@ services:
       MANAGER_LLM_MIN: ${MANAGER_LLM_MIN:-15}      # ถาม AI ทุกกี่นาที (มีไม้เปิด/ตลาดเปลี่ยน/แกว่งแรง)
       MANAGER_LLM_QUIET_MIN: ${MANAGER_LLM_QUIET_MIN:-45}   # ถามทุกกี่นาทีตอนพอร์ตว่างและตลาดนิ่ง
       MANAGER_LLM_DAILY_MAX: ${MANAGER_LLM_DAILY_MAX:-0}    # เพดานครั้ง/วัน ให้อยู่ในโควตา tier ฟรี (0 = ไม่จำกัด)
+      MANAGER_SMART_MODEL: ${MANAGER_SMART_MODEL:-}          # รุ่นฉลาดสำหรับจังหวะสำคัญ (ว่าง = gemini-3.8-flash)
+      MANAGER_SMART_DAILY_MAX: ${MANAGER_SMART_DAILY_MAX:-0} # ครั้ง/วันของรุ่นฉลาด (0 = ไม่ใช้)
       # Telegram: ใส่ token ด้วย deploy/set-key.sh TELEGRAM_BOT_TOKEN แล้วทักบอท 1 ครั้ง (chat id จำเอง)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}

@@ -18,7 +18,8 @@ from .manager_ai import FUNCTIONS, SYSTEM, AIBrain
 
 log = logging.getLogger("manager.gemini")
 
-MODEL = os.environ.get("MANAGER_MODEL") or "gemini-3.8-flash"
+MODEL = os.environ.get("MANAGER_MODEL") or "gemini-3.8-flash"                  # ช่วงปกติ (เช่น gemini-3.1-flash-lite ฟรี 500/วัน)
+SMART_MODEL = os.environ.get("MANAGER_SMART_MODEL") or "gemini-3.8-flash"      # จังหวะสำคัญ (MANAGER_SMART_DAILY_MAX ครั้ง/วัน)
 
 
 class GeminiBrain(AIBrain):
@@ -37,14 +38,15 @@ class GeminiBrain(AIBrain):
             tool_config=types.ToolConfig(function_calling_config=types.FunctionCallingConfig(mode="ANY")),
         )
 
-    def write(self, prompt: str) -> str:
-        r = self.client.models.generate_content(model=MODEL, contents=prompt,
+    def write(self, prompt: str, smart: bool = False) -> str:
+        r = self.client.models.generate_content(model=SMART_MODEL if smart else MODEL, contents=prompt,
                                                 config=types.GenerateContentConfig(system_instruction=SYSTEM))
         return (r.text or "").strip()[:1500]
 
-    def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
-        r = self.client.models.generate_content(model=MODEL, contents=prompt, config=self.config)
+    def ask(self, prompt: str, smart: bool = False) -> list[tuple[str, dict[str, Any]]]:
+        model = SMART_MODEL if smart else MODEL
+        r = self.client.models.generate_content(model=model, contents=prompt, config=self.config)
         u = r.usage_metadata
-        log.info("gemini %s in=%s out=%s think=%s", MODEL, getattr(u, "prompt_token_count", None),
+        log.info("gemini %s in=%s out=%s think=%s", model, getattr(u, "prompt_token_count", None),
                  getattr(u, "candidates_token_count", None), getattr(u, "thoughts_token_count", None))
         return [(c.name, dict(c.args or {})) for c in (r.function_calls or [])]

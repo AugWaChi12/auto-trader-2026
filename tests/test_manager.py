@@ -297,7 +297,7 @@ def test_rule_brain_prefers_learned_results_over_prior() -> None:
 
 def test_journal_written_on_new_day_with_ai_note(monkeypatch) -> None:  # noqa: ANN001
     m = M.Manager(FakeCol())
-    m.llm = NS(src="gemini", write=lambda prompt: "วันนี้ตลาดออกข้าง พรุ่งนี้ระวังสายตามเทรนด์")
+    m.llm = NS(src="gemini", write=lambda prompt, smart=False: "วันนี้ตลาดออกข้าง พรุ่งนี้ระวังสายตามเทรนด์")
     M.say("action", "⏸ สั่งพัก m5_1", src="gemini")
     m.journal(M.bkk_day(), snap(m5_1=bot(today=12.5), m5_2=bot(today=-30)))
     j = M.read_journal()[-1]
@@ -636,9 +636,31 @@ def test_llm_daily_quota_stops_calls_and_keeps_one_for_journal(monkeypatch, tmp_
     monkeypatch.setattr(A, "USAGE_PATH", tmp_path / "usage.json")
     calls = []
     brain = A.AIBrain()
-    brain.ask = lambda prompt: calls.append(1) or []
+    brain.ask = lambda prompt, smart=False: calls.append(smart) or []
     monkeypatch.setattr(brain, "_interval_min", lambda s: 0)
     for i in range(5):
         brain.last = 0
         brain.maybe_decide(snap(), {})
     assert len(calls) == 2 and A.quota_left() == 1                    # เหลือ 1 ไว้บันทึกท้ายวัน
+
+
+def test_smart_model_used_for_important_moments_within_its_quota(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    from bot import manager_ai as A
+    monkeypatch.setattr(A, "DAILY_MAX", 100)
+    monkeypatch.setattr(A, "SMART_DAILY_MAX", 3)
+    monkeypatch.setattr(A, "USAGE_PATH", tmp_path / "usage.json")
+    calls = []
+    brain = A.AIBrain()
+    brain.src = "gemini"
+    brain.ask = lambda prompt, smart=False: calls.append(smart) or [("say", {"text": "x"})]
+    monkeypatch.setattr(brain, "_interval_min", lambda s: 0)
+    busy = snap(m5_1=bot(opens=[pos()]))                                   # มีไม้เปิด = จังหวะสำคัญ
+    srcs = []
+    for _ in range(4):
+        brain.last = 0
+        srcs += [a.src for a in brain.maybe_decide(busy, {})]
+    brain.last = 0
+    brain.maybe_decide(snap(), {})                                          # ช่วงปกติ
+    assert calls == [True, True, False, False, False]                      # รุ่นฉลาด 2 ครั้ง (เก็บ 1 ให้บันทึกท้ายวัน)
+    assert srcs[:2] == ["gemini_smart", "gemini_smart"] and srcs[2] == "gemini"
+    assert A.quota_left(key="smart") == 1
