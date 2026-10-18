@@ -68,6 +68,7 @@ REGIME_CONFIRM = 3                  # ต้องเห็นสภาพเด
 REGIME_PAUSE_MIN = 240               # พักนานสุดเท่านี้ — ปกติได้กลับก่อนเมื่อสภาพตลาดเปลี่ยน
 REGIME_MIN_REST_MIN = 30            # พักเพราะสภาพตลาดอย่างน้อยกี่นาทีก่อนจะให้กลับ
 REGIME_TH = {"trend": "ตลาดวิ่งเป็นเทรนด์", "range": "ตลาดออกข้างในกรอบ", "mixed": "ตลาดยังไม่ชัดทาง"}
+SYMBOL_TH = {"BTCUSD": "BTC", "XAUUSD": "ทอง", "NAS100": "NAS100"}
 
 
 def now_ts() -> float:
@@ -167,9 +168,16 @@ class Snapshot:
     bots: dict[str, dict]             # ชื่อ → {today, total, trades, win_rate, open:[...], alive, family, symbol, state, streak}
     btc_bars: list[list] = field(default_factory=list)
     btc: float | None = None
+    bars: dict[str, list[list]] = field(default_factory=dict)    # แท่ง M1 ล่าสุดของทุกตลาดที่บอททดสอบเล่น
 
     def test_bots(self) -> dict[str, dict]:
         return {n: b for n, b in self.bots.items() if n != "main"}
+
+    def bars_of(self, symbol: str) -> list[list]:
+        return self.bars.get(symbol) or (self.btc_bars if symbol == "BTCUSD" else [])
+
+    def symbols(self) -> list[str]:
+        return sorted({b["symbol"] for b in self.test_bots().values() if b.get("symbol")})
 
 
 def loss_streak(rows: list[dict]) -> int:
@@ -199,9 +207,10 @@ def build_snapshot(col: Any) -> Snapshot:
                       "open": opens, "alive": bool(hb.get("alive")), "state": st.get("state"),
                       "family": res.get("family"), "symbol": st.get("symbol") or res.get("symbol"),
                       "streak": loss_streak(rows), "target_hit": bool(hb.get("target_hit")), "recent": rows}
-    bars = (col.bars("BTCUSD", "M1", 200) or {}).get("bars") or []
-    return Snapshot(now_ts(), float(acc.get("equity") or 0), float(acc.get("balance") or 0), bots, bars,
-                    ((d.get("quotes") or {}).get("BTCUSD") or {}).get("bid"))
+    syms = sorted({b["symbol"] for n, b in bots.items() if n != "main" and b.get("symbol")} | {"BTCUSD"})
+    allbars = {sym: (col.bars(sym, "M1", 200) or {}).get("bars") or [] for sym in syms}
+    return Snapshot(now_ts(), float(acc.get("equity") or 0), float(acc.get("balance") or 0), bots, allbars["BTCUSD"],
+                    ((d.get("quotes") or {}).get("BTCUSD") or {}).get("bid"), allbars)
 
 
 def range_ratio(bars: list[list], window: int = 15) -> float | None:
@@ -266,13 +275,15 @@ class RuleBrain:
         self.peaks: dict[int, float] = {}       # ticket → กำไรลอยสูงสุดที่เคยเห็น
         self.last_report = 0.0
         self.vol_alerted = 0.0
-        self.regimes: list[str | None] = []      # สภาพตลาดรายนาทีล่าสุด
-        self.regime: str | None = None           # สภาพที่ยืนยันแล้ว
-        self.acted: set[str] = set()             # บอทที่สั่งเพราะสภาพตลาดไปแล้วในรอบสภาพนี้ (ไม่สั่งซ้ำ ถ้า AI สั่งกลับ)
-        for m in reversed(read_log(300)):       # รีสตาร์ทแล้วไม่ประกาศสภาพตลาดเดิมซ้ำในแชท
-            if m.get("text", "").startswith("สภาพตลาดเปลี่ยน: "):
-                self.regime = next((k for k, v in REGIME_TH.items() if m["text"].startswith(f"สภาพตลาดเปลี่ยน: {v}")), None)
-                break
+        self.regimes: dict[str, list[str | None]] = {}   # ตลาด → สภาพรายนาทีล่าสุด
+        self.regime: dict[str, str] = {}                  # ตลาด → สภาพที่ยืนยันแล้ว
+        self.acted: dict[str, set[str]] = {}              # ตลาด → บอทที่สั่งไปแล้วในรอบสภาพนี้ (ไม่สั่งซ้ำ ถ้า AI สั่งกลับ)
+        for m in reversed(read_log(500)):       # รีสตาร์ทแล้วไม่ประกาศสภาพตลาดเดิมซ้ำในแชท
+            t = m.get("text", "")
+            if t.startswith("สภาพตลาดเปลี่ยน: "):
+                sym = next((k for k, v in SYMBOL_TH.items() if f"— {v} " in t), "BTCUSD")   # ข้อความรุ่นแรกไม่มีชื่อตลาด = BTC
+                if sym not in self.regime:
+                    self.regime[sym] = next((k for k, v in REGIME_TH.items() if t.startswith(f"สภาพตลาดเปลี่ยน: {v}")), None)
 
     def decide(self, s: Snapshot, pauses: dict[str, dict]) -> list[Action]:
         acts: list[Action] = []
@@ -334,24 +345,30 @@ class RuleBrain:
 
     def regime_moves(self, s: Snapshot, tests: dict[str, dict], pauses: dict[str, dict]) -> list[Action]:
         """สภาพตลาดยืนยันแล้ว → พักบอทที่สายไม่เข้ากัน · ให้ตัวที่พักเพราะสภาพตลาดกลับเมื่อเข้ากันอีกครั้ง"""
-        now, er = market_regime(s.btc_bars)
-        self.regimes = (self.regimes + [now])[-REGIME_CONFIRM:]
-        if now is None or len(self.regimes) < REGIME_CONFIRM or len(set(self.regimes)) != 1:
-            return []
         acts: list[Action] = []
-        if now != self.regime:
-            self.regime, self.acted = now, set()
-            acts.append(Action("say", reason=f"สภาพตลาดเปลี่ยน: {REGIME_TH[now]} (efficiency {er:.2f} จาก BTC M5 2 ชม.)"))
-        for n, b in tests.items():
-            if n in self.acted or b["symbol"] != "BTCUSD":
+        for sym in s.symbols():
+            now, er = market_regime(s.bars_of(sym))
+            hist = self.regimes.setdefault(sym, [])
+            hist.append(now)
+            del hist[:-REGIME_CONFIRM]
+            if now is None or len(hist) < REGIME_CONFIRM or len(set(hist)) != 1:
                 continue
-            fit, why, p = *self.fit(b.get("family"), now), pauses.get(n)
-            if fit is False and p is None and not b["open"]:
-                self.acted.add(n)
-                acts.append(Action("pause", n, REGIME_PAUSE_MIN if PAUSE_BOTS else PAPER_MIN, f"{n} สาย {b.get('family')} ไม่ถนัด{REGIME_TH[now]}{why} — พักรอ", tag="regime"))
-            elif fit is not False and p and p.get("tag") == "regime" and s.t - p.get("since", 0) >= REGIME_MIN_REST_MIN * 60:
-                self.acted.add(n)
-                acts.append(Action("resume", n, reason=f"{REGIME_TH[now]} — สาย {b.get('family')} กลับมาลุยได้{why}", tag="regime"))
+            name = SYMBOL_TH.get(sym, sym)
+            if now != self.regime.get(sym):
+                self.regime[sym], self.acted[sym] = now, set()
+                acts.append(Action("say", reason=f"สภาพตลาดเปลี่ยน: {REGIME_TH[now]} — {name} (efficiency {er:.2f} จาก M5 2 ชม.)"))
+            acted = self.acted.setdefault(sym, set())
+            for n, b in tests.items():
+                if n in acted or b.get("symbol") != sym:
+                    continue
+                fit, why, p = *self.fit(b.get("family"), now), pauses.get(n)
+                if fit is False and p is None and not b["open"]:
+                    acted.add(n)
+                    acts.append(Action("pause", n, REGIME_PAUSE_MIN if PAUSE_BOTS else PAPER_MIN,
+                                       f"{n} สาย {b.get('family')} ไม่ถนัด{REGIME_TH[now]} ({name}){why} — พักรอ", tag="regime"))
+                elif fit is not False and p and p.get("tag") == "regime" and s.t - p.get("since", 0) >= REGIME_MIN_REST_MIN * 60:
+                    acted.add(n)
+                    acts.append(Action("resume", n, reason=f"{REGIME_TH[now]} ({name}) — สาย {b.get('family')} กลับมาลุยได้{why}", tag="regime"))
         return acts
 
     def fit(self, family: str | None, regime: str) -> tuple[bool | None, str]:
@@ -374,9 +391,10 @@ class RuleBrain:
             chg = s.btc_bars[-1][4] - s.btc_bars[-61][4]
             move = f"BTC {s.btc_bars[-1][4]:,.0f} ({chg:+,.0f} ใน 1 ชม.)"
         vol = "" if rr is None else (" · ตลาดเงียบ" if rr < 0.7 else " · ตลาดแกว่งแรง" if rr > 1.8 else " · ความผันผวนปกติ")
-        reg, er = market_regime(s.btc_bars)
-        if reg:
-            vol += f" · {REGIME_TH[reg]} (ER {er:.2f})"
+        regs = [(SYMBOL_TH.get(x, x), *market_regime(s.bars_of(x))) for x in s.symbols()]
+        regs = [f"{nm} {REGIME_TH[rg].replace('ตลาด', '')} (ER {er:.2f})" for nm, rg, er in regs if rg]
+        if regs:
+            vol += " · " + " / ".join(regs)
         opens = sum(len(b["open"]) for b in tests.values())
         parts = [f"รายงาน: {move}{vol}", f"บอททดสอบวันนี้รวม {day:+.2f}$ · ถือไม้ {opens} ไม้ · equity ${s.equity:,.2f}"]
         if best and worst and best[0] != worst[0]:
@@ -457,11 +475,14 @@ class Manager:
 
     def tick(self) -> None:
         s = build_snapshot(self.col)
-        regime, er = market_regime(s.btc_bars)
-        b = s.btc_bars
-        move = (b[-1][4] - b[-121][4]) if len(b) > 121 else 0.0
-        trend_dir = 0 if regime != "trend" else (1 if move > 0 else -1)
-        learned = self.learner.observe(s.test_bots(), regime, er, s.t, trend_dir)
+        by_symbol = {}
+        for sym in s.symbols():
+            bars = s.bars_of(sym)
+            rg, er = market_regime(bars)
+            move = (bars[-1][4] - bars[-121][4]) if len(bars) > 121 else 0.0
+            by_symbol[sym] = (rg, er, 0 if rg != "trend" else (1 if move > 0 else -1))
+        btc = by_symbol.get("BTCUSD", (None, None, 0))
+        learned = self.learner.observe(s.test_bots(), btc[0], btc[1], s.t, btc[2], by_symbol)
         if learned:
             from . import dataset
             assigned = {b["bot"]: b for b in C.load_m5_bots()}
@@ -627,7 +648,7 @@ class Manager:
             say("action", f"▶ ปิดเพดานขาดทุนแล้ว (DEMO ลองเต็มที่) — ปล่อย {', '.join(freed)} กลับมาทำงาน", act="resume")
 
     def run(self) -> None:
-        say("info", f"ผู้จัดการพอร์ตเริ่มงาน ({self.brain_name()}) — เฝ้าบอททดสอบ 9 ตัวทุก {TICK_SEC} วิ · ไม่แตะ main",
+        say("info", f"ผู้จัดการพอร์ตเริ่มงาน ({self.brain_name()}) — เฝ้าบอททดสอบ {C.N_TEST} ตัว (BTC + ทอง/NAS100) ทุก {TICK_SEC} วิ · ไม่แตะ main",
             src=self.llm.src if self.llm else "rules")
         if not LOSS_STOPS:
             self.release_loss_stops()

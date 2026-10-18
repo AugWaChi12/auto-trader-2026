@@ -203,7 +203,7 @@ def test_regime_pauses_mismatched_family_after_confirm_then_resumes() -> None:
 def test_restart_does_not_reannounce_same_regime() -> None:
     M.say("analysis", "สภาพตลาดเปลี่ยน: ตลาดวิ่งเป็นเทรนด์ (efficiency 0.5)")
     b = M.RuleBrain()
-    assert b.regime == "trend"
+    assert b.regime == {"BTCUSD": "trend"}
     for _ in range(M.REGIME_CONFIRM):
         acts = b.decide(snap(bars=bars("trend")), {})
     assert not any("สภาพตลาดเปลี่ยน" in a.reason for a in acts)
@@ -489,3 +489,15 @@ def test_release_all_pauses_when_paper_mode() -> None:
     M.save_pauses({"m5_1": {"until": t + 999, "since": t - 3600, "src": "rules", "tag": "regime", "reason": "x"}})
     M.Manager.release_all_pauses()
     assert M.load_pauses() == {} and SH._load()[-1]["bot"] == "m5_1" and not SH._load()[-1]["paper"]
+
+
+def test_regime_is_per_symbol_for_gold_and_btc_bots() -> None:
+    b = M.RuleBrain()
+    bots = dict(m5_4=bot(family="bb"), m5_12=bot(family="bb", symbol="XAUUSD"))
+    for _ in range(M.REGIME_CONFIRM):
+        s = snap(bars=bars("trend"), **bots)
+        s.bars = {"BTCUSD": bars("trend"), "XAUUSD": bars("range")}
+        acts = b.decide(s, {})
+    assert ("pause", "m5_4") in kinds(acts) and ("pause", "m5_12") not in kinds(acts)   # ทองออกข้าง → bb ถนัด
+    assert b.regime == {"BTCUSD": "trend", "XAUUSD": "range"}
+    assert any("— ทอง" in a.reason for a in acts if a.kind == "say")

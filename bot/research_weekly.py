@@ -84,14 +84,16 @@ def run_weekly(download: bool = True) -> list[dict]:
             pass
     t0 = time.time()
     save_status({"started": t0, "running": True})
-    say("info", "🔬 เริ่มวิจัยประจำวัน: ดึงข้อมูล BTC ล่าสุด → ทดสอบย้อนหลังราว 2,000 แบบ + ตัวกรอง 216 แบบจากสิ่งที่ผู้จัดการเรียนรู้ (ประมาณ 30–60 นาที)")
+    say("info", "🔬 เริ่มวิจัยประจำวัน: ดึงข้อมูลล่าสุดของทุกตลาด (BTC/ทอง/NAS100) → ทดสอบย้อนหลังทุกสาย + ตัวกรองจากสิ่งที่ผู้จัดการเรียนรู้ (ประมาณ 1.5–2 ชม.)")
     try:
+        symbols = sorted({b["symbol"] for b in C.load_m5_bots()}) or ["BTCUSD"]
         if download:
             from .data import mt5_source
             mt5_source.connect()
             end = datetime.now(timezone.utc) + timedelta(days=1)
-            mt5_source.download("BTCUSD", "M5", end - timedelta(days=365), end, DATA_DIR, C.SERVER_TIME_MODE,
-                                C.DEFAULT_SPECS["BTCUSD"])
+            for sym in symbols:
+                mt5_source.download(sym, "M5", end - timedelta(days=365 if sym == "BTCUSD" else 520), end, DATA_DIR,
+                                    C.SERVER_TIME_MODE, C.DEFAULT_SPECS[sym])
         sys.path.insert(0, str(C.ROOT / "research"))
         import m5_lab  # noqa: PLC0415 — โหลดตอนใช้ (มี numpy/pandas หนัก)
         from .dataset import gate_evidence
@@ -100,7 +102,7 @@ def run_weekly(download: bool = True) -> list[dict]:
             p = b["params"]
             if p.get("skip_regimes") or p.get("skip_sessions"):
                 m5_lab.GATE_EVIDENCE[b["bot"]] = gate_evidence(b["bot"], signature(p.get("skip_regimes") or [], p.get("skip_sessions") or []))
-        changes = m5_lab.main(["--symbols", "BTCUSD", "--workers", os.environ.get("RESEARCH_WORKERS", "1"),
+        changes = m5_lab.main(["--symbols", ",".join(symbols), "--workers", os.environ.get("RESEARCH_WORKERS", "1"),
                                "--retune", "--assign-to", str(C.M5_BOTS_TUNED)]) or []
     except Exception as e:  # noqa: BLE001
         log.exception("research failed")

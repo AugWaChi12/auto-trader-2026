@@ -113,13 +113,15 @@ LOG_DIR = ROOT / "logs"
 #                                   +8..+10 bench_rand/bench_long/bench_m5  (2026-10-15)
 #                                   +2, +11..+18 บอท M1 ชุดเดิม (2026-10-17 → ย้ายไป M5 ใช้ +21..+29)
 _T = {"tf": "M1", "profile": "test_free", "allocation": 1000.0}
+N_TEST = 19
 LIVE_INSTANCES: dict[str, dict] = {
     # ทดสอบไปข้างหน้า — ห้ามแตะ
     "main":    {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
-    # บอท M5 วิจัยตัวเอง 9 ตัว: งานของแต่ละตัวอยู่ใน bot/m5_bots.json (เขียนโดย research/m5_lab.py --assign)
+    # บอททดสอบ 19 ตัว (2 เกาะ): m5_1–9 = BTC · m5_10–19 = ทอง + NAS100 (เพิ่ม 2026-10-18 · magic +30..+39)
+    # งานของแต่ละตัวอยู่ใน bot/m5_bots.json (วิจัยเต็ม) / state/m5_bots.json (ปรับใหม่ทุกคืน)
     # timeframe ปรับได้จากหน้าเว็บ /settings · warmup: ตัวแยกสภาวะตลาด (H1) ต้องใช้ ~100 วัน แต่ MT5 ให้ได้ไม่เกิน ~99,990 แท่ง
     **{f"m5_{i}": {"strategies": [f"m5_{i}"], "tf": _S["tf"], "profile": "m5_fixed", "magic": MAGIC + 20 + i,
-                   "allocation": 1000.0, "warmup": {"M1": 99000, "M5": 30000}.get(_S["tf"], 10000)} for i in range(1, 10)},
+                   "allocation": 1000.0, "warmup": {"M1": 99000, "M5": 30000}.get(_S["tf"], 10000)} for i in range(1, N_TEST + 1)},
 }
 
 

@@ -183,6 +183,181 @@
    "wf_usd_day": 0.0,
    "holdout_usd_day": 3.4,
    "random_usd_day": 0.0
+  },
+  {
+   "bot": "m5_10",
+   "family": "donchian",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "entry_n": 12,
+    "stop_atr": 1.0
+   },
+   "plan": "native",
+   "wf_usd_day": 13.6,
+   "wf_usd_trade": 5.32,
+   "holdout_usd_day": -26.99,
+   "random_usd_day": -6.42,
+   "island": 2
+  },
+  {
+   "bot": "m5_11",
+   "family": "momo",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "entry_time": "11:00",
+    "min_move_adr": 0.35,
+    "sl_adr": 0.5
+   },
+   "plan": "trail",
+   "wf_usd_day": 8.87,
+   "wf_usd_trade": 18.66,
+   "holdout_usd_day": 25.98,
+   "random_usd_day": -0.03,
+   "island": 2
+  },
+  {
+   "bot": "m5_12",
+   "family": "ema",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "fast": 9,
+    "slow": 21,
+    "sl_atr": 1.5,
+    "tp_r": 4.0,
+    "max_hold": 96
+   },
+   "plan": "native",
+   "wf_usd_day": 8.56,
+   "wf_usd_trade": 2.37,
+   "holdout_usd_day": 15.69,
+   "random_usd_day": -3.38,
+   "island": 2
+  },
+  {
+   "bot": "m5_13",
+   "family": "ema",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "fast": 20,
+    "slow": 50,
+    "sl_atr": 3.0,
+    "tp_r": 1.0,
+    "max_hold": 96
+   },
+   "plan": "native",
+   "wf_usd_day": 3.53,
+   "wf_usd_trade": 1.45,
+   "holdout_usd_day": -3.28,
+   "random_usd_day": -9.02,
+   "island": 2
+  },
+  {
+   "bot": "m5_14",
+   "family": "momo",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "entry_time": "12:00",
+    "min_move_adr": 0.35,
+    "sl_adr": 0.3
+   },
+   "plan": "native",
+   "wf_usd_day": 0.18,
+   "wf_usd_trade": 0.32,
+   "holdout_usd_day": -4.85,
+   "random_usd_day": 0.44,
+   "island": 2
+  },
+  {
+   "bot": "m5_15",
+   "family": "orb",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "sl_mode": "opposite",
+    "tp_r": 1.0,
+    "buffer_adr": 0.0
+   },
+   "plan": "trail",
+   "wf_usd_day": -0.69,
+   "wf_usd_trade": -1.25,
+   "holdout_usd_day": 19.23,
+   "random_usd_day": null,
+   "island": 2
+  },
+  {
+   "bot": "m5_16",
+   "family": "orb",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "sl_mode": "opposite",
+    "tp_r": 1.0,
+    "buffer_adr": 0.0
+   },
+   "plan": "native",
+   "wf_usd_day": -1.2,
+   "wf_usd_trade": -1.71,
+   "holdout_usd_day": -9.77,
+   "random_usd_day": null,
+   "island": 2
+  },
+  {
+   "bot": "m5_17",
+   "family": "levels",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "max_bars": 1,
+    "buffer_atr": 0.5,
+    "tp_r": 3.0
+   },
+   "plan": "native",
+   "wf_usd_day": -2.15,
+   "wf_usd_trade": -5.87,
+   "holdout_usd_day": -4.13,
+   "random_usd_day": -3.17,
+   "island": 2
+  },
+  {
+   "bot": "m5_18",
+   "family": "levels",
+   "symbol": "NAS100",
+   "lot": 0.73,
+   "params": {
+    "max_bars": 1,
+    "buffer_atr": 0.1,
+    "tp_r": 2.0
+   },
+   "plan": "trail",
+   "wf_usd_day": -2.23,
+   "wf_usd_trade": -9.73,
+   "holdout_usd_day": -2.3,
+   "random_usd_day": 0.27,
+   "island": 2
+  },
+  {
+   "bot": "m5_19",
+   "family": "pullback",
+   "symbol": "XAUUSD",
+   "lot": 0.04,
+   "params": {
+    "trend_tf_min": 60,
+    "trend_ema": 50,
+    "pullback_ema": 10,
+    "sl_atr": 1.5,
+    "tp_r": 1.5
+   },
+   "plan": "native",
+   "wf_usd_day": -2.56,
+   "wf_usd_trade": -2.59,
+   "holdout_usd_day": -5.23,
+   "random_usd_day": null,
+   "island": 2
   }
  ]
 }

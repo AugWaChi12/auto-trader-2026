@@ -24,7 +24,9 @@ LLM_EVERY_MIN = max(5, int(os.environ.get("MANAGER_LLM_MIN") or 15))
 TEST_BOTS = sorted((n for n in C.LIVE_INSTANCES if n != "main"), key=lambda n: int(n.split("_")[1]))
 
 SYSTEM = f"""คุณคือผู้จัดการพอร์ตเทรดอัตโนมัติบนบัญชี DEMO (เงินทดลอง) ของ FxPro MT5
-ภายใต้คุณมีบอททดสอบ {len(TEST_BOTS)} ตัว ({", ".join(TEST_BOTS)}) เทรด BTCUSD ด้วย lot คงที่ แต่ละตัวใช้กลยุทธ์ที่ผ่านการวิจัยแบบ walk-forward มาเอง
+ภายใต้คุณมีบอททดสอบ {len(TEST_BOTS)} ตัว ({", ".join(TEST_BOTS)}) ด้วย lot คงที่ แต่ละตัวใช้กลยุทธ์ที่ผ่านการวิจัยแบบ walk-forward มาเอง
+  เกาะ 1: m5_1–m5_9 เทรด BTCUSD (เปิด 24/7) · เกาะ 2: m5_10–m5_19 เทรดทองคำ XAUUSD และ NAS100 (ปิดเสาร์-อาทิตย์) — แต่ละบอทมี field "symbol"
+  สภาพตลาดต้องดูของตลาดที่บอทนั้นเล่น (markets.<symbol>.regime) ไม่ใช่ของ BTC เสมอไป
 สายกลยุทธ์: ema / donchian / momo / orb / pullback = ตามเทรนด์ · bb / rsi2 / levels = สวนกลับในกรอบ · volx = รอตลาดเงียบแล้วเบรก
 บอท main (ทองคำ M15) ไม่ได้อยู่ใต้การดูแลของคุณ คุณไม่มีเครื่องมือแตะมัน
 
@@ -79,14 +81,24 @@ def _report_conclusions() -> list[str]:
 def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
     now = datetime.now(timezone.utc)
     regime, er = market_regime(s.btc_bars)
+    markets = {}
+    for sym in s.symbols():
+        if sym == "BTCUSD":
+            continue
+        bars = s.bars_of(sym)
+        rg, e = market_regime(bars)
+        markets[sym] = {"last": bars[-1][4] if bars else None, "last_bar_utc": str(bars[-1][0])[:16] if bars else None,
+                        "regime": REGIME_TH.get(rg) if rg else None, "efficiency_ratio_2h": e,
+                        "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(bars, 12)]}
     gates = {b["bot"]: {k: b["params"][k] for k in ("skip_regimes", "skip_sessions") if b["params"].get(k)} or None
              for b in C.load_m5_bots()}
     bots = {}
     for n, b in sorted(s.test_bots().items()):
         p = pauses.get(n)
-        fit = suits(b.get("family"), regime) if regime else None
+        brg = market_regime(s.bars_of(b.get("symbol") or "BTCUSD"))[0]
+        fit = suits(b.get("family"), brg) if brg else None
         bots[n] = {
-            "strategy": b.get("family"), "fits_regime": fit, "gate": gates.get(n), "running": b["alive"], "state": b.get("state"),
+            "symbol": b.get("symbol"), "strategy": b.get("family"), "fits_regime": fit, "gate": gates.get(n), "running": b["alive"], "state": b.get("state"),
             "today_usd": b["today"], "total_usd": b["total"], "trades": b["trades"], "win_rate": b["win_rate"],
             "loss_streak": b["streak"], "day_target_hit": b.get("target_hit"),
             "paused": {"minutes_left": int((p["until"] - s.t) / 60), "by": p.get("src", "rules"), "reason": p.get("reason")} if p else None,
@@ -101,6 +113,7 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
         "btc": {"bid": s.btc, "range15_vs_normal": round(rr, 2) if rr else None,
                 "regime": REGIME_TH.get(regime) if regime else None, "efficiency_ratio_2h": er,
                 "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(s.btc_bars)]},
+        "markets": markets,
         "bots": bots,
         "learned_by_strategy_and_regime": load_summary(),
         "prediction_scoreboard_30d": scoreboard(),

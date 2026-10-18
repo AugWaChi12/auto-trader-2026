@@ -57,7 +57,7 @@ services:
       - ../logs:/app/logs
       - ../data:/app/data                # แท่งราคาที่วิจัยประจำสัปดาห์ดึงมา
     depends_on: [mt5]
-    mem_limit: 1600m                     # บอท 10 ตัว + ผู้จัดการ + วิจัยประจำสัปดาห์ (1 โปรเซส)
+    mem_limit: 2300m                     # บอท 20 ตัว + ผู้จัดการ + วิจัยทุกคืน (1 โปรเซส)
     logging: *logs
 
   monitor:

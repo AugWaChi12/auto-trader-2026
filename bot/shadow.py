@@ -71,10 +71,13 @@ def simulate(bot: str, bars: list, spec: Any, start: float, end: float) -> tuple
     """รันกลยุทธ์ของบอทนี้บนแท่งจริง → (กำไร/ขาดทุนรวม, จำนวนไม้) ของไม้ที่เปิดในช่วง [start, end)"""
     from .backtest.runner import run_backtest
     inst = C.LIVE_INSTANCES[bot]
-    strategies = C.build_strategies([bot], ["BTCUSD"], inst["tf"])
+    sym = next((b["symbol"] for b in C.load_m5_bots() if b["bot"] == bot), "BTCUSD")
+    if sym != "BTCUSD":                 # บอทเงาดึงแท่งเฉพาะ BTC (โหมดพักจริงเท่านั้นที่ใช้ส่วนนี้)
+        return 0.0, 0
+    strategies = C.build_strategies([bot], [sym], inst["tf"])
     if not strategies:
         return 0.0, 0
-    res = run_backtest({"BTCUSD": bars}, {"BTCUSD": spec}, strategies, C.RISK_PROFILES[inst["profile"]], inst["tf"],
+    res = run_backtest({sym: bars}, {sym: spec}, strategies, C.RISK_PROFILES[inst["profile"]], inst["tf"],
                        1_000_000.0)   # ทุนใหญ่เหมือนงานวิจัย: ไม่ให้เพดานบัญชี $600 ตัดการเทรดจำลองก่อนถึงช่วงที่วัด
     picked = [t for t in res.trades if start <= t.open_time.timestamp() < end]
     return round(sum(t.pnl for t in picked), 2), len(picked)

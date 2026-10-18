@@ -39,12 +39,16 @@ class Learner:
         self.detail: dict[str, dict[str, dict]] = d.get("detail", {})      # สาย → "sess:asia" / "trend:against" → ผล
         self.counted: list[str] = d.get("counted", [])
 
-    def observe(self, bots: dict[str, dict], regime: str | None, er: float | None, t: float, trend_dir: int = 0) -> list[dict]:
-        """จดไม้ใหม่ + นับไม้ที่ปิดแล้ว · trend_dir = ทิศราคา BTC 2 ชม. (+1/-1/0) · คืนรายการไม้ที่เพิ่งนับ"""
+    def observe(self, bots: dict[str, dict], regime: str | None, er: float | None, t: float, trend_dir: int = 0,
+                by_symbol: dict[str, tuple] | None = None) -> list[dict]:
+        """จดไม้ใหม่ + นับไม้ที่ปิดแล้ว · trend_dir = ทิศราคา 2 ชม. (+1/-1/0)
+        by_symbol = ตลาด → (สภาพ, ER, ทิศ) ของแต่ละตลาด (ไม่ส่ง = ใช้ค่าเดียวกันทุกบอท) · คืนรายการไม้ที่เพิ่งนับ"""
         from datetime import datetime
         from .strategy.gate import session_of
         changed, learned = False, []
         for name, b in bots.items():
+            if by_symbol is not None:
+                regime, er, trend_dir = by_symbol.get(b.get("symbol"), (None, None, 0))
             for o in b.get("open", []):
                 k = str(o["ticket"])
                 if k not in self.tape and k not in self.counted and regime:

@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
 <title>หมู่บ้านบอท · ระบบเทรดอัตโนมัติ (DEMO)</title>
-<meta name="description" content="ดูบอทเทรดอัตโนมัติ 10 ตัวทำงานแบบเรียลไทม์ในหมู่บ้าน 3D พร้อมผู้จัดการพอร์ต AI ที่สั่งพัก/ปิดไม้ให้เห็นในแชท — บัญชี DEMO เงินทดลอง ไม่ใช่คำแนะนำการลงทุน">
+<meta name="description" content="ดูบอทเทรดอัตโนมัติ 20 ตัว (BTC / ทอง / NAS100) ทำงานแบบเรียลไทม์ในหมู่บ้าน 3D 2 เกาะ พร้อมผู้จัดการพอร์ต AI ที่สั่งพัก/ปิดไม้ให้เห็นในแชท — บัญชี DEMO เงินทดลอง ไม่ใช่คำแนะนำการลงทุน">
 <meta name="theme-color" content="#4aa8f0">
 <meta property="og:type" content="website">
 <meta property="og:title" content="หมู่บ้านบอท · ระบบเทรดอัตโนมัติ (DEMO)">
-<meta property="og:description" content="บอทเทรด BTC และทองคำ 10 ตัว + ผู้จัดการพอร์ต AI ทำงานสดในหมู่บ้าน 3D · บัญชีทดลอง">
+<meta property="og:description" content="บอทเทรด BTC ทองคำ และ NAS100 20 ตัว + ผู้จัดการพอร์ต AI ทำงานสดในหมู่บ้าน 3D · บัญชีทดลอง">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -65,6 +65,10 @@
   .tool:hover { background: #fff; transform: translateY(-1px); }
   .tool[aria-pressed="true"] { background: #efe9ff; border-color: #cbbcff; }
   .tool .ico { font-size: 1.1em; line-height: 1; }
+  .isl-switch { display: flex; gap: 0; margin-right: 4px; }
+  .isl-switch .tool { border-radius: 0; } .isl-switch .tool:first-child { border-radius: 12px 0 0 12px; } .isl-switch .tool:last-child { border-radius: 0 12px 12px 0; border-left: 0; }
+  .isl-switch .tool[aria-pressed="true"] { background: #1d2433; color: #fff; border-color: #1d2433; }
+  .tag3d.island { font-size: 1.15em; background: #1d2433; color: #fff; border-color: #1d2433; }
 
   /* ---------- วิธีดู (popover) */
   .info { position: fixed; left: var(--gap); top: calc(var(--gap) + 112px); width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
@@ -201,7 +205,7 @@
   html.portrait .bubble.boss { max-width: 52vw; }
 
   /* ---------- โหมดไลฟ์ (?stream=1) — สำหรับ TikTok LIVE Studio จับภาพหน้าต่างนี้ */
-  html.stream .subbar, html.stream .info, html.stream #feed .chip:nth-child(n+3),
+  html.stream .subbar, html.stream .info, html.stream .tag3d.island, html.stream #feed .chip:nth-child(n+3),
   html.stream #eqStat, html.stream #clockStat, html.stream #tfStat, html.stream .brand p, html.stream .chat .head .brain, html.stream .chat .head .s { display: none; }
   html.stream .tag3d.icon { padding: .1em .35em; font-size: 1.05em; border-width: 1.5px; border-radius: 999px; }
   html.stream .bubble.hot { font-size: .78em; padding: .15em .6em; }
@@ -228,7 +232,7 @@
 <header class="topbar">
   <div class="brand glass">
     <div class="logo" aria-hidden="true">🤖</div>
-    <div><h1>หมู่บ้านบอท</h1><p>บอทเทรดอัตโนมัติ 10 ตัว + ผู้จัดการพอร์ต AI · สด</p></div>
+    <div><h1>หมู่บ้านบอท</h1><p>บอทเทรด 20 ตัว · 2 เกาะ + ผู้จัดการพอร์ต AI · สด</p></div>
   </div>
   <span class="demo">DEMO · เงินทดลอง</span>
   <span class="spacer"></span>
@@ -244,6 +248,10 @@
 <div class="subbar">
 <nav class="tools" aria-label="เครื่องมือ">
   <button class="tool" id="infoBtn" type="button" aria-expanded="false" aria-controls="info"><span class="ico">ℹ️</span><span class="lbl">วิธีดู</span></button>
+  <span class="isl-switch" role="group" aria-label="เลือกเกาะ">
+    <button class="tool" id="isl1" type="button" aria-pressed="true" title="เกาะ BTC (m5_1–9)"><span class="ico">🏝</span><span>BTC</span></button>
+    <button class="tool" id="isl2" type="button" aria-pressed="false" title="เกาะทอง + NAS100 (m5_10–19)"><span class="ico">🏝</span><span>ทอง/NAS</span></button>
+  </span>
   <button class="tool" id="perfBtn" type="button" aria-haspopup="dialog"><span class="ico">📈</span><span class="lbl">ผลงาน</span></button>
   <button class="tool" id="spinBtn" type="button" aria-pressed="false"><span class="ico">🎥</span><span class="lbl">กล้องหยุด</span></button>
   <a class="tool private" href="/"><span class="ico">📊</span><span class="lbl">แดชบอร์ด</span></a>
@@ -350,6 +358,27 @@ setSpin(spin);
 
 const STREAM = new URLSearchParams(location.search).has("stream");
 if (STREAM) document.documentElement.classList.add("stream");
+const ISLAND2_X = 80, ISL_X = { 1: 0, 2: ISLAND2_X };   // เกาะ 2 อยู่ห่างไปทางขวา
+let island = 1, fly = null;
+try { if (localStorage.getItem("village.island") === "2" && !new URLSearchParams(location.search).has("stream")) island = 2; } catch {}
+function flyTo(n) {
+  if (n === island && !fly) return;
+  const dx = ISL_X[n] - ISL_X[island];
+  fly = { t: 0, p0: camera.position.clone(), t0: controls.target.clone() };
+  fly.p1 = fly.p0.clone().add(new THREE.Vector3(dx, 0, 0)); fly.t1 = fly.t0.clone().add(new THREE.Vector3(dx, 0, 0));
+  island = n; controls.autoRotate = false; idleSince = performance.now();
+  try { localStorage.setItem("village.island", String(n)); } catch {}
+  for (const k of [1, 2]) document.getElementById("isl" + k)?.setAttribute("aria-pressed", k === n ? "true" : "false");
+  hideCard?.();
+}
+function stepFly(dt) {
+  if (!fly) return;
+  fly.t = Math.min(fly.t + dt / 1.6, 1);
+  const k = fly.t < .5 ? 2 * fly.t * fly.t : 1 - Math.pow(-2 * fly.t + 2, 2) / 2;   // ease-in-out
+  controls.target.lerpVectors(fly.t0, fly.t1, k); camera.position.lerpVectors(fly.p0, fly.p1, k);
+  camera.position.y += Math.sin(k * Math.PI) * 6;                                   // ลอยข้ามทะเล
+  if (fly.t >= 1) fly = null;
+}
 function resize() {
   const w = innerWidth, h = innerHeight, a = w / h, portrait = a < .9;
   renderer.setSize(w, h); labels.setSize(w, h); camera.aspect = a;
@@ -358,8 +387,9 @@ function resize() {
   camera.fov = portrait ? 66 : a < 1.5 ? 46 : 38;   // แนวตั้ง: มุมกว้างพอให้เห็นตั้งแต่บ้านพักถึงโซนเทรด
   if (portrait !== resize.portrait) {
     resize.portrait = portrait;
-    if (portrait) { camera.position.set(24, 22, 26); controls.target.set(-3, 0, 0); }   // ถ่ายเฉียงจากมุมโซนเทรด → หมู่บ้านทอดยาวตามแนวลึก พอดีจอตั้ง
-    else { camera.position.set(1, 11, 30); controls.target.set(-1, 2.6, 1.5); }
+    const ox = ISL_X[island];
+    if (portrait) { camera.position.set(24 + ox, 22, 26); controls.target.set(-3 + ox, 0, 0); }   // ถ่ายเฉียงจากมุมโซนเทรด → หมู่บ้านทอดยาวตามแนวลึก พอดีจอตั้ง
+    else { camera.position.set(1 + ox, 11, 30); controls.target.set(-1 + ox, 2.6, 1.5); }
   }
   camera.updateProjectionMatrix();
 }
@@ -410,11 +440,13 @@ function tag(html, cls = "tag3d") { const d = document.createElement("div"); d.c
 
 // พื้น: เกาะหญ้าลอยมีชั้นดิน
 const world = new THREE.Group(); scene.add(world);
-{
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 1.2, 64), mat(0x78cc63, { roughness: .9 }));
-  top.scale.z = .55; top.position.y = -.6; top.receiveShadow = true; world.add(top);
+// เกาะ 1 = บอท BTC (m5_1–9) · เกาะ 2 = บอททอง + NAS100 (m5_10–19) อยู่ห่างไปทางขวา ISLAND2_X หน่วย
+const grounds = [];
+function makeGround(dx, isl) {
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 1.2, 64), mat(isl === 2 ? 0x8fd06a : 0x78cc63, { roughness: .9 }));
+  top.scale.z = .55; top.position.set(dx, -.6, 0); top.receiveShadow = true; top.userData.isl = isl; world.add(top); grounds.push(top);
   const dirt = new THREE.Mesh(new THREE.CylinderGeometry(29.6, 24, 4, 64), mat(0x9a6b45, { roughness: 1 }));
-  dirt.scale.z = .55; dirt.position.y = -3.2; world.add(dirt);
+  dirt.scale.z = .55; dirt.position.set(dx, -3.2, 0); world.add(dirt);
   const rng = (a) => (Math.sin(a * 91.7) * 43758.5) % 1;
   for (let k = 0; k < 26; k++) {         // ต้นไม้ low-poly รอบขอบ
     const a = (k / 26) * Math.PI * 2 + rng(k) * .2, r = 24 + Math.abs(rng(k + 3)) * 4;
@@ -423,14 +455,16 @@ const world = new THREE.Group(); scene.add(world);
     const t = new THREE.Group();
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.18, .25, 1.2, 6), mat(0x8a5a36)); trunk.position.y = .6; t.add(trunk);
     const crown = new THREE.Mesh(new THREE.ConeGeometry(1 + Math.abs(rng(k + 7)) * .6, 2.4, 7), mat(k % 3 ? 0x3fa45a : 0x2f8f4e, { flatShading: true }));
-    crown.position.y = 2.2; t.add(crown); t.position.set(x, 0, z); world.add(shadowy(t));
+    crown.position.y = 2.2; t.add(crown); t.position.set(x + dx, 0, z); world.add(shadowy(t));
   }
   for (let k = 0; k < 40; k++) {         // พุ่มหญ้า
     const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.35 + Math.abs(rng(k + 11)) * .3, 0), mat(0x5fb84f, { flatShading: true }));
     b.position.set(rng(k + 13) * 26, .1, rng(k + 17) * 13); if (Math.abs(b.position.z - 4) < 2.5 && Math.abs(b.position.x) < 15) continue;
-    world.add(shadowy(b));
+    b.position.x += dx; world.add(shadowy(b));
   }
+  const lbl = tag(isl === 1 ? "🏝 เกาะ BTC" : "🏝 เกาะทอง + NAS100", "tag3d big island"); lbl.position.set(dx - 22, 2.2, 12); world.add(lbl);
 }
+makeGround(0, 1); makeGround(ISLAND2_X, 2);
 // เมฆ
 const clouds = [];
 for (let k = 0; k < 7; k++) {
@@ -440,42 +474,43 @@ for (let k = 0; k < 7; k++) {
 }
 
 // ------------------------------------------------------------------ ภูเขาราคา BTC
-const MT = { x0: -26, x1: 24, z: -14, base: 0, hmin: 2, hmax: 8.5 };
-let mountain = null, priceFlag = null, priceTag = null, hiTag = null;
-function buildMountain(bars) {
+const MT = { x0: -26, x1: 24, z: -14, base: 0, hmin: 2, hmax: 8.5, label: "BTC" };
+const MT2 = { ...MT, x0: -26 + ISLAND2_X, x1: 24 + ISLAND2_X, label: "ทอง" };
+function buildMountain(bars, M = MT) {
   if (bars.length < 2) return;
-  if (mountain) { scene.remove(mountain); mountain.traverse(o => o.geometry?.dispose()); }
-  mountain = new THREE.Group();
+  if (M.mountain) { scene.remove(M.mountain); M.mountain.traverse(o => o.geometry?.dispose()); }
+  const mountain = M.mountain = new THREE.Group();
   const lo = Math.min(...bars), hi = Math.max(...bars), span = (hi - lo) || 1;
-  const H = (v) => MT.hmin + (v - lo) / span * (MT.hmax - MT.hmin);
-  const X = (k) => MT.x0 + (MT.x1 - MT.x0) * k / (bars.length - 1);
-  for (const [dz, depth, col, scale] of [[-7, 4, 0x8db4d6, 1.15], [0, 3, 0x5c9b6c, 1]]) {
-    const shape = new THREE.Shape(); shape.moveTo(MT.x0, MT.base);
-    bars.forEach((v, k) => shape.lineTo(X(k), dz ? MT.base + (H(v) * scale + Math.sin(k * .25) * .8) : H(v)));
-    shape.lineTo(MT.x1, MT.base); shape.closePath();
+  const H = (v) => M.hmin + (v - lo) / span * (M.hmax - M.hmin);
+  const X = (k) => M.x0 + (M.x1 - M.x0) * k / (bars.length - 1);
+  for (const [dz, depth, col, scale] of [[-7, 4, M === MT ? 0x8db4d6 : 0xd6c48d, 1.15], [0, 3, M === MT ? 0x5c9b6c : 0x8a9b5c, 1]]) {
+    const shape = new THREE.Shape(); shape.moveTo(M.x0, M.base);
+    bars.forEach((v, k) => shape.lineTo(X(k), dz ? M.base + (H(v) * scale + Math.sin(k * .25) * .8) : H(v)));
+    shape.lineTo(M.x1, M.base); shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: .4, bevelSize: .3, bevelSegments: 2 });
     const m = new THREE.Mesh(geo, mat(col, { flatShading: true, roughness: .95 }));
-    m.position.z = MT.z + dz - depth; m.castShadow = !dz; m.receiveShadow = true; mountain.add(m);
+    m.position.z = M.z + dz - depth; m.castShadow = !dz; m.receiveShadow = true; mountain.add(m);
   }
   // สันเขา = เส้นราคา
-  const pts = bars.map((v, k) => new THREE.Vector3(X(k), H(v) + .05, MT.z + .45));
+  const pts = bars.map((v, k) => new THREE.Vector3(X(k), H(v) + .05, M.z + .45));
   const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), bars.length * 2, .09, 6),
     new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: .35 }));
   mountain.add(tube);
   scene.add(mountain);
   // ธงราคาล่าสุด
   const last = pts[pts.length - 1], up = bars[bars.length - 1] >= bars[0];
-  if (!priceFlag) {
-    priceFlag = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.4, 8), INK); pole.position.y = 1.2; priceFlag.add(pole);
-    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .8), mat(0x22c46a, { side: THREE.DoubleSide })); cloth.position.set(.65, 2, 0); priceFlag.add(cloth);
-    priceFlag.userData.cloth = cloth; priceTag = tag("", "tag3d price"); priceTag.position.set(0, 3.1, 0); priceFlag.add(priceTag);
-    scene.add(shadowy(priceFlag));
-    hiTag = tag("", "tag3d"); hiTag.visible = !STREAM; scene.add(hiTag);
+  if (!M.flag) {
+    M.flag = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.4, 8), INK); pole.position.y = 1.2; M.flag.add(pole);
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .8), mat(0x22c46a, { side: THREE.DoubleSide })); cloth.position.set(.65, 2, 0); M.flag.add(cloth);
+    M.flag.userData.cloth = cloth; M.priceTag = tag("", "tag3d price"); M.priceTag.position.set(0, 3.1, 0); M.flag.add(M.priceTag);
+    scene.add(shadowy(M.flag));
+    M.hiTag = tag("", "tag3d"); M.hiTag.visible = !STREAM; scene.add(M.hiTag);
   }
-  priceFlag.position.copy(last); priceFlag.userData.cloth.material.color.set(up ? 0x22c46a : 0xff5a50);
-  priceTag.element.textContent = "BTC " + bars[bars.length - 1].toLocaleString("en-US", { maximumFractionDigits: 0 });
-  const kHi = bars.indexOf(hi); hiTag.position.set(X(kHi), H(hi) + 1.2, MT.z); hiTag.element.textContent = "สูงสุด " + hi.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const dec = M === MT ? 0 : 2;
+  M.flag.position.copy(last); M.flag.userData.cloth.material.color.set(up ? 0x22c46a : 0xff5a50);
+  M.priceTag.element.textContent = M.label + " " + bars[bars.length - 1].toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const kHi = bars.indexOf(hi); M.hiTag.position.set(X(kHi), H(hi) + 1.2, M.z); M.hiTag.element.textContent = "สูงสุด " + hi.toLocaleString("en-US", { maximumFractionDigits: dec });
 }
 
 // ------------------------------------------------------------------ สะพานสายพาน + ด่าน + หอ MT5
@@ -632,48 +667,58 @@ function sign(text, x, z, h = 2.4) {
   const t = tag(STREAM ? text.split(" ")[0] : text, "tag3d big" + (STREAM ? " icon" : "")); t.position.y = h + .9; g.add(t);
   g.position.set(x, 0, z); scene.add(shadowy(g)); return g;
 }
-const tradeZone = new THREE.Group();
-{
-  const { cx, cz, r } = ZONES.trade;
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(r, r + .3, .3, 48), mat(0x2b3550, { roughness: .4, metalness: .3 }));
-  base.position.y = .15; base.receiveShadow = true; tradeZone.add(base);
-  const inner = new THREE.Mesh(new THREE.CircleGeometry(r - .5, 48), new THREE.MeshStandardMaterial({ color: 0x1d2433, emissive: 0x2fd17a, emissiveIntensity: .08 }));
-  inner.rotation.x = -Math.PI / 2; inner.position.y = .31; tradeZone.add(inner);
-  const edgeM = new THREE.MeshStandardMaterial({ color: 0x2fd17a, emissive: 0x2fd17a, emissiveIntensity: 1.2 });
-  const edge = new THREE.Mesh(new THREE.TorusGeometry(r - .1, .07, 8, 64), edgeM); edge.rotation.x = Math.PI / 2; edge.position.y = .33; tradeZone.add(edge);
-  for (let k = 0; k < 8; k++) {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(.06, .02, r - .8), new THREE.MeshBasicMaterial({ color: 0x2fd17a, transparent: true, opacity: .35 }));
-    b.position.set(Math.sin(k * Math.PI / 4) * (r - .8) / 2, .33, Math.cos(k * Math.PI / 4) * (r - .8) / 2); b.rotation.y = k * Math.PI / 4; tradeZone.add(b);
+function shiftZones(Z, dx) {
+  return { plaza: { ...Z.plaza, x0: Z.plaza.x0 + dx, x1: Z.plaza.x1 + dx }, gate: { ...Z.gate, cx: Z.gate.cx + dx },
+           trade: { ...Z.trade, cx: Z.trade.cx + dx }, house: { ...Z.house, cx: Z.house.cx + dx } };
+}
+const ZONES_OF = { 1: ZONES, 2: shiftZones(ZONES, ISLAND2_X) };
+function makeZones(Z, dx) {
+  const tradeZone = new THREE.Group();
+  {
+    const { cx, cz, r } = Z.trade;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(r, r + .3, .3, 48), mat(0x2b3550, { roughness: .4, metalness: .3 }));
+    base.position.y = .15; base.receiveShadow = true; tradeZone.add(base);
+    const inner = new THREE.Mesh(new THREE.CircleGeometry(r - .5, 48), new THREE.MeshStandardMaterial({ color: 0x1d2433, emissive: 0x2fd17a, emissiveIntensity: .08 }));
+    inner.rotation.x = -Math.PI / 2; inner.position.y = .31; tradeZone.add(inner);
+    const edgeM = new THREE.MeshStandardMaterial({ color: 0x2fd17a, emissive: 0x2fd17a, emissiveIntensity: 1.2 });
+    const edge = new THREE.Mesh(new THREE.TorusGeometry(r - .1, .07, 8, 64), edgeM); edge.rotation.x = Math.PI / 2; edge.position.y = .33; tradeZone.add(edge);
+    for (let k = 0; k < 8; k++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(.06, .02, r - .8), new THREE.MeshBasicMaterial({ color: 0x2fd17a, transparent: true, opacity: .35 }));
+      b.position.set(Math.sin(k * Math.PI / 4) * (r - .8) / 2, .33, Math.cos(k * Math.PI / 4) * (r - .8) / 2); b.rotation.y = k * Math.PI / 4; tradeZone.add(b);
+    }
+    tradeZone.position.set(cx, 0, cz); tradeZone.userData = { edgeM, inner }; scene.add(tradeZone);
+    sign("⚡ โซนเทรด", cx + r + .4, cz - 1.6, 2.8);
   }
-  tradeZone.position.set(cx, 0, cz); tradeZone.userData = { edgeM, inner }; scene.add(tradeZone);
-  sign("⚡ โซนเทรด", cx + r + .4, cz - 1.6, 2.8);
+  {
+    const { cx, cz } = Z.gate;
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(1.8, 40), new THREE.MeshStandardMaterial({ color: 0xffcf33, emissive: 0xffcf33, emissiveIntensity: .25, transparent: true, opacity: .55 }));
+    pad.rotation.x = -Math.PI / 2; pad.position.set(cx, .03, cz); scene.add(pad);
+    sign("🎯 เตรียมเข้า", cx - 2.3, cz + .9, 1.6);
+  }
+  {
+    const { cx, cz } = Z.house, h = new THREE.Group();
+    const walls = new THREE.Mesh(new RoundedBoxGeometry(3.4, 2.2, 2.6, 2, .12), mat(0xf6e7c8)); walls.position.y = 1.1; h.add(walls);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.6, 4), mat(0xd35b4a, { flatShading: true })); roof.position.y = 3; roof.rotation.y = Math.PI / 4; h.add(roof);
+    const door = new THREE.Mesh(new RoundedBoxGeometry(.8, 1.3, .1, 2, .08), mat(0x8a5a36)); door.position.set(0, .7, 1.31); h.add(door);
+    for (const wx of [-1.05, 1.05]) { const w = new THREE.Mesh(new THREE.BoxGeometry(.6, .55, .08), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffc94a, emissiveIntensity: .5 })); w.position.set(wx, 1.35, 1.31); h.add(w); }
+    const chim = new THREE.Mesh(new THREE.BoxGeometry(.4, .9, .4), mat(0x9a6b45)); chim.position.set(.9, 3.3, -.4); h.add(chim);
+    h.position.set(cx, 0, cz - 1.6); scene.add(shadowy(h));
+    sign("💤 บ้านพัก", cx - 2.4, cz + .6, 2);
+  }
+  sign("👀 ลานเฝ้าราคา", -12.5 + dx, 11, 1.6);
+  return tradeZone;
 }
-{
-  const { cx, cz } = ZONES.gate;
-  const pad = new THREE.Mesh(new THREE.CircleGeometry(1.8, 40), new THREE.MeshStandardMaterial({ color: 0xffcf33, emissive: 0xffcf33, emissiveIntensity: .25, transparent: true, opacity: .55 }));
-  pad.rotation.x = -Math.PI / 2; pad.position.set(cx, .03, cz); scene.add(pad);
-  sign("🎯 เตรียมเข้า", cx - 2.3, cz + .9, 1.6);
-}
-{
-  const { cx, cz } = ZONES.house, h = new THREE.Group();
-  const walls = new THREE.Mesh(new RoundedBoxGeometry(3.4, 2.2, 2.6, 2, .12), mat(0xf6e7c8)); walls.position.y = 1.1; h.add(walls);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.6, 4), mat(0xd35b4a, { flatShading: true })); roof.position.y = 3; roof.rotation.y = Math.PI / 4; h.add(roof);
-  const door = new THREE.Mesh(new RoundedBoxGeometry(.8, 1.3, .1, 2, .08), mat(0x8a5a36)); door.position.set(0, .7, 1.31); h.add(door);
-  for (const wx of [-1.05, 1.05]) { const w = new THREE.Mesh(new THREE.BoxGeometry(.6, .55, .08), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffc94a, emissiveIntensity: .5 })); w.position.set(wx, 1.35, 1.31); h.add(w); }
-  const chim = new THREE.Mesh(new THREE.BoxGeometry(.4, .9, .4), mat(0x9a6b45)); chim.position.set(.9, 3.3, -.4); h.add(chim);
-  h.position.set(cx, 0, cz - 1.6); scene.add(shadowy(h));
-  sign("💤 บ้านพัก", cx - 2.4, cz + .6, 2);
-}
-sign("👀 ลานเฝ้าราคา", -12.5, 11, 1.6);
+const tradeZones = { 1: makeZones(ZONES_OF[1], 0), 2: makeZones(ZONES_OF[2], ISLAND2_X) };
 
 function zoneFor(r) { return { trade: "trade", aim: "gate", watch: "plaza" }[r.mode] || "house"; }
 function pickPoint(zone, r) {
-  if (zone === "plaza") { const z = ZONES.plaza; return new THREE.Vector3(z.x0 + Math.random() * (z.x1 - z.x0), 0, z.z0 + Math.random() * (z.z1 - z.z0)); }
-  if (zone === "gate") { const z = ZONES.gate; return new THREE.Vector3(z.cx + (Math.random() - .5) * 2.4, 0, z.cz + (Math.random() - .5) * 1.6); }
-  if (zone === "house") { const z = ZONES.house; return new THREE.Vector3(z.cx + (Math.random() - .5) * 4.5, 0, z.cz + .6 + Math.random() * 1.6); }
-  const busy = robots.filter(x => x.mode === "trade" && x.name !== "main"), k = Math.max(busy.indexOf(r), 0), n = Math.max(busy.length, 1);
-  const a = -Math.PI / 2 + (k / n) * Math.PI * 2, rad = n === 1 ? 0 : ZONES.trade.r * .55;
-  return new THREE.Vector3(ZONES.trade.cx + Math.cos(a) * rad, .3, ZONES.trade.cz + Math.sin(a) * rad);
+  const Z = ZONES_OF[r?.isl || 1];
+  if (zone === "plaza") { const z = Z.plaza; return new THREE.Vector3(z.x0 + Math.random() * (z.x1 - z.x0), 0, z.z0 + Math.random() * (z.z1 - z.z0)); }
+  if (zone === "gate") { const z = Z.gate; return new THREE.Vector3(z.cx + (Math.random() - .5) * 2.4, 0, z.cz + (Math.random() - .5) * 1.6); }
+  if (zone === "house") { const z = Z.house; return new THREE.Vector3(z.cx + (Math.random() - .5) * 4.5, 0, z.cz + .6 + Math.random() * 1.6); }
+  const busy = robots.filter(x => x.mode === "trade" && x.name !== "main" && (x.isl || 1) === (r.isl || 1)), k = Math.max(busy.indexOf(r), 0), n = Math.max(busy.length, 1);
+  const a = -Math.PI / 2 + (k / n) * Math.PI * 2, rad = n === 1 ? 0 : Z.trade.r * .55;
+  return new THREE.Vector3(Z.trade.cx + Math.cos(a) * rad, .3, Z.trade.cz + Math.sin(a) * rad);
 }
 const _d = new THREE.Vector3();
 let moveDt = 0;
@@ -686,7 +731,7 @@ function walk(r, dt) {
   const p = r.obj.position;
   _d.set(r.target.x - p.x, 0, r.target.z - p.z);
   const dist = _d.length();
-  const onStage = Math.hypot(p.x - ZONES.trade.cx, p.z - ZONES.trade.cz) < ZONES.trade.r;
+  const ZT = ZONES_OF[r.isl || 1].trade, onStage = Math.hypot(p.x - ZT.cx, p.z - ZT.cz) < ZT.r;
   p.y += ((onStage ? .3 : 0) - p.y) * .25;   // ขึ้นแท่นโซนเทรด
   if (dist > .08) {
     const speed = zone === "trade" || zone === "gate" ? 3.2 : r.mode === "off" ? 1 : 1.8;   // รีบไปโซนเทรด / เดินเล่นช้าๆ
@@ -719,6 +764,10 @@ async function refresh() {
 }
 async function refreshBars() {
   try {
+    const g = await (await fetch("/api/bars?symbol=XAUUSD&tf=M1&n=180", { cache: "no-store" })).json();
+    if (g.bars?.length) buildMountain(g.bars.map(b => b[4]), MT2);
+  } catch {}
+  try {
     const r = await (await fetch("/api/bars?symbol=BTCUSD&tf=M1&n=180", { cache: "no-store" })).json();
     if (r.bars?.length) buildMountain(r.bars.map(b => b[4]));
     if (r.bid) {
@@ -743,7 +792,8 @@ function sync(d) {
     robots = names.map((n, i) => {
       const fam = n === "main" ? "main" : (d.research?.[n]?.family || "volx");
       const obj = makeRobot(n, fam); scene.add(obj);
-      return { name: n, i, fam, obj, jump: 0, rain: 0, blink: Math.random() * 4, seed: Math.random() * 10 };
+      const sym = d.research?.[n]?.symbol, isl = n !== "main" && sym && sym !== "BTCUSD" ? 2 : 1;
+      return { name: n, i, fam, obj, isl, jump: 0, rain: 0, blink: Math.random() * 4, seed: Math.random() * 10 };
     });
     placeRobots();
   }
@@ -939,6 +989,9 @@ function setPerf(open) {
   if (open) { refresh(); refreshManager().then(renderPerf); renderPerf(); $("perfX").focus(); }
 }
 $("perfBtn").onclick = () => setPerf(true);
+$("isl1").onclick = () => flyTo(1); $("isl2").onclick = () => flyTo(2);
+for (const k of [1, 2]) $("isl" + k).setAttribute("aria-pressed", k === island ? "true" : "false");
+if (STREAM) setInterval(() => flyTo(island === 1 ? 2 : 1), 45000);   // ไลฟ์: สลับเกาะเองทุก 45 วิ
 $("perfX").onclick = $("perfBg").onclick = () => setPerf(false);
 addEventListener("keydown", (e) => { if (e.key === "Escape") setPerf(false); });
 setInterval(renderPerf, 30000);
@@ -982,7 +1035,10 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(mouse, camera);
   const hits = ray.intersectObjects(robots.map(r => r.obj), true);
   let o = hits[0]?.object; while (o && !o.userData?.name) o = o.parent;
-  if (o) { cardFor = o.userData.name; showCard(cardFor, e.clientX, e.clientY); } else hideCard();
+  if (o) { cardFor = o.userData.name; showCard(cardFor, e.clientX, e.clientY); return; }
+  hideCard();
+  const g = ray.intersectObjects(grounds, false)[0];          // คลิกพื้นอีกเกาะ → ลอยไปเกาะนั้น
+  if (g && g.object.userData.isl !== island) flyTo(g.object.userData.isl);
 });
 $("cardx").onclick = hideCard;
 $("card").addEventListener("click", (e) => { const b = e.target.closest(".ctl button"); if (b && cardFor) botAction(b, cardFor, b.dataset.act); });
@@ -1061,19 +1117,22 @@ function frame() {
   updateSky();
   if (spin && performance.now() - idleSince > 12000) controls.autoRotate = true;
   if (controls.autoRotate) controls.autoRotateSpeed = .35 * Math.sin(t * .05);   // ส่ายกล้องช้าๆ ไปมาตอนไม่มีคนจับ
+  stepFly(Math.min(raw, .05));
   controls.update();
   beltTex.offset.x -= dt * .6;
   tower.userData.beacon.material.emissiveIntensity = 1 + (Math.sin(t * 4) > 0 ? 2 : 0);
   clouds.forEach(c => { c.position.x += c.userData.v * dt; if (c.position.x > 60) c.position.x = -60; });
   goldIsland.position.y = 2.2 + Math.sin(t * .8) * .25;
   const main = robots.find(r => r.name === "main"); if (main) main.obj.position.y = goldIsland.position.y;
-  if (priceFlag) priceFlag.userData.cloth.rotation.y = Math.sin(t * 3) * .2;
+  for (const M of [MT, MT2]) if (M.flag) M.flag.userData.cloth.rotation.y = Math.sin(t * 3) * .2;
   for (const r of robots) animateRobot(r, t, dt);
   animateBoss(t, dt);
   separate();
-  const anyTrade = robots.some(r => r.mode === "trade" && r.name !== "main");
-  tradeZone.userData.edgeM.emissiveIntensity = anyTrade ? 1.6 + Math.sin(t * 4) * .8 : .6;
-  tradeZone.userData.inner.material.emissiveIntensity = anyTrade ? .25 + Math.sin(t * 4) * .1 : .06;
+  for (const isl of [1, 2]) {
+    const tz = tradeZones[isl], anyTrade = robots.some(r => r.mode === "trade" && r.name !== "main" && (r.isl || 1) === isl);
+    tz.userData.edgeM.emissiveIntensity = anyTrade ? 1.6 + Math.sin(t * 4) * .8 : .6;
+    tz.userData.inner.material.emissiveIntensity = anyTrade ? .25 + Math.sin(t * 4) * .1 : .06;
+  }
   parcels = parcels.filter(p => { const alive = stepParcel(p, dt); if (!alive) { scene.remove(p.m); p.m.traverse(o => o.element?.remove()); } return alive; });
   coins = coins.filter(c => stepCoin(c, dt));
   gates.forEach(g => { const near = parcels.some(p => Math.abs(p.m.position.x - g.position.x) < 1.6 && p.t > .2);
