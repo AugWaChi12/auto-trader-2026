@@ -422,6 +422,12 @@ def public_view(d: dict) -> dict:
     }
 
 
+def manager_payload() -> bytes:
+    """แชทของผู้จัดการพอร์ต + บอทที่สั่งพักอยู่ (สาธารณะเห็นได้ — ไม่มีข้อมูลบัญชี)"""
+    from .. import manager as M
+    return json.dumps({"messages": M.read_log(80), "pauses": M.load_pauses()}, ensure_ascii=False).encode()
+
+
 def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
@@ -445,6 +451,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 n = max(20, min(int(q.get("n", ["150"])[0]), 500))
                 d = col.bars(q.get("symbol", ["XAUUSD"])[0], q.get("tf", ["M5"])[0], n)
                 self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/manager":
+                self._send(manager_payload(), "application/json")
             elif url.path == "/api/version":
                 # หน้าเว็บเช็กทุก 10 วิ — ไฟล์หน้าเปลี่ยน = รีโหลดตัวเอง (หน้าต่างไลฟ์ไม่ต้องปิด LIVE Studio จึงจับภาพต่อได้)
                 page = PAGES.get(parse_qs(url.query).get("page", ["/sandbox"])[0])
@@ -480,6 +488,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
                 d = col.bars(sym, tf, max(20, min(int(q.get("n", ["180"])[0]), 200)))
                 d = {k: d.get(k) for k in ("symbol", "tf", "bars", "bid")}
                 self._send(json.dumps(d, ensure_ascii=False, default=str).encode(), "application/json")
+            elif url.path == "/api/manager":
+                self._send(manager_payload(), "application/json")
             elif url.path == "/api/version":
                 self._send(json.dumps({"v": int(PAGES["/sandbox"].stat().st_mtime)}).encode(), "application/json")
             else:

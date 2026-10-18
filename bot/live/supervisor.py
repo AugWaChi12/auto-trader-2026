@@ -8,11 +8,14 @@ supervisor.py — คุมบอททุกตัวในโปรเซส�
   · state/bot_settings.json เปลี่ยน (กดบันทึกในหน้า /settings หรือกดปิด/เปิดบอท):
         แค่รายชื่อบอทที่ปิดเปลี่ยน → หยุด/เปิดเฉพาะตัวนั้น
         ค่าอื่นเปลี่ยน (TF / lot / เป้า / ขยาย SL) → รีสตาร์ทบอททดสอบทั้งหมด (main ไม่แตะ)
+  · ผู้จัดการพอร์ต (python -m bot manager) รันเป็นโปรเซสลูกอีกตัว (ปิดได้ด้วย MANAGER=0)
+        บอทที่ผู้จัดการสั่งพัก (state/manager_pauses.json) → หยุดจนครบเวลา แล้วเปิดใหม่เอง · main ไม่ถูกพักเด็ดขาด
   · ได้ SIGTERM (docker stop) → ปิดบอททุกตัวอย่างสุภาพ
 """
 from __future__ import annotations
 
 import logging
+import os
 import signal
 import subprocess
 import sys
@@ -20,6 +23,7 @@ import time
 from dataclasses import dataclass, field
 
 from .. import config as C
+from .. import manager as M
 from .. import settings as S
 
 log = logging.getLogger("supervisor")
@@ -39,6 +43,9 @@ class Child:
 class Supervisor:
     def __init__(self) -> None:
         self.children = {n: Child(n) for n in C.LIVE_INSTANCES}
+        if os.environ.get("MANAGER", "1") != "0":
+            self.children["manager"] = Child("manager")
+        self.paused: set[str] = set()
         self.settings = S.load()
         self.mtime = self._mtime()
         self.running = True
@@ -51,10 +58,24 @@ class Supervisor:
             return 0.0
 
     def enabled(self, name: str) -> bool:
-        return name == "main" or name not in self.settings["disabled_bots"]
+        if name in ("main", "manager"):
+            return True
+        return name not in self.settings["disabled_bots"] and name not in self.paused
+
+    def check_pauses(self) -> None:
+        """ผู้จัดการสั่งพัก → หยุดบอทนั้น · ครบเวลา → tick() เปิดใหม่เอง"""
+        now = {b for b in M.load_pauses() if b in self.children and b not in ("main", "manager")}
+        if now == self.paused:
+            return
+        for b in now - self.paused:
+            self.stop(self.children[b], "ผู้จัดการสั่งพัก")
+        for b in self.paused - now:
+            log.info("%s: ครบเวลาพัก", b)
+        self.paused = now
 
     def start(self, c: Child) -> None:
-        c.proc = subprocess.Popen([sys.executable, "-m", "bot", "live", "--instance", c.name], cwd=str(C.ROOT),
+        cmd = ["manager"] if c.name == "manager" else ["live", "--instance", c.name]
+        c.proc = subprocess.Popen([sys.executable, "-m", "bot", *cmd], cwd=str(C.ROOT),
                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         c.started = time.time()
         log.info("start %s pid=%s", c.name, c.proc.pid)
@@ -81,7 +102,7 @@ class Supervisor:
         others_changed = {k: v for k, v in old.items() if k != "disabled_bots"} != \
                          {k: v for k, v in new.items() if k != "disabled_bots"}
         for c in self.children.values():
-            if c.name == "main" or c.proc is None:
+            if c.name in ("main", "manager") or c.proc is None:
                 continue                                  # main ไม่อ่านค่าจากหน้าเว็บ · ตัวที่ไม่ได้รันไม่ต้องหยุด
             if not self.enabled(c.name):
                 self.stop(c, "ปิดในหน้าเว็บ")
@@ -111,6 +132,7 @@ class Supervisor:
         try:
             while self.running:
                 self.check_settings()
+                self.check_pauses()
                 self.tick()
                 time.sleep(POLL)
         except KeyboardInterrupt:

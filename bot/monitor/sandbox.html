@@ -22,13 +22,30 @@
   .spacer { flex: 1; }
   .num { font-variant-numeric: tabular-nums; }
   .up { color: var(--up); } .down { color: var(--down); }
-  .legend { position: fixed; left: 1.2vw; top: 8.3vh; display: flex; gap: .45vw; flex-wrap: wrap; max-width: 64vw; pointer-events: none; z-index: 3; }
+  .legend { position: fixed; left: 1.2vw; top: 8.3vh; display: flex; gap: .45vw; flex-wrap: wrap; max-width: 60vw; pointer-events: none; z-index: 3; }
   .legend .chip.trading { font-size: .9em; font-weight: 750; padding: .25em .9em; background: #fff8d6; }
   .legend .chip { font-size: .76em; font-weight: 650; padding: .22em .7em; border-width: 1.5px; }
   .legend i { display: inline-block; width: .8em; height: .8em; border-radius: 50%; margin-right: .35em; vertical-align: -.08em;
               box-shadow: 0 0 6px currentColor; }
-  .feed { position: fixed; right: 1.2vw; top: 8.3vh; width: 31vw; display: flex; flex-direction: column; align-items: flex-end; gap: .5vh;
+  .feed { position: fixed; left: 1.2vw; bottom: 5vh; width: 34vw; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: .5vh;
           pointer-events: none; z-index: 3; }
+  /* แชทผู้จัดการพอร์ต (ด้านขวา) */
+  .chat { position: fixed; right: 1.2vw; top: 8.3vh; bottom: 5vh; width: 27vw; display: flex; flex-direction: column; z-index: 4;
+          background: rgba(255, 253, 246, .93); backdrop-filter: blur(6px); border: 2px solid rgba(29, 36, 51, .85); border-radius: 16px;
+          box-shadow: 0 10px 28px rgba(20, 30, 60, .22); overflow: hidden; }
+  .chat .head { padding: .55em .9em; border-bottom: 2px solid rgba(29, 36, 51, .12); display: flex; align-items: center; gap: .5em; font-weight: 800; }
+  .chat .head .brain { margin-left: auto; font-size: .74em; font-weight: 700; background: #efe9ff; border-radius: 999px; padding: .15em .7em; }
+  .chat .pz { padding: .3em .9em; font-size: .8em; font-weight: 650; background: #fff4c2; border-bottom: 1px solid rgba(29, 36, 51, .1); }
+  .chat .pz:empty { display: none; }
+  .chat .list { flex: 1; overflow-y: auto; padding: .6em .7em; display: flex; flex-direction: column; gap: .45em; }
+  .msg { border-radius: 12px; padding: .4em .7em; font-size: .84em; line-height: 1.45; background: #f1f4fa; }
+  .msg .meta { font-size: .78em; color: var(--muted); font-weight: 700; margin-bottom: .1em; }
+  .msg.action { background: #e9f0ff; border-left: 4px solid #3d8bfd; }
+  .msg.alert { background: #ffe9e6; border-left: 4px solid var(--down); }
+  .msg.analysis { background: #f3efff; border-left: 4px solid #7b5cff; }
+  .msg.info { background: #eef7ee; border-left: 4px solid var(--up); }
+  .chat .empty { color: var(--muted); font-size: .85em; text-align: center; margin-top: 2em; }
+  .bubble.boss { max-width: 22vw; white-space: normal; font-size: .76em; line-height: 1.35; background: #f3efff; text-align: left; }
   .feed .chip { font-size: .84em; font-weight: 650; padding: .3em .8em; animation: pop .35s ease-out; }
   @keyframes pop { from { transform: translateY(-10px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
   .help { position: fixed; left: 50%; bottom: 1.2vh; transform: translateX(-50%); font-size: .78em; z-index: 3; pointer-events: none;
@@ -66,6 +83,7 @@
   html.stream .tag3d.icon { padding: .1em .35em; font-size: 1.05em; border-width: 1.5px; border-radius: 999px; }
   html.stream .bubble.hot { font-size: .78em; padding: .15em .6em; }
   html.stream .feed { bottom: 6.5vh !important; }
+  html.stream .chat .head .brain { display: none; }
   .disclaimer { display: none; position: fixed; left: 50%; bottom: 1.4vh; transform: translateX(-50%); z-index: 4; pointer-events: none;
                 background: rgba(29, 36, 51, .82); color: #fff; padding: .35em 1em; border-radius: 999px; font-weight: 700; font-size: .85em; white-space: nowrap; }
   html.stream .disclaimer { display: block; }
@@ -77,6 +95,13 @@
   html.portrait .legend { top: auto; bottom: 5.5vh; max-width: 96vw; }
   html.portrait .legend .chip:not(.trading) { display: none; }
   html.portrait .feed { top: auto; bottom: 10vh; right: 2vw; left: 2vw; width: auto; align-items: center; }
+  /* แนวตั้ง: แชทย่อเป็นแถบเหนือป้ายล่าง โชว์ 3 ข้อความล่าสุด */
+  html.portrait .chat { top: auto; bottom: 17vh; left: 2vw; right: 2vw; width: auto; max-height: 23vh; background: rgba(255, 253, 246, .86); }
+  html.portrait .chat .head { padding: .3em .8em; font-size: .9em; }
+  html.portrait .chat .pz { display: none; }
+  html.portrait .chat .msg:not(:nth-last-child(-n+3)) { display: none; }
+  html.portrait .chat .list { overflow: hidden; justify-content: flex-end; }
+  html.portrait .bubble.boss { max-width: 52vw; }
   html.portrait .bubble.hot { max-width: 46vw; }
   .loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 1.4em; font-weight: 700; z-index: 2; }
 </style>
@@ -113,6 +138,11 @@
   <span class="chip">📦 ออเดอร์ → 🛡️ กันซ้ำ → ⚖️ ความเสี่ยง → 📏 ขนาดไม้ → 🏦 MT5</span>
 </div>
 <div class="feed" id="feed"></div>
+<div class="chat notranslate" translate="no">
+  <div class="head">🧠 ผู้จัดการพอร์ต <span class="brain" id="brain">–</span></div>
+  <div class="pz" id="pz"></div>
+  <div class="list" id="chat"><div class="empty">รอผู้จัดการเริ่มงาน…</div></div>
+</div>
 <div class="disclaimer">🤖 บอทเทรดอัตโนมัติ · บัญชี DEMO เงินทดลอง · ไม่ใช่คำแนะนำการลงทุน</div>
 <div class="help">ลากเพื่อหมุนกล้อง · ล้อเมาส์ซูม · คลิกหุ่นยนต์ดูรายละเอียด · ภูเขา = ราคา BTC 3 ชม. ล่าสุด</div>
 <div class="card" id="card"><span class="x" id="cardx">×</span><div id="cardbody"></div></div>
@@ -130,7 +160,7 @@ const money = (v) => (v >= 0 ? "+" : "−") + "$" + Math.abs(v || 0).toFixed(2);
 const FAM = {
   levels: [0xff9f43, "นักล่าแนวรับ"], momo: [0xee5a9b, "นักวิ่งเช้า"], pullback: [0x34b8c4, "รอย่อ"], bb: [0x9b7bff, "สวนขอบ"],
   donchian: [0x3d8bfd, "ทะลุกรอบ"], orb: [0xff8fa3, "เปิดตลาด"], ema: [0x2ecc71, "เส้นตัด"], rsi2: [0xf4cf2b, "สวนสุดโต่ง"],
-  volx: [0x9aa5b1, "รอตลาดเงียบ"], main: [0xf2b632, "บอทหลัก · ทอง M15"],
+  volx: [0x9aa5b1, "รอตลาดเงียบ"], main: [0xf2b632, "บอทหลัก · ทอง M15"], boss: [0x7b5cff, "ผู้จัดการพอร์ต"],
 };
 const LIGHT = { off: 0x5b6270, rest: 0xaab2c0, watch: 0x4fb3ff, aim: 0xffcf33, target: 0xffb020, win: 0x22c46a, lose: 0xff5a50 };
 
@@ -392,6 +422,34 @@ function makeRobot(name, fam) {
   return g;
 }
 
+// ผู้จัดการพอร์ต: หุ่นสีม่วงยืนบนแท่นระหว่างลานกับโซนเทรด · ป้ายคำพูด = ข้อความล่าสุดในแชท
+const boss = makeRobot("ผู้จัดการ", "boss");
+{
+  const pod = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 1.1, 32), mat(0x3a2f6b, { roughness: .35, metalness: .3 })); base.position.y = .55; pod.add(base);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.5, .07, 8, 48), new THREE.MeshStandardMaterial({ color: 0xb59bff, emissive: 0x9b7bff, emissiveIntensity: 1.4 }));
+  rim.rotation.x = Math.PI / 2; rim.position.y = 1.12; pod.add(rim);
+  const desk = new THREE.Mesh(new RoundedBoxGeometry(1.9, .7, .7, 2, .08), mat(0x8a5a36)); desk.position.set(0, 1.45, .95); pod.add(desk);
+  const scr = new THREE.Mesh(new RoundedBoxGeometry(.9, .55, .06, 2, .04), new THREE.MeshStandardMaterial({ color: 0x1d2433, emissive: 0x7b5cff, emissiveIntensity: .7 }));
+  scr.position.set(-.35, 2.05, .95); scr.rotation.x = -.25; pod.add(scr);
+  pod.position.set(3.4, 0, .6); scene.add(shadowy(pod));
+  boss.position.set(3.4, 1.1, .3); boss.scale.setScalar(.95); boss.rotation.y = .35; scene.add(boss);
+  const u = boss.userData; u.plate.visible = false; u.bubble.element.className = "bubble boss"; u.bubble.position.y = 4.6;
+  u.hat.material.color.set(0x1d2433); u.hat.material.emissive.set(0x000000); u.hat.visible = true;      // หมวกผู้จัดการ
+  u.bubble.element.textContent = STREAM ? "🧠" : "🧠 ผู้จัดการพอร์ต";
+}
+let bossJump = 0, bossTalk = 0;
+function animateBoss(t, dt) {
+  const u = boss.userData;
+  bossJump = Math.max(0, bossJump - dt * .9); bossTalk = Math.max(0, bossTalk - dt);
+  u.rig.position.y = Math.abs(Math.sin(t * 1.5)) * .06 + Math.sin(bossJump * Math.PI) * 1.4;
+  u.head.rotation.y = Math.sin(t * .4) * .5;                      // หันมองทั้งหมู่บ้าน
+  u.arms[1].rotation.z = bossTalk > 0 ? -1.6 + Math.sin(t * 9) * .35 : Math.sin(t * .8) * .1;   // ชี้สั่งงาน
+  u.arms[0].rotation.z = -Math.sin(t * .8) * .1;
+  u.lightM.emissiveIntensity = bossTalk > 0 ? 1.5 + Math.sin(t * 12) * 1.2 : 2;
+  u.lightM.color.set(0xb59bff); u.lightM.emissive.set(0xb59bff); u.eyeM.color.set(0xd9ccff); u.eyeM.emissive.set(0xd9ccff);
+}
+
 // เกาะทองของ main
 const goldIsland = new THREE.Group();
 {
@@ -499,6 +557,7 @@ function separate() {   // ไม่เดินชนกัน
 }
 
 // ------------------------------------------------------------------ ข้อมูล
+const MGR = { pauses: {}, last: null, first: true };
 let D = null, robots = [], parcels = [], coins = [], seenOpen = null, seenTrades = null, lastErr = 0;
 async function refresh() {
   try { const d = await (await fetch("/api", { cache: "no-store" })).json(); if (d.error) throw new Error(d.error); D = d; sync(d); }
@@ -570,11 +629,12 @@ function labelRobot(r) {
   // ป้ายเดียวต่อหุ่น: ตัวที่มีเรื่อง (ถือไม้ / เล็ง / ถึงเป้า / ออฟไลน์ / main) = ป้ายคำพูดเหนือหัวรวมชื่อ · ตัวอื่น = ป้ายชื่อเล็กใต้เท้า
   const u = r.obj.userData, pb = r.pb || {}, st = r.st || {}, today = (pb.today || 0) + (pb.floating || 0);
   const name = r.name === "main" ? "★ main" : r.name;
-  const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main" || (!STREAM && r.mode === "off");
-  const what = r.disabled ? "⏹ ปิดโดยผู้ใช้" : r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
+  const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main" || (!STREAM && r.mode === "off") || !!MGR.pauses[r.name];
+  const pz = MGR.pauses[r.name], left = pz ? Math.max(1, Math.round((pz.until * 1000 - Date.now()) / 60000)) : 0;
+  const what = r.disabled ? "⏹ ปิดโดยผู้ใช้" : pz ? `⏸ ผู้จัดการสั่งพัก (อีก ${left} นาที)` : r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
     r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
   const short = r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${money(r.float)}` : r.mode === "aim" ? "🎯"
-    : r.mode === "target" ? `🎯 ${money(today)}` : "";
+    : r.mode === "target" ? `🎯 ${money(today)}` : pz ? "⏸ พัก" : "";
   u.bubble.element.innerHTML = STREAM ? `<b>${esc(name)}</b> ${esc(short)}` : `<b>${esc(name)}</b> · ${esc(what)}`;
   u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : r.mode === "off" ? "off" : "");
   u.bubble.visible = talk;
@@ -604,6 +664,34 @@ function ctlNote(text, ok) { const n = $("ctlNote"); if (n) n.innerHTML = `<span
 function toast(text) {
   const el = document.createElement("div"); el.className = "chip"; el.textContent = text;
   $("feed").prepend(el); while ($("feed").children.length > 5) $("feed").lastChild.remove();
+}
+
+// ------------------------------------------------------------------ แชทผู้จัดการพอร์ต (/api/manager)
+const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️" };
+const SRC = { claude: "🤖 Claude", rules: "📏 กฎ" };
+const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 60000));
+async function refreshManager() {
+  let d; try { d = await (await fetch("/api/manager", { cache: "no-store" })).json(); } catch { return; }
+  MGR.pauses = d.pauses || {};
+  const msgs = d.messages || [], last = msgs[msgs.length - 1];
+  const pz = Object.entries(MGR.pauses).sort();
+  $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ") : "";
+  const srcs = new Set(msgs.slice(-40).map(m => m.src).filter(Boolean));
+  $("brain").textContent = srcs.has("claude") ? "🤖 Claude + 📏 กฎ" : "📏 สมองตามกฎ";
+  robots.forEach(labelRobot);
+  const key = last ? last.t + last.text : null;
+  if (key === MGR.last) return;
+  const list = $("chat"), stick = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+  list.innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${esc(m.kind)}"><div class="meta">${KIND[m.kind] || "•"} ${hhmm(m.t)} น.${m.src ? " · " + (SRC[m.src] || esc(m.src)) : ""}</div>${esc(m.text)}</div>`).join("")
+    : '<div class="empty">ยังไม่มีข้อความจากผู้จัดการ</div>';
+  if (stick || MGR.first) list.scrollTop = list.scrollHeight;
+  if (last) {
+    const short = last.text.length > 90 ? last.text.slice(0, 88) + "…" : last.text;
+    boss.userData.bubble.element.textContent = (KIND[last.kind] || "🧠") + " " + short;
+    if (!MGR.first) { bossTalk = 6; if (last.kind === "action" || last.kind === "alert") bossJump = 1; }
+  }
+  MGR.last = key; MGR.first = false;
 }
 
 // พัสดุออเดอร์: หุ่น → ขึ้นสะพาน → ผ่าน 3 ด่าน → หอ MT5
@@ -732,6 +820,7 @@ function frame() {
   const main = robots.find(r => r.name === "main"); if (main) main.obj.position.y = goldIsland.position.y;
   if (priceFlag) priceFlag.userData.cloth.rotation.y = Math.sin(t * 3) * .2;
   for (const r of robots) animateRobot(r, t, dt);
+  animateBoss(t, dt);
   separate();
   const anyTrade = robots.some(r => r.mode === "trade" && r.name !== "main");
   tradeZone.userData.edgeM.emissiveIntensity = anyTrade ? 1.6 + Math.sin(t * 4) * .8 : .6;
@@ -747,7 +836,7 @@ setInterval(() => { $("clock").textContent = new Intl.DateTimeFormat("th-TH", { 
 window.__village = { robots: () => robots, parcels, coins, makeParcel, makeCoin, toast, labelRobot,
                      push: (p) => parcels.push(p), coin: (c) => coins.push(c) };   // ใช้ทดสอบแอนิเมชันจาก console
 $("loading").remove();
-refresh(); refreshBars(); setInterval(refresh, 5000); setInterval(refreshBars, 10000);
+refresh(); refreshBars(); refreshManager(); setInterval(refresh, 5000); setInterval(refreshBars, 10000); setInterval(refreshManager, 5000);
 // อัปเดตหน้าเองเมื่อไฟล์หน้าเปลี่ยน (สำคัญตอนไลฟ์: รีโหลดในหน้าต่างเดิม ตัวจับภาพไม่หลุด)
 let pageV = null;
 setInterval(async () => {

@@ -171,6 +171,13 @@ def cmd_supervise(a: argparse.Namespace) -> None:
     Supervisor().run()
 
 
+def cmd_manager(a: argparse.Namespace) -> None:
+    from .manager import Manager
+    from .live.runner import setup_file_logging
+    setup_file_logging(C.LOG_DIR, "manager")
+    Manager().run()
+
+
 def cmd_monitor(a: argparse.Namespace) -> None:
     from .live.awake import keep_awake
     from .monitor.server import serve
@@ -240,6 +247,9 @@ def main() -> None:
 
     sv = sub.add_parser("supervise", help="คุมบอททุกตัว: เปิด / เปิดใหม่เมื่อตาย / ตามค่าในหน้าเว็บ (Linux/Docker)")
     sv.set_defaults(fn=cmd_supervise)
+
+    mg = sub.add_parser("manager", help="ผู้จัดการพอร์ต: เฝ้าบอททดสอบ สั่งพัก/ปิดไม้ + แชทในหน้า /sandbox")
+    mg.set_defaults(fn=cmd_manager)
 
     a = p.parse_args()
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
