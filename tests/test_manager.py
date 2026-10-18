@@ -540,3 +540,24 @@ def test_shadow_failed_fetch_does_not_block_other_episodes() -> None:
     done = SH.evaluate(bad_fetch, None, t0 + 4 * 3600, lambda b: [{"open_time": iso, "profit": -5.0}] if b == "m5_10" else [])
     assert [e["bot"] for e in done] == ["m5_10"] and done[0]["missed"] == -5.0
     assert any(e["bot"] == "m5_2" and not e["done"] for e in SH._load())
+
+
+def test_ai_adaptive_interval_and_compact_snapshot(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from bot import manager_ai as AI
+    from bot import manager_gemini as G
+    brain = G.GeminiBrain()
+    calls = []
+    brain.client = NS(models=NS(generate_content=lambda **kw: calls.append(kw["contents"]) or NS(function_calls=[], usage_metadata=None)))
+    t0 = M.now_ts()
+    s0 = snap(t=t0, bars=bars("range"))
+    brain.maybe_decide(s0, {})                                            # รอบแรกถามทันที
+    assert len(calls) == 1
+    brain.maybe_decide(snap(t=t0 + 20 * 60, bars=bars("range")), {})      # พอร์ตว่าง + ตลาดเดิม: 20 นาทียังไม่ถาม (รอ 45 นาที)
+    assert len(calls) == 1
+    brain.maybe_decide(snap(t=t0 + 20 * 60, bars=bars("trend")), {})      # สภาพตลาดเปลี่ยน → ถามที่ 20 นาทีทันที
+    assert len(calls) == 2
+    brain.maybe_decide(snap(t=t0 + 36 * 60, bars=bars("trend"), m5_1=bot(opens=[pos()])), {})  # มีไม้เปิด → ถามทุก 15 นาที
+    assert len(calls) == 3
+    payload = json.loads(calls[0].split("\n", 1)[1])
+    assert "open" not in payload["bots"]["m5_1"] and len(payload["btc"]["m5_candles_t_o_h_l_c"]) <= 8

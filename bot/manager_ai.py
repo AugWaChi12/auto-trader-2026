@@ -21,6 +21,7 @@ from .manager import REGIME_TH, Action, Snapshot, market_regime, range_ratio, re
 log = logging.getLogger("manager.ai")
 
 LLM_EVERY_MIN = max(5, int(os.environ.get("MANAGER_LLM_MIN") or 15))
+LLM_QUIET_MIN = max(LLM_EVERY_MIN, int(os.environ.get("MANAGER_LLM_QUIET_MIN") or 45))   # พอร์ตว่าง + สภาพตลาดเดิม + ไม่แกว่งแรง → ถามห่างขึ้น
 TEST_BOTS = sorted((n for n in C.LIVE_INSTANCES if n != "main"), key=lambda n: int(n.split("_")[1]))
 
 SYSTEM = f"""คุณคือผู้จัดการพอร์ตเทรดอัตโนมัติบนบัญชี DEMO (เงินทดลอง) ของ FxPro MT5
@@ -78,6 +79,18 @@ def _report_conclusions() -> list[str]:
     return load().get("conclusions") or []
 
 
+def _bar_open(bars: list[list], now_ts: float) -> bool:
+    """ตลาดนี้ยังเปิดอยู่ไหม (แท่งล่าสุดห่างจากเวลาปัจจุบันไม่เกิน 30 นาที)"""
+    if not bars:
+        return False
+    try:
+        d = datetime.fromisoformat(str(bars[-1][0]))
+        t = (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).timestamp()
+        return now_ts - t <= 1800
+    except ValueError:
+        return True
+
+
 def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
     now = datetime.now(timezone.utc)
     regime, er = market_regime(s.btc_bars)
@@ -87,9 +100,10 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
             continue
         bars = s.bars_of(sym)
         rg, e = market_regime(bars)
+        m_open = _bar_open(bars, s.t)
         markets[sym] = {"last": bars[-1][4] if bars else None, "last_bar_utc": str(bars[-1][0])[:16] if bars else None,
-                        "regime": REGIME_TH.get(rg) if rg else None, "efficiency_ratio_2h": e,
-                        "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(bars, 12)]}
+                        "market_open": m_open, "regime": REGIME_TH.get(rg) if rg else None, "efficiency_ratio_2h": e,
+                        **({"m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(bars, 6)]} if m_open else {})}
     gates = {b["bot"]: {k: b["params"][k] for k in ("skip_regimes", "skip_sessions") if b["params"].get(k)} or None
              for b in C.load_m5_bots()}
     bots = {}
@@ -97,30 +111,36 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
         p = pauses.get(n)
         brg = market_regime(s.bars_of(b.get("symbol") or "BTCUSD"))[0]
         fit = suits(b.get("family"), brg) if brg else None
-        bots[n] = {
-            "symbol": b.get("symbol"), "strategy": b.get("family"), "fits_regime": fit, "gate": gates.get(n), "running": b["alive"], "state": b.get("state"),
+        entry: dict[str, Any] = {
+            "symbol": b.get("symbol"), "strategy": b.get("family"), "fits_regime": fit, "running": b["alive"],
             "today_usd": b["today"], "total_usd": b["total"], "trades": b["trades"], "win_rate": b["win_rate"],
-            "loss_streak": b["streak"], "day_target_hit": b.get("target_hit"),
-            "paused": {"minutes_left": int((p["until"] - s.t) / 60), "by": p.get("src", "rules"), "reason": p.get("reason")} if p else None,
-            "open": [{"side": o["side"], "lots": o["volume"], "entry": o["open_price"], "now": o["price"],
-                      "sl": o["sl"], "tp": o["tp"], "profit_usd": o["profit"],
-                      "held_min": int((s.t - datetime.fromisoformat(o["open_time"]).timestamp()) / 60)} for o in b["open"]],
         }
+        if b.get("streak"):
+            entry["loss_streak"] = b["streak"]
+        if gates.get(n):
+            entry["gate"] = gates[n]
+        if p:
+            entry["paused"] = {"minutes_left": int((p["until"] - s.t) / 60), "by": p.get("src", "rules"), "reason": p.get("reason")}
+        if b["open"]:
+            entry["open"] = [{"side": o["side"], "lots": o["volume"], "entry": o["open_price"], "now": o["price"],
+                              "sl": o["sl"], "tp": o["tp"], "profit_usd": o["profit"],
+                              "held_min": int((s.t - datetime.fromisoformat(o["open_time"]).timestamp()) / 60)} for o in b["open"]]
+        bots[n] = entry
     rr = range_ratio(s.btc_bars)
     return json.dumps({
         "time_utc": now.isoformat(timespec="minutes"),
         "account": {"equity": s.equity, "balance": s.balance, "test_bots_today_usd": round(sum(b["today"] for b in s.test_bots().values()), 2)},
         "btc": {"bid": s.btc, "range15_vs_normal": round(rr, 2) if rr else None,
                 "regime": REGIME_TH.get(regime) if regime else None, "efficiency_ratio_2h": er,
-                "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(s.btc_bars)]},
+                "m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(s.btc_bars, 8)]},
         "markets": markets,
         "bots": bots,
         "learned_by_strategy_and_regime": load_summary(),
         "prediction_scoreboard_30d": scoreboard(),
         "lessons": Learner().lessons(),
         "research_report_conclusions": _report_conclusions(),
-        "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(15)],
-    }, ensure_ascii=False, default=str)
+        "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(8)],
+    }, ensure_ascii=False, separators=(",", ":"), default=str)
 
 
 def to_actions(calls: list[tuple[str, dict[str, Any]]], src: str) -> list[Action]:
@@ -147,18 +167,33 @@ def to_actions(calls: list[tuple[str, dict[str, Any]]], src: str) -> list[Action
 
 
 class AIBrain:
-    """ถาม AI ทุก LLM_EVERY_MIN นาที · ติดต่อไม่ได้ → แจ้งในแชท (ชั่วโมงละครั้ง) แล้วใช้สมองตามกฎต่อ"""
+    """ถาม AI ทุก LLM_EVERY_MIN นาที (เมื่อมีไม้เปิด/สภาพตลาดเปลี่ยน/แกว่งแรง) หรือ LLM_QUIET_MIN นาทีเมื่อพอร์ตว่างและตลาดนิ่ง
+    ติดต่อไม่ได้ → แจ้งในแชท (ชั่วโมงละครั้ง) แล้วใช้สมองตามกฎต่อ"""
     name = "AI"
     src = "ai"
 
     def __init__(self) -> None:
         self.last = 0.0
         self.last_error = 0.0
+        self.last_regimes: dict[str, str | None] = {}
+
+    def _interval_min(self, s: Snapshot) -> int:
+        if any(b.get("open") for b in s.test_bots().values()):
+            return LLM_EVERY_MIN
+        regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
+        last_rg = getattr(self, "last_regimes", None)
+        if last_rg and regimes != last_rg:
+            return LLM_EVERY_MIN
+        rr = range_ratio(s.btc_bars)
+        if rr is not None and rr >= 2.2:
+            return LLM_EVERY_MIN
+        return LLM_QUIET_MIN
 
     def maybe_decide(self, s: Snapshot, pauses: dict[str, dict]) -> list[Action]:
-        if s.t - self.last < LLM_EVERY_MIN * 60:
+        if self.last and s.t - self.last < self._interval_min(s) * 60:
             return []
         self.last = s.t
+        self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
         try:
             return to_actions(self.ask("ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses)), self.src)
         except Exception as e:  # noqa: BLE001 — AI ล่มต้องไม่ทำให้ผู้จัดการหยุด
