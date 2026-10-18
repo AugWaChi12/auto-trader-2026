@@ -234,6 +234,10 @@ class RuleBrain:
         self.regimes: list[str | None] = []      # สภาพตลาดรายนาทีล่าสุด
         self.regime: str | None = None           # สภาพที่ยืนยันแล้ว
         self.acted: set[str] = set()             # บอทที่สั่งเพราะสภาพตลาดไปแล้วในรอบสภาพนี้ (ไม่สั่งซ้ำ ถ้า AI สั่งกลับ)
+        for m in reversed(read_log(300)):       # รีสตาร์ทแล้วไม่ประกาศสภาพตลาดเดิมซ้ำในแชท
+            if m.get("text", "").startswith("สภาพตลาดเปลี่ยน: "):
+                self.regime = next((k for k, v in REGIME_TH.items() if m["text"].startswith(f"สภาพตลาดเปลี่ยน: {v}")), None)
+                break
 
     def decide(self, s: Snapshot, pauses: dict[str, dict]) -> list[Action]:
         acts: list[Action] = []

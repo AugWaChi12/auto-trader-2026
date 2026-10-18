@@ -473,7 +473,7 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
             """โหมดสาธารณะ: เปิดได้เฉพาะสิ่งที่หน้า /sandbox ใช้ — ที่เหลือ 404"""
             if url.path == "/":
                 self.send_response(302)
-                self.send_header("Location", "/sandbox?stream=1")
+                self.send_header("Location", "/sandbox")      # ไลฟ์ TikTok ใช้ /sandbox?stream=1 เอง
                 self.end_headers()
             elif url.path == "/sandbox":
                 self._send(PAGES["/sandbox"].read_bytes(), "text/html")

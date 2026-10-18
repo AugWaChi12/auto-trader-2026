@@ -4,106 +4,193 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>Bot Village</title>
+<title>หมู่บ้านบอท · ระบบเทรดอัตโนมัติ (DEMO)</title>
+<meta name="description" content="ดูบอทเทรดอัตโนมัติ 10 ตัวทำงานแบบเรียลไทม์ในหมู่บ้าน 3D พร้อมผู้จัดการพอร์ต AI ที่สั่งพัก/ปิดไม้ให้เห็นในแชท — บัญชี DEMO เงินทดลอง ไม่ใช่คำแนะนำการลงทุน">
+<meta name="theme-color" content="#4aa8f0">
+<meta property="og:type" content="website">
+<meta property="og:title" content="หมู่บ้านบอท · ระบบเทรดอัตโนมัติ (DEMO)">
+<meta property="og:description" content="บอทเทรด BTC และทองคำ 10 ตัว + ผู้จัดการพอร์ต AI ทำงานสดในหมู่บ้าน 3D · บัญชีทดลอง">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --ink: #1d2433; --paper: #fffdf6; --up: #1fae5d; --down: #ec4d44; --muted: #6b7489; }
+  :root {
+    --ink: #172033; --paper: #fffdf8; --glass: rgba(255, 253, 248, .9); --line: rgba(23, 32, 51, .12);
+    --muted: #5f6b85; --up: #12a150; --down: #e5484d; --accent: #7b5cff; --warn: #f5b301;
+    --radius: 16px; --shadow: 0 10px 30px rgba(18, 30, 60, .18); --gap: 16px;
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; overflow: hidden; background: #9fd8ff; }
-  body { font-family: "Leelawadee UI", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif; color: var(--ink);
-         font-size: clamp(11px, .95vw, 16px); }
+  body { font-family: "IBM Plex Sans Thai", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; color: var(--ink);
+         font-size: clamp(13px, .45vw + 8px, 16px); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   #stage, #labels { position: fixed; inset: 0; }
   #labels { pointer-events: none; }
-  .hud { position: fixed; left: 1.2vw; right: 1.2vw; top: 1.2vh; display: flex; gap: .7vw; align-items: center; pointer-events: none; z-index: 3; }
-  .chip { background: rgba(255, 253, 246, .92); backdrop-filter: blur(6px); border: 2px solid rgba(29, 36, 51, .85); border-radius: 14px;
-          padding: .35em .9em; font-weight: 700; box-shadow: 0 6px 18px rgba(20, 30, 60, .18); white-space: nowrap; }
-  .title { font-size: 1.4em; }
-  .demo { background: rgba(255, 224, 138, .95); }
-  .navl { pointer-events: auto; color: var(--ink); text-decoration: none; font: inherit; font-weight: 700; cursor: pointer; } .navl:hover { background: #fff3a6; }
-  .spacer { flex: 1; }
   .num { font-variant-numeric: tabular-nums; }
   .up { color: var(--up); } .down { color: var(--down); }
-  .legend { position: fixed; left: 1.2vw; top: 8.3vh; display: flex; gap: .45vw; flex-wrap: wrap; max-width: 60vw; pointer-events: none; z-index: 3; }
-  .legend .chip.trading { font-size: .9em; font-weight: 750; padding: .25em .9em; background: #fff8d6; }
-  .legend .chip { font-size: .76em; font-weight: 650; padding: .22em .7em; border-width: 1.5px; }
-  .legend i { display: inline-block; width: .8em; height: .8em; border-radius: 50%; margin-right: .35em; vertical-align: -.08em;
-              box-shadow: 0 0 6px currentColor; }
-  .feed { position: fixed; left: 1.2vw; bottom: 5vh; width: 34vw; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: .5vh;
-          pointer-events: none; z-index: 3; }
-  /* แชทผู้จัดการพอร์ต (ด้านขวา) */
-  .chat { position: fixed; right: 1.2vw; top: 8.3vh; bottom: 5vh; width: 27vw; display: flex; flex-direction: column; z-index: 4;
-          background: rgba(255, 253, 246, .93); backdrop-filter: blur(6px); border: 2px solid rgba(29, 36, 51, .85); border-radius: 16px;
-          box-shadow: 0 10px 28px rgba(20, 30, 60, .22); overflow: hidden; }
-  .chat .head { padding: .55em .9em; border-bottom: 2px solid rgba(29, 36, 51, .12); display: flex; align-items: center; gap: .5em; font-weight: 800; }
-  .chat .head .brain { margin-left: auto; font-size: .74em; font-weight: 700; background: #efe9ff; border-radius: 999px; padding: .15em .7em; }
-  .chat .pz { padding: .3em .9em; font-size: .8em; font-weight: 650; background: #fff4c2; border-bottom: 1px solid rgba(29, 36, 51, .1); }
+  .glass { background: var(--glass); backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
+           border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+  /* ---------- แถบบน */
+  .topbar { position: fixed; left: var(--gap); right: var(--gap); top: var(--gap); display: flex; align-items: flex-start; gap: 12px; z-index: 5; pointer-events: none; }
+  .topbar > * { pointer-events: auto; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; flex: none; white-space: nowrap; }
+  .logo { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 22px;
+          background: linear-gradient(135deg, #8f74ff, #4aa8f0); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .15); }
+  .brand h1 { margin: 0; font-size: 1.12em; font-weight: 700; line-height: 1.2; }
+  .brand p { margin: 0; font-size: .78em; color: var(--muted); font-weight: 500; }
+  .demo { align-self: center; background: #ffe48a; border: 1px solid #e9c34a; color: #5c4300; border-radius: 999px;
+          padding: 4px 12px; font-size: .8em; font-weight: 700; white-space: nowrap; box-shadow: var(--shadow); }
+  .spacer { flex: 1; }
+  .stats { display: flex; align-items: stretch; padding: 6px; }
+  .stat { padding: 4px 14px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+  .stat + .stat { border-left: 1px solid var(--line); }
+  .stat .k { font-size: .72em; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .stat .v { font-size: 1.08em; font-weight: 700; white-space: nowrap; }
+  .stat .v small { font-size: .74em; font-weight: 600; margin-left: 4px; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1fd165; margin-right: 6px; vertical-align: 1px;
+              box-shadow: 0 0 0 0 rgba(31, 209, 101, .6); animation: ping 2s infinite; }
+  @keyframes ping { 70% { box-shadow: 0 0 0 7px rgba(31, 209, 101, 0); } 100% { box-shadow: 0 0 0 0 rgba(31, 209, 101, 0); } }
+  .subbar { position: fixed; left: var(--gap); top: calc(var(--gap) + 64px); display: flex; align-items: center; gap: 8px; z-index: 5;
+            max-width: calc(100vw - 2 * var(--gap) - clamp(300px, 26vw, 420px) - 16px); }
+  .ticker { padding: 7px 12px; font-size: .84em; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- ปุ่มเครื่องมือ (ซ้าย) */
+  .tools { display: flex; gap: 6px; flex: none; }
+  .tool { display: flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 12px; cursor: pointer; text-decoration: none; color: var(--ink);
+          font-weight: 600; font-size: .86em; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--shadow); backdrop-filter: blur(10px); }
+  .tool:hover { background: #fff; transform: translateY(-1px); }
+  .tool[aria-pressed="true"] { background: #efe9ff; border-color: #cbbcff; }
+  .tool .ico { font-size: 1.1em; line-height: 1; }
+
+  /* ---------- วิธีดู (popover) */
+  .info { position: fixed; left: var(--gap); top: calc(var(--gap) + 112px); width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
+          z-index: 7; display: none; font-size: .9em; line-height: 1.55; max-height: calc(100vh - 150px); overflow-y: auto; }
+  .info.open { display: block; animation: pop .2s ease-out; }
+  .info h2 { margin: 0 0 8px; font-size: 1.1em; }
+  .info h3 { margin: 12px 0 6px; font-size: .9em; color: var(--muted); font-weight: 700; }
+  .info ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  .info li i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 6px currentColor; }
+  .info .flow { font-size: .92em; }
+  .info .note { margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: #fff6d6; font-size: .86em; }
+  .info .x, .card .x { position: absolute; right: 10px; top: 8px; width: 30px; height: 30px; border-radius: 8px; border: 0; background: transparent;
+                        cursor: pointer; font-size: 1.2em; font-weight: 700; }
+  .info .x:hover, .card .x:hover { background: rgba(23, 32, 51, .08); }
+
+  /* ---------- แจ้งเตือนสั้น (ซ้ายล่าง) */
+  .feed { position: fixed; left: var(--gap); bottom: 52px; width: min(440px, 36vw); display: flex; flex-direction: column-reverse; align-items: flex-start;
+          gap: 6px; pointer-events: none; z-index: 4; }
+  .feed .chip { background: var(--glass); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+                padding: 6px 12px; font-size: .86em; font-weight: 600; animation: pop .3s ease-out; }
+  @keyframes pop { from { transform: translateY(-8px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* ---------- แชทผู้จัดการพอร์ต (ขวา) */
+  .chat { position: fixed; right: var(--gap); top: calc(var(--gap) + 66px); bottom: 52px; width: clamp(300px, 26vw, 420px);
+          display: flex; flex-direction: column; z-index: 4; overflow: hidden; }
+  .chat .head { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; cursor: default; }
+  .chat .head .t { font-weight: 700; line-height: 1.25; }
+  .chat .head .s { font-size: .76em; color: var(--muted); font-weight: 500; }
+  .chat .head .brain { margin-left: auto; font-size: .74em; font-weight: 700; background: #efe9ff; color: #4b33c9; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  .chat .grab { display: none; }
+  .chat .pz { padding: 6px 14px; font-size: .78em; font-weight: 600; background: #fff6d6; border-bottom: 1px solid var(--line); }
   .chat .pz:empty { display: none; }
-  .chat .list { flex: 1; overflow-y: auto; padding: .6em .7em; display: flex; flex-direction: column; gap: .45em; }
-  .msg { border-radius: 12px; padding: .4em .7em; font-size: .84em; line-height: 1.45; background: #f1f4fa; }
-  .msg .meta { font-size: .78em; color: var(--muted); font-weight: 700; margin-bottom: .1em; }
-  .msg.action { background: #e9f0ff; border-left: 4px solid #3d8bfd; }
-  .msg.alert { background: #ffe9e6; border-left: 4px solid var(--down); }
-  .msg.analysis { background: #f3efff; border-left: 4px solid #7b5cff; }
-  .msg.info { background: #eef7ee; border-left: 4px solid var(--up); }
-  .chat .empty { color: var(--muted); font-size: .85em; text-align: center; margin-top: 2em; }
-  .bubble.boss { max-width: 22vw; white-space: normal; font-size: .76em; line-height: 1.35; background: #f3efff; text-align: left; }
-  .feed .chip { font-size: .84em; font-weight: 650; padding: .3em .8em; animation: pop .35s ease-out; }
-  @keyframes pop { from { transform: translateY(-10px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
-  .help { position: fixed; left: 50%; bottom: 1.2vh; transform: translateX(-50%); font-size: .78em; z-index: 3; pointer-events: none;
-          background: rgba(255, 253, 246, .75); padding: .2em .9em; border-radius: 999px; font-weight: 650; color: #1d2433cc; }
-  /* ป้ายลอยในฉาก 3D */
+  .chat .list { flex: 1; overflow-y: auto; padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
+  .msg { border-radius: 12px; padding: 8px 11px; font-size: .86em; line-height: 1.5; background: #f3f5fa; border: 1px solid transparent; }
+  .msg .meta { font-size: .76em; color: var(--muted); font-weight: 600; margin-bottom: 2px; display: flex; gap: 6px; align-items: center; }
+  .msg .meta .src { margin-left: auto; }
+  .msg.action { background: #edf3ff; border-color: #d3e1ff; }
+  .msg.alert { background: #fff0ef; border-color: #ffd2cf; }
+  .msg.analysis { background: #f4f0ff; border-color: #e1d8ff; }
+  .msg.info { background: #effaf2; border-color: #cfeeda; }
+  .chat .empty { color: var(--muted); font-size: .86em; text-align: center; margin-top: 2em; }
+
+  /* ---------- ท้ายจอ */
+  .disclaimer { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 4; pointer-events: none; max-width: calc(100vw - 32px);
+                background: rgba(23, 32, 51, .78); color: #fff; padding: 5px 14px; border-radius: 999px; font-weight: 500; font-size: .78em;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- ป้ายลอยในฉาก 3D (สไตล์การ์ตูน) */
   .bubble { position: relative; background: #fffdf6; border: 2px solid #1d2433; border-radius: 12px; padding: .2em .7em; font-weight: 700;
-            font-size: .74em; white-space: nowrap; max-width: 8.4vw; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 14px rgba(0,0,0,.16); }
+            font-size: .74em; white-space: nowrap; max-width: 9vw; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 14px rgba(0,0,0,.16); }
   .bubble.hot { max-width: 18vw; font-size: .8em; }
-  .bubble.win { background: #e2fbe9; } .bubble.lose { background: #ffe4e1; } .bubble.aim { background: #fff4c2; } .bubble.off { opacity: .55; }
+  .bubble.win { background: #e2fbe9; } .bubble.lose { background: #ffe4e1; } .bubble.aim { background: #fff4c2; } .bubble.off { opacity: .6; }
+  .bubble.rest { background: #eef0f5; font-size: .72em; }
+  .bubble.boss { max-width: 22vw; white-space: normal; font-size: .76em; line-height: 1.35; background: #f3efff; text-align: left; }
   .plate { background: rgba(255, 253, 246, .9); border: 1.5px solid #1d2433; border-radius: 8px; padding: .05em .45em; text-align: center;
            line-height: 1.2; box-shadow: 0 3px 8px rgba(0,0,0,.15); font-size: .78em; white-space: nowrap; }
   .plate.hot { font-size: .9em; border-width: 2px; }
   .plate b { font-size: .92em; } .plate .m { font-weight: 800; font-size: .86em; } .plate .f { color: var(--muted); font-size: .72em; font-weight: 650; }
-  .tag3d { background: rgba(255, 253, 246, .92); border: 2px solid #1d2433; border-radius: 10px; padding: .15em .6em; font-weight: 750;
+  .tag3d { background: rgba(255, 253, 246, .92); border: 2px solid #1d2433; border-radius: 10px; padding: .15em .6em; font-weight: 700;
            font-size: .8em; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,.15); }
   .tag3d.big { font-size: 1em; }
   .tag3d.glow { background: #fff3a6; }
   .price { font-weight: 800; font-size: .95em; background: #1d2433; color: #fff; border: none; }
-  .card { position: fixed; display: none; width: min(390px, 34vw); background: var(--paper); border: 2px solid var(--ink); border-radius: 16px;
-          box-shadow: 0 14px 40px rgba(20, 30, 60, .3); padding: 1em 1.1em; font-size: .92em; line-height: 1.5; z-index: 6; }
-  .card h4 { margin: 0 0 .4em; font-size: 1.2em; }
+
+  /* ---------- การ์ดรายละเอียดหุ่น */
+  .card { position: fixed; display: none; width: min(390px, calc(100vw - 32px)); padding: 16px 18px; font-size: .9em; line-height: 1.55; z-index: 6; }
+  .card h4 { margin: 0 32px 6px 0; font-size: 1.12em; }
   .card .k { color: var(--muted); }
   .ctl { display: flex; gap: 8px; margin-top: .7em; flex-wrap: wrap; }
-  .ctl button { border: 2px solid var(--ink); background: #fffdf6; border-radius: 10px; padding: .3em .8em; font: inherit; font-weight: 700; cursor: pointer; }
-  .ctl button.armed { background: var(--down); color: #fff; }
+  .ctl button { border: 1px solid var(--ink); background: #fff; border-radius: 10px; padding: .35em .9em; font-weight: 700; cursor: pointer; }
+  .ctl button.armed { background: var(--down); border-color: var(--down); color: #fff; }
   .ctl button:disabled { opacity: .45; cursor: default; }
-  #ctlNote { margin-top: .5em; font-weight: 650; font-size: .9em; }
-  .card .x { position: absolute; right: .7em; top: .4em; cursor: pointer; font-weight: 800; font-size: 1.2em; }
-  /* โหมดไลฟ์ (?stream=1) — สำหรับ TikTok LIVE Studio จับภาพหน้าต่างนี้ */
-  /* เมาส์ต้องเห็นเสมอ (ผู้ใช้ต้องกดได้) — ถ้าไม่อยากให้ลูกศรติดไลฟ์ ปิดที่ตัวเลือก cursor ของ Window capture ใน LIVE Studio */
-  html.stream .help, html.stream .navl, html.stream #feed .chip:nth-child(n+3), html.stream .legend,
-  html.stream #eq, html.stream #clock, html.stream #tfchip, html.stream #spinBtn { display: none; }
-  html.stream .hud { flex-wrap: nowrap; gap: 1.5vw; }
-  html.stream .hud .title { font-size: 1.05em; } html.stream .hud .title span { display: none; }
+  #ctlNote { margin-top: .5em; font-weight: 600; font-size: .9em; }
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 1.2em; font-weight: 600; z-index: 2; color: #1d3b66; }
+
+  /* ---------- จอกลาง (แท็บเล็ต/โน้ตบุ๊กเล็ก) */
+  @media (max-width: 1180px) {
+    .brand p, #tfStat, #clockStat { display: none; }
+    .chat { width: 300px; }
+    .tool .lbl { display: none; }
+    .subbar { max-width: calc(100vw - 2 * var(--gap) - 316px); }
+  }
+  @media (max-width: 900px) { #eqStat { display: none; } }
+
+  /* ---------- หน้าสาธารณะ: ซ่อนลิงก์ที่ใช้ได้เฉพาะเจ้าของ */
+  html.public .private { display: none !important; }
+
+  /* ---------- จอแคบ / มือถือแนวตั้ง */
+  html.portrait body { font-size: clamp(12px, 3.4vw, 15px); }
+  html.portrait { --gap: 10px; }
+  html.portrait .topbar { flex-wrap: wrap; gap: 8px; }
+  html.portrait .brand { padding: 6px 10px 6px 6px; }
+  html.portrait .logo { width: 32px; height: 32px; font-size: 18px; border-radius: 10px; }
+  html.portrait .brand p, html.portrait .spacer, html.portrait .ticker, html.portrait #clockStat, html.portrait #tfStat, html.portrait #eqStat { display: none; }
+  html.portrait .stats { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; padding: 4px; }
+  html.portrait .stat { padding: 2px 10px; flex: 1 0 auto; }
+  html.portrait .subbar { top: auto; bottom: calc(30vh + 40px); max-width: none; }
+  html.portrait .tool { padding: 8px 10px; }
+  html.portrait .tool .lbl { display: none; }
+  html.portrait .info { left: var(--gap); top: 120px; max-height: calc(100vh - 140px); }
+  html.portrait .feed { left: var(--gap); right: var(--gap); width: auto; bottom: calc(30vh + 70px); align-items: center; }
+  html.portrait .disclaimer { bottom: 6px; font-size: .7em; }
+  /* แชทเป็น bottom sheet: แตะหัวเพื่อขยาย/ย่อ */
+  html.portrait .chat { top: auto; left: var(--gap); right: var(--gap); width: auto; bottom: 30px; height: 30vh; transition: height .25s ease; }
+  html.portrait .chat.open { height: 72vh; }
+  html.portrait .chat .head { cursor: pointer; padding-top: 16px; position: relative; }
+  html.portrait .chat .grab { display: block; position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; border-radius: 4px; background: rgba(23, 32, 51, .25); transform: translateX(-50%); }
+  html.portrait .card { left: var(--gap) !important; right: var(--gap); top: auto !important; bottom: calc(30vh + 40px); width: auto; }
+  html.portrait .bubble.hot { max-width: 40vw; }
+  html.portrait .bubble.boss { max-width: 52vw; }
+
+  /* ---------- โหมดไลฟ์ (?stream=1) — สำหรับ TikTok LIVE Studio จับภาพหน้าต่างนี้ */
+  html.stream .subbar, html.stream .info, html.stream #feed .chip:nth-child(n+3),
+  html.stream #eqStat, html.stream #clockStat, html.stream #tfStat, html.stream .brand p, html.stream .chat .head .brain, html.stream .chat .head .s { display: none; }
   html.stream .tag3d.icon { padding: .1em .35em; font-size: 1.05em; border-width: 1.5px; border-radius: 999px; }
   html.stream .bubble.hot { font-size: .78em; padding: .15em .6em; }
-  html.stream .feed { bottom: 6.5vh !important; }
-  html.stream .chat .head .brain { display: none; }
-  .disclaimer { display: none; position: fixed; left: 50%; bottom: 1.4vh; transform: translateX(-50%); z-index: 4; pointer-events: none;
-                background: rgba(29, 36, 51, .82); color: #fff; padding: .35em 1em; border-radius: 999px; font-weight: 700; font-size: .85em; white-space: nowrap; }
-  html.stream .disclaimer { display: block; }
-  /* จอแนวตั้ง (มือถือ / TikTok 9:16) */
-  html.portrait body { font-size: clamp(11px, 2.6vw, 18px); }
-  html.portrait .hud { flex-wrap: wrap; gap: 1.2vw; }
-  html.portrait .hud .spacer { display: none; }
-  html.portrait .hud .title { font-size: 1.15em; }
-  html.portrait .legend { top: auto; bottom: 5.5vh; max-width: 96vw; }
-  html.portrait .legend .chip:not(.trading) { display: none; }
-  html.portrait .feed { top: auto; bottom: 10vh; right: 2vw; left: 2vw; width: auto; align-items: center; }
-  /* แนวตั้ง: แชทย่อเป็นแถบเหนือป้ายล่าง โชว์ 3 ข้อความล่าสุด */
-  html.portrait .chat { top: auto; bottom: 17vh; left: 2vw; right: 2vw; width: auto; max-height: 23vh; background: rgba(255, 253, 246, .86); }
-  html.portrait .chat .head { padding: .3em .8em; font-size: .9em; }
-  html.portrait .chat .pz { display: none; }
-  html.portrait .chat .msg:not(:nth-last-child(-n+3)) { display: none; }
-  html.portrait .chat .list { overflow: hidden; justify-content: flex-end; }
-  html.portrait .bubble.boss { max-width: 52vw; }
-  html.portrait .bubble.hot { max-width: 46vw; }
-  .loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 1.4em; font-weight: 700; z-index: 2; }
+  html.stream.portrait .chat { height: auto; max-height: 24vh; bottom: 17vh; }
+  html.stream.portrait .chat .grab { display: none; }
+  html.stream.portrait .chat .pz { display: none; }
+  html.stream.portrait .chat .msg:not(:nth-last-child(-n+3)) { display: none; }
+  html.stream.portrait .chat .list { overflow: hidden; justify-content: flex-end; }
+  html.stream.portrait .feed { bottom: 10vh; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 <script type="importmap">
 { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -114,38 +201,63 @@
 <div class="loading" id="loading">กำลังสร้างหมู่บ้านบอท… (ครั้งแรกต้องต่ออินเทอร์เน็ตเพื่อโหลด 3D)</div>
 <div id="stage"></div>
 <div id="labels"></div>
-<div class="hud">
-  <span class="chip title">🤖 หมู่บ้านบอท <span style="font-weight:600;font-size:.68em">3D Sandbox</span></span>
-  <span class="chip demo">DEMO · ไม่ใช่เงินจริง</span>
-  <a class="chip navl" href="/">🏠 หน้าหลัก</a>
-  <a class="chip navl" href="/settings">⚙️ ตั้งค่า</a>
-  <button class="chip navl" id="spinBtn" type="button">⏸️ กล้องหยุด</button>
-  <span class="chip num" id="tfchip">–</span>
+<header class="topbar">
+  <div class="brand glass">
+    <div class="logo" aria-hidden="true">🤖</div>
+    <div><h1>หมู่บ้านบอท</h1><p>บอทเทรดอัตโนมัติ 10 ตัว + ผู้จัดการพอร์ต AI · สด</p></div>
+  </div>
+  <span class="demo">DEMO · เงินทดลอง</span>
   <span class="spacer"></span>
-  <span class="chip num" id="btc">BTC –</span>
-  <span class="chip num" id="eq">Equity –</span>
-  <span class="chip num" id="today">วันนี้ –</span>
-  <span class="chip num" id="clock">–</span>
+  <div class="stats glass" role="group" aria-label="ภาพรวมพอร์ต">
+    <div class="stat"><span class="k"><span class="live-dot"></span>BTC/USD</span><span class="v num" id="btc">–</span></div>
+    <div class="stat" id="eqStat"><span class="k">Equity</span><span class="v num" id="eq">–</span></div>
+    <div class="stat"><span class="k">วันนี้ · ทุกบอท</span><span class="v num" id="today">–</span></div>
+    <div class="stat"><span class="k">ถือไม้อยู่</span><span class="v num" id="holding">–</span></div>
+    <div class="stat" id="tfStat"><span class="k">บอททดสอบ</span><span class="v num" id="tfchip">–</span></div>
+    <div class="stat" id="clockStat"><span class="k">เวลาไทย</span><span class="v num" id="clock">–</span></div>
+  </div>
+</header>
+<div class="subbar">
+<nav class="tools" aria-label="เครื่องมือ">
+  <button class="tool" id="infoBtn" type="button" aria-expanded="false" aria-controls="info"><span class="ico">ℹ️</span><span class="lbl">วิธีดู</span></button>
+  <button class="tool" id="spinBtn" type="button" aria-pressed="false"><span class="ico">🎥</span><span class="lbl">กล้องหยุด</span></button>
+  <a class="tool private" href="/"><span class="ico">📊</span><span class="lbl">แดชบอร์ด</span></a>
+  <a class="tool private" href="/settings"><span class="ico">⚙️</span><span class="lbl">ตั้งค่า</span></a>
+</nav>
+<div class="ticker glass" id="tradingchip" aria-live="polite">–</div>
 </div>
-<div class="legend">
-  <span class="chip num trading" id="tradingchip">–</span>
-  <span class="chip"><i style="color:#aab2c0;background:#aab2c0"></i>พัก / นอกเวลา</span>
-  <span class="chip"><i style="color:#4fb3ff;background:#4fb3ff"></i>เฝ้าราคา</span>
-  <span class="chip"><i style="color:#ffcf33;background:#ffcf33"></i>เล็งเป้า</span>
-  <span class="chip"><i style="color:#22c46a;background:#22c46a"></i>ถือไม้ กำไร</span>
-  <span class="chip"><i style="color:#ff5a50;background:#ff5a50"></i>ถือไม้ ขาดทุน</span>
-  <span class="chip">🎯 ได้ +$120 พักทั้งวัน</span>
-  <span class="chip">📦 ออเดอร์ → 🛡️ กันซ้ำ → ⚖️ ความเสี่ยง → 📏 ขนาดไม้ → 🏦 MT5</span>
-</div>
-<div class="feed" id="feed"></div>
-<div class="chat notranslate" translate="no">
-  <div class="head">🧠 ผู้จัดการพอร์ต <span class="brain" id="brain">–</span></div>
+<section class="info glass" id="info" aria-label="วิธีดูหมู่บ้านบอท">
+  <button class="x" id="infoX" type="button" aria-label="ปิด">×</button>
+  <h2>วิธีดูหมู่บ้านบอท</h2>
+  <div>หุ่นยนต์แต่ละตัวคือบอทเทรด 1 ตัว เดินไปตามโซนตามสิ่งที่กำลังทำ ภูเขาด้านหลังคือกราฟราคา BTC 3 ชม. ล่าสุด</div>
+  <h3>สีไฟบนหัวหุ่น</h3>
+  <ul>
+    <li><i style="color:#4fb3ff;background:#4fb3ff"></i>เฝ้าราคา — เดินเล่นที่ลาน</li>
+    <li><i style="color:#ffcf33;background:#ffcf33"></i>เล็งเป้า — ใกล้เข้าไม้ ยืนที่จุดเตรียมเข้า</li>
+    <li><i style="color:#22c46a;background:#22c46a"></i>ถือไม้ กำไร — อยู่ในโซนเทรด</li>
+    <li><i style="color:#ff5a50;background:#ff5a50"></i>ถือไม้ ขาดทุน — อยู่ในโซนเทรด</li>
+    <li><i style="color:#aab2c0;background:#aab2c0"></i>พัก / นอกเวลา / ผู้จัดการสั่งพัก — อยู่บ้านพัก</li>
+  </ul>
+  <h3>ออเดอร์เดินทางยังไง</h3>
+  <div class="flow">📦 ออเดอร์ → 🛡️ กันส่งซ้ำ → ⚖️ ด่านความเสี่ยง → 📏 ขนาดไม้ → 🏦 MT5</div>
+  <h3>ผู้จัดการพอร์ต (หุ่นสีม่วง)</h3>
+  <div>อ่านตลาดทุกนาที สั่งพัก/ให้กลับ/ปิดไม้ของบอททดสอบ ทุกคำสั่งขึ้นในแชทด้านขวา · ★ main (บนเกาะทอง) ทำงานอิสระ ผู้จัดการไม่แตะ</div>
+  <h3>ใช้งาน</h3>
+  <div>ลากเพื่อหมุนกล้อง · ล้อเมาส์/สองนิ้วเพื่อซูม · แตะหุ่นยนต์เพื่อดูรายละเอียด</div>
+  <div class="note">บัญชี DEMO เงินทดลอง เพื่อการเรียนรู้เท่านั้น — ไม่ใช่คำแนะนำการลงทุน ผลในอดีตไม่รับประกันอนาคต</div>
+</section>
+<div class="feed" id="feed" aria-live="polite"></div>
+<aside class="chat glass notranslate" translate="no" aria-label="แชทผู้จัดการพอร์ต">
+  <div class="head" id="chatHead">
+    <span class="grab" aria-hidden="true"></span>
+    <div><div class="t">🧠 ผู้จัดการพอร์ต</div><div class="s">สั่งงานบอทแบบเรียลไทม์</div></div>
+    <span class="brain" id="brain">–</span>
+  </div>
   <div class="pz" id="pz"></div>
-  <div class="list" id="chat"><div class="empty">รอผู้จัดการเริ่มงาน…</div></div>
-</div>
-<div class="disclaimer">🤖 บอทเทรดอัตโนมัติ · บัญชี DEMO เงินทดลอง · ไม่ใช่คำแนะนำการลงทุน</div>
-<div class="help">ลากเพื่อหมุนกล้อง · ล้อเมาส์ซูม · คลิกหุ่นยนต์ดูรายละเอียด · ภูเขา = ราคา BTC 3 ชม. ล่าสุด</div>
-<div class="card" id="card"><span class="x" id="cardx">×</span><div id="cardbody"></div></div>
+  <div class="list" id="chat" role="log"><div class="empty">รอผู้จัดการเริ่มงาน…</div></div>
+</aside>
+<footer class="disclaimer">🤖 บอทเทรดอัตโนมัติ · บัญชี DEMO เงินทดลอง · ไม่ใช่คำแนะนำการลงทุน</footer>
+<div class="card glass" id="card" role="dialog" aria-label="รายละเอียดบอท"><button class="x" id="cardx" type="button" aria-label="ปิด">×</button><div id="cardbody"></div></div>
 
 <script type="module">
 import * as THREE from "three";
@@ -183,13 +295,22 @@ controls.autoRotateSpeed = .25;
 // หมุนกล้องอัตโนมัติ: ปิดเป็นค่าเริ่มต้น · กดปุ่มบนแถบเพื่อเปิด (จำค่าไว้ในเบราว์เซอร์นี้)
 let spin = false;
 try { spin = localStorage.getItem("village.spin") === "1"; } catch {}
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (REDUCED) spin = false;
+// วิธีดู (popover) + แชทแบบ bottom sheet บนมือถือ
+function setInfo(open) { $("info").classList.toggle("open", open); $("infoBtn").setAttribute("aria-expanded", open ? "true" : "false"); }
+$("infoBtn").onclick = () => setInfo(!$("info").classList.contains("open"));
+$("infoX").onclick = () => setInfo(false);
+addEventListener("keydown", (e) => { if (e.key === "Escape") { setInfo(false); $("card").style.display = "none"; } });
+$("chatHead").onclick = () => { if (document.documentElement.classList.contains("portrait")) document.querySelector(".chat").classList.toggle("open"); };
 let idleSince = performance.now();
 controls.addEventListener("start", () => { controls.autoRotate = false; idleSince = Infinity; });
 controls.addEventListener("end", () => { idleSince = performance.now(); });
 function setSpin(on) {
   spin = on; if (!on) controls.autoRotate = false;
   try { localStorage.setItem("village.spin", on ? "1" : "0"); } catch {}
-  $("spinBtn").textContent = on ? "🔄 กล้องหมุน" : "⏸️ กล้องหยุด";
+  $("spinBtn").querySelector(".lbl").textContent = on ? "กล้องหมุน" : "กล้องหยุด";
+  $("spinBtn").setAttribute("aria-pressed", on ? "true" : "false");
   $("spinBtn").title = on ? "กดเพื่อหยุดกล้อง" : "กดเพื่อให้กล้องส่ายช้าๆ เองตอนไม่มีคนจับ";
 }
 $("spinBtn").onclick = () => setSpin(!spin);
@@ -560,14 +681,19 @@ function separate() {   // ไม่เดินชนกัน
 const MGR = { pauses: {}, last: null, first: true };
 let D = null, robots = [], parcels = [], coins = [], seenOpen = null, seenTrades = null, lastErr = 0;
 async function refresh() {
-  try { const d = await (await fetch("/api", { cache: "no-store" })).json(); if (d.error) throw new Error(d.error); D = d; sync(d); }
+  try { const d = await (await fetch("/api", { cache: "no-store" })).json(); if (d.error) throw new Error(d.error);
+        document.documentElement.classList.toggle("public", !!d.public); D = d; sync(d); }
   catch { if (Date.now() - lastErr > 60000) { lastErr = Date.now(); toast("⚠️ ต่อ monitor ไม่ได้ — กำลังลองใหม่"); } }
 }
 async function refreshBars() {
   try {
     const r = await (await fetch("/api/bars?symbol=BTCUSD&tf=M1&n=180", { cache: "no-store" })).json();
     if (r.bars?.length) buildMountain(r.bars.map(b => b[4]));
-    if (r.bid) $("btc").textContent = "BTC " + r.bid.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    if (r.bid) {
+      const b = r.bars || [], ref = b.length > 61 ? b[b.length - 61][4] : null, chg = ref ? (r.bid - ref) / ref * 100 : null;
+      $("btc").innerHTML = r.bid.toLocaleString("en-US", { maximumFractionDigits: 0 }) +
+        (chg == null ? "" : ` <small class="${chg >= 0 ? "up" : "down"}" title="เทียบ 1 ชม. ก่อน">${chg >= 0 ? "▲" : "▼"}${Math.abs(chg).toFixed(2)}%</small>`);
+    }
   } catch {}
 }
 
@@ -615,14 +741,15 @@ function sync(d) {
   }
   seenTrades = new Set(tr.map(t => t.ticket));
   const tfs = [...new Set(robots.filter(r => r.name !== "main").map(r => r.hb?.tf).filter(Boolean))];
-  $("tfchip").textContent = "บอททดสอบ " + (tfs.join("/") || "–");
+  $("tfchip").textContent = tfs.join("/") || "–";
   const busy = robots.filter(r => r.mode === "trade");
-  $("tradingchip").innerHTML = busy.length ? `🚩 กำลังเทรด ${busy.length} ตัว: ` + busy.map(r => `${esc(r.name)} <span class="${r.float >= 0 ? "up" : "down"}">${money(r.float)}</span>`).join(" · ")
-    : "😴 ยังไม่มีบอทถือไม้";
+  $("tradingchip").innerHTML = busy.length ? `🚩 กำลังถือไม้: ` + busy.map(r => `${esc(r.name)} <span class="${r.float >= 0 ? "up" : "down"}">${money(r.float)}</span>`).join(" · ")
+    : "😴 ยังไม่มีบอทถือไม้ — รอสัญญาณ";
+  $("holding").textContent = `${busy.length} / ${robots.length} ตัว`;
   const acc = d.account || {};
-  $("eq").textContent = "Equity $" + (acc.equity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  $("eq").textContent = "$" + (acc.equity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const today = Object.values(d.per_bot || {}).reduce((a, s) => a + (s.today || 0) + (s.floating || 0), 0);
-  $("today").innerHTML = `วันนี้ <span class="${today >= 0 ? "up" : "down"}">${money(today)}</span>`;
+  $("today").innerHTML = `<span class="${today >= 0 ? "up" : "down"}">${money(today)}</span>`;
   if (cardFor && !document.querySelector(".ctl button.armed, .ctl button:disabled[data-busy]")) showCard(cardFor);   // ไม่วาดทับตอนกำลังยืนยัน
 }
 function labelRobot(r) {
@@ -631,12 +758,12 @@ function labelRobot(r) {
   const name = r.name === "main" ? "★ main" : r.name;
   const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main" || (!STREAM && r.mode === "off") || !!MGR.pauses[r.name];
   const pz = MGR.pauses[r.name], left = pz ? Math.max(1, Math.round((pz.until * 1000 - Date.now()) / 60000)) : 0;
-  const what = r.disabled ? "⏹ ปิดโดยผู้ใช้" : pz ? `⏸ ผู้จัดการสั่งพัก (อีก ${left} นาที)` : r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
+  const what = r.disabled ? "⏹ ปิดโดยผู้ใช้" : pz ? `⏸ พัก ${left} น.` : r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
     r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
   const short = r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${money(r.float)}` : r.mode === "aim" ? "🎯"
     : r.mode === "target" ? `🎯 ${money(today)}` : pz ? "⏸ พัก" : "";
   u.bubble.element.innerHTML = STREAM ? `<b>${esc(name)}</b> ${esc(short)}` : `<b>${esc(name)}</b> · ${esc(what)}`;
-  u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : r.mode === "off" ? "off" : "");
+  u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : pz ? "rest" : r.mode === "off" ? "off" : "");
   u.bubble.visible = talk;
   u.plate.visible = !talk && !STREAM;
   u.plate.element.className = "plate";
@@ -684,7 +811,7 @@ async function refreshManager() {
   const key = last ? last.t + last.text : null;
   if (key === MGR.last) return;
   const list = $("chat"), stick = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-  list.innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${esc(m.kind)}"><div class="meta">${KIND[m.kind] || "•"} ${hhmm(m.t)} น.${m.src ? " · " + (SRC[m.src] || esc(m.src)) : ""}</div>${esc(m.text)}</div>`).join("")
+  list.innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${esc(m.kind)}"><div class="meta"><span>${KIND[m.kind] || "•"} ${hhmm(m.t)} น.</span>${m.src ? `<span class="src">${SRC[m.src] || esc(m.src)}</span>` : ""}</div>${esc(m.text)}</div>`).join("")
     : '<div class="empty">ยังไม่มีข้อความจากผู้จัดการ</div>';
   if (stick || MGR.first) list.scrollTop = list.scrollHeight;
   if (last) {

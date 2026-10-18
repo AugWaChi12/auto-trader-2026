@@ -185,6 +185,15 @@ def test_regime_pauses_mismatched_family_after_confirm_then_resumes() -> None:
     assert ("resume", "m5_1") in kinds(acts) and ("pause", "m5_2") in kinds(acts)
 
 
+def test_restart_does_not_reannounce_same_regime() -> None:
+    M.say("analysis", "สภาพตลาดเปลี่ยน: ตลาดวิ่งเป็นเทรนด์ (efficiency 0.5)")
+    b = M.RuleBrain()
+    assert b.regime == "trend"
+    for _ in range(M.REGIME_CONFIRM):
+        acts = b.decide(snap(bars=bars("trend")), {})
+    assert not any("สภาพตลาดเปลี่ยน" in a.reason for a in acts)
+
+
 def test_pause_records_tag_and_source() -> None:
     m, s, p = M.Manager(FakeCol()), snap(), {}
     m.execute(M.Action("pause", "m5_1", 60, "x", "gemini", "regime"), s, p)
