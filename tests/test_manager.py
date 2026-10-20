@@ -704,11 +704,11 @@ def test_claude_code_runner_parses_structured_output(monkeypatch) -> None:  # no
     def fake_run(cmd, **kw):  # noqa: ANN001, ANN202
         seen["cmd"], seen["input"] = cmd, kw["input"]
         out = {"is_error": False, "result": "", "structured_output": {
-            "say": "ตลาดออกข้าง", "actions": [{"name": "close_positions", "bot": "m5_2", "reason": "สวนเทรนด์"}]}}
+            "say": "ตลาดออกข้าง", "actions": [{"name": "close_positions", "bot": "m5_2", "confidence": 70, "reason": "สวนเทรนด์"}]}}
         return NS2(returncode=0, stdout=J.dumps(out), stderr="")
     monkeypatch.setattr(C.subprocess, "run", fake_run)
     calls = C.ClaudeCode().ask('{"x":1}')
-    assert calls == [("say", {"text": "ตลาดออกข้าง"}), ("close_positions", {"bot": "m5_2", "reason": "สวนเทรนด์"})]
+    assert calls == [("say", {"text": "ตลาดออกข้าง"}), ("close_positions", {"bot": "m5_2", "reason": "สวนเทรนด์ (มั่นใจ 70%)"})]
     cmd = seen["cmd"]
     assert cmd[cmd.index("--tools") + 1] == "" and "--json-schema" in cmd and seen["input"] == '{"x":1}'
     monkeypatch.setattr(C.subprocess, "run", lambda cmd, **kw: NS2(returncode=1, stdout='{"is_error":true,"result":"limit"}', stderr=""))
