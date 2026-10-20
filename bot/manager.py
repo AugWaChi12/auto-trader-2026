@@ -741,10 +741,12 @@ class Manager:
         ai = ""
         from .manager_ai import count_call, quota_left
         smart = quota_left(key="smart") > 0                      # บันทึกท้ายวันใช้รุ่นฉลาดถ้ายังมีโควตา
-        if self.llm is not None and (smart or quota_left() > 0):
-            count_call("smart" if smart else "main")
+        claude = getattr(self.llm, "claude", None) if quota_left(key="claude") > 0 else None
+        if self.llm is not None and (claude or smart or quota_left() > 0):
+            count_call("claude" if claude else "smart" if smart else "main")
+            writer = (lambda prompt, smart=False: claude.write(prompt)) if claude else self.llm.write
             try:
-                ai = self.llm.write(smart=smart, prompt=
+                ai = writer(smart=smart, prompt=
                     "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2–4 ประโยค ภาษาไทย: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
                     "และพรุ่งนี้จะปรับวิธีคิดอย่างไร (ตอบเป็นข้อความธรรมดา ไม่ต้องเรียกฟังก์ชัน)\n\n"
                     + json.dumps({"summary": text, "bots": {n: {"strategy": b.get("family"), "today_usd": b["today"]} for n, b in tests.items()},

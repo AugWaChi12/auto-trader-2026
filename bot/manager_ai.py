@@ -27,6 +27,8 @@ TEST_BOTS = sorted((n for n in C.LIVE_INSTANCES if n != "main"), key=lambda n: i
 DAILY_MAX = int(os.environ.get("MANAGER_LLM_DAILY_MAX") or 0)
 # รุ่นฉลาดสำหรับจังหวะสำคัญ (มีไม้เปิด / สภาพตลาดเปลี่ยน / แกว่งแรง / บันทึกท้ายวัน) · 0 = ไม่ใช้ · เก็บ 1 ครั้งให้บันทึกท้ายวัน
 SMART_DAILY_MAX = int(os.environ.get("MANAGER_SMART_DAILY_MAX") or 0)
+# Claude ผ่าน Claude Code + แพ็กเกจสมาชิก (CLAUDE_CODE_OAUTH_TOKEN) — ลำดับแรกของจังหวะสำคัญ · 0 = ไม่ใช้
+CLAUDE_DAILY_MAX = int(os.environ.get("MANAGER_CLAUDE_DAILY_MAX") or 10)
 USAGE_PATH = C.STATE_DIR / "llm_usage.json"
 
 
@@ -48,14 +50,14 @@ def _usage() -> dict[str, int]:
 
 def quota_left(reserve: int = 0, key: str = "main") -> int:
     """ครั้งที่ยังเรียกได้วันนี้ (ตามวันของ Google) ของรุ่นปกติ (main) / รุ่นฉลาด (smart) — ไม่จำกัด = ค่าใหญ่มาก"""
-    cap = SMART_DAILY_MAX if key == "smart" else DAILY_MAX
+    cap = {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX}.get(key, DAILY_MAX)
     if cap <= 0:
-        return 0 if key == "smart" else 10**9
+        return 0 if key in ("smart", "claude") else 10**9
     return max(cap - reserve - _usage().get(key, 0), 0)
 
 
 def count_call(key: str = "main") -> None:
-    if (SMART_DAILY_MAX if key == "smart" else DAILY_MAX) <= 0:
+    if {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX}.get(key, DAILY_MAX) <= 0:
         return
     n = _usage()
     n[key] = n.get(key, 0) + 1
@@ -216,6 +218,8 @@ class AIBrain:
         self.last = 0.0
         self.last_error = 0.0
         self.last_regimes: dict[str, str | None] = {}
+        from .manager_claude_code import ClaudeCode, available
+        self.claude = ClaudeCode() if available() and CLAUDE_DAILY_MAX > 0 else None
 
     def _important(self, s: Snapshot) -> str | None:
         """จังหวะสำคัญ (ถามถี่ขึ้น + ใช้รุ่นฉลาดถ้าโควตาเหลือ) — None = ช่วงปกติ"""
@@ -237,10 +241,24 @@ class AIBrain:
     def maybe_decide(self, s: Snapshot, pauses: dict[str, dict]) -> list[Action]:
         if self.last and s.t - self.last < self._interval_min(s) * 60:
             return []
-        smart = bool(self._important(s)) and quota_left(reserve=1, key="smart") > 0
-        if not smart and quota_left(reserve=1) <= 0:   # ครบโควตาวันนี้ → สมองตามกฎทำงานแทน (เก็บ 1 ครั้งให้บันทึกท้ายวัน)
+        important = bool(self._important(s))
+        use_claude = important and getattr(self, "claude", None) is not None and quota_left(reserve=1, key="claude") > 0
+        smart = important and not use_claude and quota_left(reserve=1, key="smart") > 0
+        if not (use_claude or smart) and quota_left(reserve=1) <= 0:   # ครบโควตาทุกทาง → สมองตามกฎทำงานแทน
             return []
         self.last = s.t
+        if use_claude:
+            self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
+            self.last_tickets = frozenset(o["ticket"] for b in s.test_bots().values() for o in b.get("open") or [])
+            count_call("claude")
+            prompt = "ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses)
+            try:
+                return to_actions(self.claude.ask(prompt), "claude_smart")
+            except Exception as e:  # noqa: BLE001 — Claude ใช้ไม่ได้ → Gemini รุ่นฉลาด/ปกติแทนในรอบเดียวกัน
+                log.warning("claude code: %s", str(e)[:300])
+                smart = quota_left(reserve=1, key="smart") > 0
+                if not smart and quota_left(reserve=1) <= 0:
+                    return []
         count_call("smart" if smart else "main")
         self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
         self.last_tickets = frozenset(o["ticket"] for b in s.test_bots().values() for o in b.get("open") or [])

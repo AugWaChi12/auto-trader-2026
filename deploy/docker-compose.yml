@@ -40,6 +40,9 @@ services:
       # สมอง AI ของผู้จัดการพอร์ต — ใส่คีย์ใน deploy/.env เอง (ว่างทั้งคู่ = สมองตามกฎอย่างเดียว)
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}          # aistudio.google.com (มี tier ฟรี)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}   # claude setup-token (แพ็กเกจสมาชิก) → Claude ช่วยตัดสินจังหวะสำคัญ
+      MANAGER_CLAUDE_DAILY_MAX: ${MANAGER_CLAUDE_DAILY_MAX:-10}
+      MANAGER_CLAUDE_MODEL: ${MANAGER_CLAUDE_MODEL:-sonnet}
       MANAGER_AI: ${MANAGER_AI:-}                  # gemini | claude (ว่าง = ตามคีย์ที่มี, Gemini ก่อน)
       MANAGER_MODEL: ${MANAGER_MODEL:-}            # ว่าง = gemini-3.8-flash / claude-opus-5-5
       MANAGER_LLM_MIN: ${MANAGER_LLM_MIN:-15}      # ถาม AI ทุกกี่นาที (มีไม้เปิด/ตลาดเปลี่ยน/แกว่งแรง)

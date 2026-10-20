@@ -898,7 +898,7 @@ function toast(text) {
 const CHAT_MAX = 10;                       // แสดงเฉพาะข้อความล่าสุด
 const toLatest = () => requestAnimationFrame(() => { const l = $("chat"); l.scrollTop = l.scrollHeight; });
 const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓", trade: "💰" };
-const SRC = { claude: "🤖 Claude", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", rules: "📏 กฎ" };
+const SRC = { claude: "🤖 Claude", claude_smart: "🤖 Claude", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", rules: "📏 กฎ" };
 const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 60000));
 async function refreshManager() {
@@ -906,12 +906,12 @@ async function refreshManager() {
   MGR.pauses = d.pauses || {}; MGR.data = d;
   const msgs = (d.messages || []).slice(-CHAT_MAX), last = msgs[msgs.length - 1];
   const pz = Object.entries(MGR.pauses).sort();
-  const calls = d.shadow?.open || [], who = { rules: "กฎ", gemini: "Gemini Lite", gemini_smart: "Gemini 3.8", claude: "Claude" };
+  const calls = d.shadow?.open || [], who = { rules: "กฎ", gemini: "Gemini Lite", gemini_smart: "Gemini 3.8", claude: "Claude", claude_smart: "Claude" };
   $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ")
     : calls.length ? "📝 ทำนายว่าไม่ควรเข้า: " + calls.map(c => `${c.bot} (${who[c.src] || c.src} · อีก ${minsLeft({ until: c.end })} น.)`).join(" · ") : "";
   const srcs = new Set(msgs.slice(-40).map(m => m.src).filter(Boolean));
-  const ai = [...srcs].some(x => x.startsWith("gemini")) ? "✨ Gemini" : [...srcs].some(x => x.startsWith("claude")) ? "🤖 Claude" : "";
-  $("brain").textContent = ai ? ai + " + 📏 กฎ" : "📏 สมองตามกฎ";
+  const ai = [[...srcs].some(x => x.startsWith("claude")) && "🤖 Claude", [...srcs].some(x => x.startsWith("gemini")) && "✨ Gemini"].filter(Boolean);
+  $("brain").textContent = ai.length ? ai.join(" + ") + " + 📏 กฎ" : "📏 สมองตามกฎ";
   robots.forEach(labelRobot);
   const key = last ? last.t + last.text : null;
   if (key === MGR.last) return;
@@ -942,7 +942,7 @@ function curveSvg(pts) {
     <div class="note">กำไร/ขาดทุนสะสมจากไม้ที่ปิด (ทุกบอท) ตอนนี้ <b class="${last >= 0 ? "up" : "down"}">${money(last)}</b></div>`;
 }
 function shadowHtml(sh) {
-  const sc = sh?.score || {}, who = { rules: "📏 กฎ", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", claude: "🤖 Claude" };
+  const sc = sh?.score || {}, who = { rules: "📏 กฎ", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", claude: "🤖 Claude", claude_smart: "🤖 Claude" };
   const rows = Object.entries(sc).map(([src, x]) => `<tr><td>${who[src] || esc(src)}</td><td class="r">${x.right}/${x.calls}
     <small class="k">(${Math.round(x.right / x.calls * 100)}%)</small></td><td class="r">${x.trades}</td>
     <td class="r"><span class="cell ${x.missed <= 0 ? "pos" : "neg"}">${x.missed <= 0 ? "ประหยัด " + money(-x.missed).slice(1) : "พลาด " + money(x.missed).slice(1)}</span></td></tr>`).join("");

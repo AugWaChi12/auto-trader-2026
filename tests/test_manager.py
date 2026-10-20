@@ -665,6 +665,60 @@ def test_smart_model_used_for_important_moments_within_its_quota(monkeypatch, tm
     assert A.quota_left(key="smart") == 1
 
 
+def test_claude_code_first_for_important_moments_then_falls_back(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    from bot import manager_ai as A
+    monkeypatch.setattr(A, "DAILY_MAX", 100)
+    monkeypatch.setattr(A, "SMART_DAILY_MAX", 5)
+    monkeypatch.setattr(A, "CLAUDE_DAILY_MAX", 3)
+    monkeypatch.setattr(A, "USAGE_PATH", tmp_path / "usage.json")
+    brain = A.AIBrain()
+    brain.src = "gemini"
+    gem = []
+    brain.ask = lambda prompt, smart=False: gem.append(smart) or [("say", {"text": "g"})]
+    cl = []
+
+    class FakeClaude:
+        def ask(self, prompt):  # noqa: ANN001, ANN202
+            cl.append(prompt)
+            if len(cl) == 2:
+                raise RuntimeError("limit")
+            return [("say", {"text": "c"}), ("pause_bot", {"bot": "m5_1", "minutes": 60, "reason": "r"})]
+    brain.claude = FakeClaude()
+    monkeypatch.setattr(brain, "_interval_min", lambda s: 0)
+    out = []
+    for k in range(3):
+        brain.last = 0
+        out.append({a.src for a in brain.maybe_decide(snap(m5_1=bot(opens=[pos(200 + k)])), {})})
+    assert out[0] == {"claude_smart"}                                       # ครั้งแรก Claude
+    assert out[1] == {"gemini_smart"}                  # Claude ล้ม → Gemini รุ่นฉลาดในรอบเดียวกัน
+    assert out[2] == {"gemini_smart"} and len(cl) == 2 and len(gem) == 2                    # โควตา Claude เหลือ 1 เก็บไว้บันทึกท้ายวัน
+    assert A.quota_left(key="claude") == 1
+
+
+def test_claude_code_runner_parses_structured_output(monkeypatch) -> None:  # noqa: ANN001
+    import json as J
+    from types import SimpleNamespace as NS2
+    from bot import manager_claude_code as C
+    seen = {}
+
+    def fake_run(cmd, **kw):  # noqa: ANN001, ANN202
+        seen["cmd"], seen["input"] = cmd, kw["input"]
+        out = {"is_error": False, "result": "", "structured_output": {
+            "say": "ตลาดออกข้าง", "actions": [{"name": "close_positions", "bot": "m5_2", "reason": "สวนเทรนด์"}]}}
+        return NS2(returncode=0, stdout=J.dumps(out), stderr="")
+    monkeypatch.setattr(C.subprocess, "run", fake_run)
+    calls = C.ClaudeCode().ask('{"x":1}')
+    assert calls == [("say", {"text": "ตลาดออกข้าง"}), ("close_positions", {"bot": "m5_2", "reason": "สวนเทรนด์"})]
+    cmd = seen["cmd"]
+    assert cmd[cmd.index("--tools") + 1] == "" and "--json-schema" in cmd and seen["input"] == '{"x":1}'
+    monkeypatch.setattr(C.subprocess, "run", lambda cmd, **kw: NS2(returncode=1, stdout='{"is_error":true,"result":"limit"}', stderr=""))
+    try:
+        C.ClaudeCode().write("x")
+        raise AssertionError("should raise")
+    except RuntimeError as e:
+        assert "limit" in str(e)
+
+
 
 class GuardCol:
     """จำลอง Collector สำหรับตัวเฝ้าไม้แบบเร็ว"""

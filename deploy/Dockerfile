@@ -6,6 +6,8 @@ ARG RPYC_VERSION=5.3.1
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 TZ=UTC
 
 WORKDIR /app
+# Claude Code (claude -p) — ผู้จัดการพอร์ตใช้กับแพ็กเกจสมาชิกของผู้ใช้ผ่าน CLAUDE_CODE_OAUTH_TOKEN (claude setup-token)
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm ca-certificates  && npm install -g @anthropic-ai/claude-code && npm cache clean --force  && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir "numpy>=2.0" "pandas>=2.2" tzdata "rpyc==${RPYC_VERSION}" anthropic google-genai
 COPY bot ./bot
 COPY config ./config
