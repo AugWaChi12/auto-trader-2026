@@ -219,8 +219,9 @@ class AIBrain:
 
     def _important(self, s: Snapshot) -> str | None:
         """จังหวะสำคัญ (ถามถี่ขึ้น + ใช้รุ่นฉลาดถ้าโควตาเหลือ) — None = ช่วงปกติ"""
-        if any(b.get("open") for b in s.test_bots().values()):
-            return "มีไม้เปิด"
+        tickets = frozenset(o["ticket"] for b in s.test_bots().values() for o in b.get("open") or [])
+        if tickets != getattr(self, "last_tickets", frozenset()):
+            return "เพิ่งเปิด/ปิดไม้"
         regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
         last_rg = getattr(self, "last_regimes", None)
         if last_rg and regimes != last_rg:
@@ -242,6 +243,7 @@ class AIBrain:
         self.last = s.t
         count_call("smart" if smart else "main")
         self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
+        self.last_tickets = frozenset(o["ticket"] for b in s.test_bots().values() for o in b.get("open") or [])
         try:
             # รุ่นฉลาดติดป้าย src แยก (เช่น gemini_smart) → คะแนนคำทำนายเทียบสองรุ่นได้จากไม้จริง
             return to_actions(self.ask("ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses), smart=smart),

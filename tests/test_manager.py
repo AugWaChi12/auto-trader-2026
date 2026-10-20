@@ -654,13 +654,86 @@ def test_smart_model_used_for_important_moments_within_its_quota(monkeypatch, tm
     brain.src = "gemini"
     brain.ask = lambda prompt, smart=False: calls.append(smart) or [("say", {"text": "x"})]
     monkeypatch.setattr(brain, "_interval_min", lambda s: 0)
-    busy = snap(m5_1=bot(opens=[pos()]))                                   # มีไม้เปิด = จังหวะสำคัญ
     srcs = []
-    for _ in range(4):
+    for k in range(4):                                                     # ไม้ใหม่ทุกรอบ = จังหวะสำคัญ
         brain.last = 0
-        srcs += [a.src for a in brain.maybe_decide(busy, {})]
+        srcs += [a.src for a in brain.maybe_decide(snap(m5_1=bot(opens=[pos(100 + k)])), {})]
     brain.last = 0
-    brain.maybe_decide(snap(), {})                                          # ช่วงปกติ
+    brain.maybe_decide(snap(m5_1=bot(opens=[pos(103)])), {})                # ไม้เดิมยังถืออยู่ = ช่วงปกติ
     assert calls == [True, True, False, False, False]                      # รุ่นฉลาด 2 ครั้ง (เก็บ 1 ให้บันทึกท้ายวัน)
     assert srcs[:2] == ["gemini_smart", "gemini_smart"] and srcs[2] == "gemini"
     assert A.quota_left(key="smart") == 1
+
+
+
+class GuardCol:
+    """จำลอง Collector สำหรับตัวเฝ้าไม้แบบเร็ว"""
+    def __init__(self, positions):  # noqa: ANN001
+        self.bots = {"main": 1, "m5_10": 30, "m5_1": 21}
+        self.by_magic = {v: k for k, v in self.bots.items()}
+        self.positions, self.closed, self.modified = positions, [], []
+
+    def raw_positions(self):  # noqa: ANN201
+        return list(self.positions)
+
+    def symbol_meta(self, sym):  # noqa: ANN001, ANN201
+        return (100.0, 0.5, 2) if sym == "GOLD" else (1.0, 200.0, 2)     # ทอง: ระยะขั้นต่ำแคบ · BTC: $200
+
+    def modify_sl(self, ticket, sl):  # noqa: ANN001, ANN201
+        self.modified.append((ticket, sl))
+        return True
+
+    def close_bot_positions(self, bot):  # noqa: ANN001, ANN201
+        self.closed.append(bot)
+        return [{"ok": True}]
+
+
+def P(ticket, magic, profit, symbol="GOLD", typ=0, open_=4100.0, cur=4105.0, sl=4090.0, vol=0.04):  # noqa: ANN001, ANN201, N802
+    return NS(ticket=ticket, magic=magic, profit=profit, swap=0.0, symbol=symbol, type=typ, price_open=open_,
+              price_current=cur, sl=sl, tp=0.0, volume=vol)
+
+
+def test_guard_locks_profit_at_broker_and_never_touches_main() -> None:
+    col = GuardCol([P(1, 30, 20.0), P(9, 1, 80.0)])                       # m5_10 กำไร 20 · main กำไร 80
+    m = M.Manager(col)
+    m.guard()
+    assert col.modified and col.modified[0][0] == 1 and col.closed == []
+    t, sl = col.modified[0]
+    assert abs((sl - 4100.0) * 0.04 * 100 - 10.0) < 0.01                  # ล็อก 50% ของ +$20 = +$10
+    col.positions = [P(1, 30, 8.0, sl=sl)]                                 # หดเหลือ 8 (< ครึ่งของ 20)
+    m.guard()
+    assert col.closed == ["m5_10"]
+
+
+def test_guard_takes_profit_at_50_and_skips_lock_when_broker_distance_too_wide() -> None:
+    col = GuardCol([P(2, 21, 30.0, symbol="BITCOIN", open_=81000, cur=81060, sl=80600, vol=0.5)])
+    m = M.Manager(col)
+    m.guard()
+    assert col.modified == [] and col.closed == []                        # BTC กำไร $30 แต่ SL ต้องห่าง $200 → ล็อกยังไม่ได้
+    col.positions = [P(2, 21, 51.0, symbol="BITCOIN", open_=81000, cur=81102, sl=80600, vol=0.5)]
+    m.guard()
+    assert col.closed == ["m5_1"]
+
+
+def test_gemini_falls_back_to_next_model_when_overloaded(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from bot import manager_gemini as G
+    tried = []
+
+    def gen(model, contents, config):  # noqa: ANN001, ANN202
+        tried.append(model)
+        if len(tried) == 1:
+            raise RuntimeError("503 UNAVAILABLE. This model is currently experiencing high demand")
+        return NS(function_calls=[NS(name="say", args={"text": "ok"})], usage_metadata=None)
+    b = G.GeminiBrain()
+    b.client = NS(models=NS(generate_content=gen))
+    assert b.ask("x") == [("say", {"text": "ok"})] and len(tried) == 2 and tried[0] != tried[1]
+    tried.clear()
+
+    def bad(model, contents, config):  # noqa: ANN001, ANN202
+        tried.append(model)
+        raise RuntimeError("400 INVALID_ARGUMENT")
+    b.client = NS(models=NS(generate_content=bad))
+    with pytest.raises(RuntimeError):
+        b.ask("x")
+    assert len(tried) == 1                                                  # error อื่นไม่ลองรุ่นสำรอง

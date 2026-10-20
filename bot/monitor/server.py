@@ -107,6 +107,35 @@ class Collector:
         return broker_name
 
     # ------------------------------------------------------------------ สั่งงานจากหน้าเว็บ (บอททดสอบเท่านั้น · DEMO เท่านั้น)
+    def raw_positions(self) -> list[Any]:
+        """ไม้ทั้งหมดในบัญชีแบบสด (ไม่ผ่าน cache) — ตัวเฝ้าไม้ของผู้จัดการเรียกทุก 10 วิ"""
+        with self._lock:
+            if not self._ok:
+                self._connect()
+            return list(self.mt5.positions_get() or ())
+
+    def symbol_meta(self, broker_symbol: str) -> tuple[float, float, int]:
+        """(contract size, ระยะ SL ขั้นต่ำเป็นราคา, digits)"""
+        with self._lock:
+            info = self.mt5.symbol_info(broker_symbol)
+            return info.trade_contract_size, info.trade_stops_level * info.point, info.digits
+
+    def modify_sl(self, ticket: int, sl: float) -> bool:
+        """เลื่อน SL ของไม้บอททดสอบ (ไม่แตะ main · DEMO เท่านั้น)"""
+        with self._lock:
+            mt5 = self.mt5
+            acc = mt5.account_info()
+            if acc is None or acc.trade_mode != mt5.ACCOUNT_TRADE_MODE_DEMO:
+                raise ValueError("ไม่ใช่บัญชี DEMO — ไม่แก้ SL ให้")
+            found = mt5.positions_get(ticket=ticket)
+            if not found or found[0].magic == self.bots.get("main"):
+                return False
+            p = found[0]
+            r = mt5.order_send({"action": mt5.TRADE_ACTION_SLTP, "position": ticket, "symbol": p.symbol, "sl": sl,
+                                "tp": p.tp or 0.0, "magic": p.magic})
+            self._cache.clear()
+            return r is not None and r.retcode in (10008, 10009)
+
     def close_bot_positions(self, bot: str) -> list[dict]:
         """ปิดไม้ทุกไม้ของบอทนี้ทันทีด้วยราคาตลาด — ตรวจว่าเป็นบัญชี DEMO ก่อนทุกครั้ง"""
         with self._lock:

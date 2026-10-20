@@ -59,6 +59,9 @@ STREAK_PAUSE_MIN = 90
 # ผู้ใช้สั่ง 2026-10-18: "ไม้ไหน + ถึง 50 ก็ปิดเลย" — กำไรลอยรวมทุกชิ้นของบอทตัวนั้น (ไม่ใช่ main) · 0 = ปิดกฎนี้
 TAKE_PROFIT_USD = float(os.environ.get("MANAGER_TAKE_PROFIT_USD") or 50)
 GIVEBACK_PEAK = 15.0          # ไม้เคยกำไรถึงนี้ แล้วหดเหลือครึ่ง → ปิดเก็บกำไร
+GUARD_SEC = 10                # ตัวเฝ้าไม้แบบเร็ว: เช็กไม้ที่เปิดอยู่ทุกกี่วินาที (กฎ +$50 / กำไรหดคืน / ล็อกกำไรที่โบรก)
+LOCK_START = 15.0             # กำไรลอยเคยถึงนี้ ($/ไม้) → เลื่อน SL ที่โบรกไปล็อกกำไรไว้ LOCK_KEEP ของจุดสูงสุด
+LOCK_KEEP = 0.5
 STALE_HOURS, STALE_LOSS = 3.0, -20.0   # ถือนานเกิน และยังขาดทุนเกิน → ตัดทิ้ง
 VOL_SPIKE = 3.0               # ช่วง 15 นาทีล่าสุดกว้างกว่าค่ากลาง 3 ชม. กี่เท่า → พักบอท BTC
 VOL_PAUSE_MIN = 30
@@ -548,6 +551,70 @@ class Manager:
         say("analysis", f"📝 {who} ทำนาย: {a.bot} ไม่ควรเข้าไม้ {m} นาที — {a.reason} (บอทยังเทรดตามปกติ · ให้คะแนนจากไม้จริงภายหลัง)",
             src=a.src, bot=a.bot, act="paper", minutes=m)
 
+    def guard(self) -> None:
+        """ตัวเฝ้าไม้แบบเร็ว (ทุก GUARD_SEC วินาที, เฉพาะบอททดสอบ):
+          1) กำไรลอยรวมของบอทถึง TAKE_PROFIT_USD → ปิดทั้งบอท
+          2) ไม้เคยกำไร ≥ GIVEBACK_PEAK แล้วหดเหลือ ≤ ครึ่ง → ปิดทั้งบอท
+          3) ไม้เคยกำไร ≥ LOCK_START → เลื่อน SL ที่โบรกไปล็อก LOCK_KEEP ของจุดสูงสุด (ถ้าระยะขั้นต่ำของโบรกยอม)
+        ข้อ 3 ทำให้โบรกปิดให้ทันทีที่ราคาย้อน แม้ผู้จัดการจะล่มหรือเช็กไม่ทัน"""
+        col = self.col
+        if not hasattr(col, "raw_positions"):
+            return
+        main_magic = col.bots.get("main")
+        by_bot: dict[str, list] = {}
+        for p in col.raw_positions():
+            bot = col.by_magic.get(p.magic)
+            if bot and p.magic != main_magic:
+                by_bot.setdefault(bot, []).append(p)
+        peaks = self.brain.peaks
+        live = {p.ticket for ps in by_bot.values() for p in ps}
+        for k in [k for k in peaks if k not in live]:
+            del peaks[k]
+        for bot, ps in by_bot.items():
+            pnl = {p.ticket: round(p.profit + p.swap, 2) for p in ps}
+            for t, v in pnl.items():
+                peaks[t] = max(peaks.get(t, v), v)
+            floating = round(sum(pnl.values()), 2)
+            why = None
+            if TAKE_PROFIT_USD > 0 and floating >= TAKE_PROFIT_USD:
+                why = f"{bot} กำไรลอย {floating:+.2f}$ ถึงเป้า +{TAKE_PROFIT_USD:.0f}$ — ปิดเก็บกำไร"
+            else:
+                for p in ps:
+                    pk = peaks[p.ticket]
+                    if pk >= GIVEBACK_PEAK and pnl[p.ticket] <= pk * 0.5:
+                        why = f"{bot} กำไรเคยถึง +{pk:.2f}$ เหลือ {pnl[p.ticket]:+.2f}$ — ปิดเก็บก่อนหดหมด"
+                        break
+            if why:
+                res = col.close_bot_positions(bot)
+                say("action", f"✋ สั่งปิดไม้ {bot} ({sum(1 for r in res if r.get('ok'))}/{len(res)}) — {why}",
+                    bot=bot, act="close", src="rules")
+                continue
+            for p in ps:
+                self._lock_profit(bot, p, peaks[p.ticket])
+
+    def _lock_profit(self, bot: str, p: Any, peak: float) -> None:
+        if peak < LOCK_START:
+            return
+        contract, min_dist, digits = self.col.symbol_meta(p.symbol)
+        per_price = p.volume * contract
+        if per_price <= 0:
+            return
+        buy = p.type == 0
+        keep = peak * LOCK_KEEP
+        target = p.price_open + (keep / per_price if buy else -keep / per_price)
+        now = p.price_current
+        limit = now - min_dist * 1.1 if buy else now + min_dist * 1.1        # โบรกไม่รับ SL ใกล้ราคากว่าระยะขั้นต่ำ
+        sl = min(target, limit) if buy else max(target, limit)
+        locked = (sl - p.price_open) * per_price if buy else (p.price_open - sl) * per_price
+        if locked <= 0:
+            return                                                         # ยังล็อกให้เป็นกำไรไม่ได้ (ระยะขั้นต่ำของโบรกกว้างเกิน)
+        sl = round(sl, digits)
+        if p.sl and ((buy and sl <= p.sl + 10 ** -digits) or (not buy and sl >= p.sl - 10 ** -digits)):
+            return                                                         # SL เดิมล็อกได้ดีกว่า/เท่ากันแล้ว
+        if self.col.modify_sl(p.ticket, sl):
+            say("info", f"🔒 ล็อกกำไร {bot} #{p.ticket}: SL → {sl} (อย่างน้อย +{locked:.2f}$ · เคยถึง +{peak:.2f}$)",
+                bot=bot, act="lock", src="rules")
+
     def fetch_bars(self, symbol: str, tf: str, count: int) -> list:
         """แท่งที่ปิดแล้วล่าสุดของตลาดนั้น (ให้บอทเงาจำลอง) — แปลงเวลา server → UTC แบบเดียวกับบอทจริง
         MT5 ตอบ 'Invalid params' ถ้าขอเกินจำนวนแท่งที่มี (M5 มีน้อยกว่า M1) → ลดจำนวนลงแล้วลองใหม่"""
@@ -711,4 +778,10 @@ class Manager:
             n += 1
             if n % 60 == 0:
                 trim_log()
+            for _ in range(max(TICK_SEC // GUARD_SEC - 1, 0)):   # ระหว่างรอบใหญ่ 60 วิ → เฝ้าไม้ทุก 10 วิ
+                time.sleep(GUARD_SEC)
+                try:
+                    self.guard()
+                except Exception:  # noqa: BLE001
+                    log.exception("guard failed")
             time.sleep(TICK_SEC)
