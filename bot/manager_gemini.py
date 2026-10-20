@@ -21,7 +21,7 @@ log = logging.getLogger("manager.gemini")
 MODEL = os.environ.get("MANAGER_MODEL") or "gemini-3.8-flash"                  # ช่วงปกติ (เช่น gemini-3.1-flash-lite ฟรี 500/วัน)
 SMART_MODEL = os.environ.get("MANAGER_SMART_MODEL") or "gemini-3.8-flash"      # จังหวะสำคัญ (MANAGER_SMART_DAILY_MAX ครั้ง/วัน)
 # รุ่นสำรองเมื่อรุ่นหลักล่มชั่วคราว (503/500 — Google รับโหลดไม่ไหว) · โปรเจกต์ฟรีไม่มี billing → เกินโควตาแค่ถูกปฏิเสธ ไม่เสียเงิน
-FALLBACK_MODELS = [m for m in (os.environ.get("MANAGER_FALLBACK_MODELS") or "gemini-3.6-flash,gemini-3-flash,gemini-3.8-flash").split(",") if m]
+FALLBACK_MODELS = [m for m in (os.environ.get("MANAGER_FALLBACK_MODELS") or "gemini-3.6-flash,gemini-3.8-flash").split(",") if m]
 
 
 def _overloaded(e: Exception) -> bool:
