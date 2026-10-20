@@ -35,7 +35,7 @@ def _paths(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
 
 
 def test_observe_gate_does_not_block_but_flags(tmp_path: Path) -> None:
-    Gate.LOG_DIR = tmp_path / "m5_8"
+    Gate.LOG_DIR, Gate.FRESH_SEC = tmp_path / "m5_8", 0
     g = Gate(Inner(), skip_sessions=("asia",), mode="observe")
     t = datetime(2026, 10, 18, 3, 0, tzinfo=timezone.utc)
     assert len(g.on_bar(Bar(t, 1, 1, 1, 1), None)) == 1                     # ไม่บล็อก

@@ -125,8 +125,18 @@ def read_journal(limit: int = 14) -> list[dict]:
 
 
 def read_log(limit: int = 80) -> list[dict]:
+    """อ่านแค่ท้ายไฟล์ (ไฟล์แชทโตขึ้นเรื่อยๆ ทั้งปี — ไม่โหลดทั้งไฟล์ทุกครั้งที่หน้าเว็บขอ)"""
     try:
-        lines = LOG_PATH.read_text(encoding="utf-8").splitlines()[-limit:]
+        with LOG_PATH.open("rb") as f:
+            size = f.seek(0, 2)
+            chunk = max(4096, limit * 2048)
+            while True:
+                f.seek(max(0, size - chunk))
+                raw = f.read()
+                if raw.count(b"\n") > limit or chunk >= size:
+                    break
+                chunk *= 4
+        lines = raw.decode("utf-8", errors="ignore").splitlines()[-limit:]
     except OSError:
         return []
     out = []

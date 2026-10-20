@@ -13,6 +13,7 @@ gate.py — ตัวกรองที่ผู้จัดการพอร�
 from __future__ import annotations
 
 import json
+import time
 from collections import deque
 
 from ..core.interfaces import IAccount
@@ -42,6 +43,7 @@ def signature(skip_regimes: tuple | list, skip_sessions: tuple | list) -> str:
 
 
 class Gate(Strategy):
+    FRESH_SEC = 3600        # จดเฉพาะแท่งสด (แท่งย้อนหลังตอนวอร์มอัปหลังรีสตาร์ทไม่จดซ้ำ) · 0 = จดทุกแท่ง
     LOG_DIR = None          # บอทจริงตั้งเป็น state/<บอท> ตอนเริ่ม (live/runner.py) · backtest/วิจัย = ไม่จดไฟล์
 
     def __init__(self, inner: Strategy, skip_regimes: tuple[str, ...] = (), skip_sessions: tuple[str, ...] = (),
@@ -82,6 +84,8 @@ class Gate(Strategy):
 
     def _flag(self, bar: Bar, sigs: list[Signal], rg: str | None) -> None:
         if self.LOG_DIR is None:
+            return
+        if self.FRESH_SEC and bar.time.timestamp() < time.time() - self.FRESH_SEC:
             return
         try:
             with (self.LOG_DIR / "gate_flags.jsonl").open("a", encoding="utf-8") as f:
