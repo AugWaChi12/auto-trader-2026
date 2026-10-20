@@ -141,6 +141,7 @@
   .msg.alert { background: #fff0ef; border-color: #ffd2cf; }
   .msg.analysis { background: #f4f0ff; border-color: #e1d8ff; }
   .msg.info { background: #effaf2; border-color: #cfeeda; }
+  .msg.trade { background: #fffbea; border-color: #f3e2a6; font-weight: 600; }
   .chat .empty { color: var(--muted); font-size: .86em; text-align: center; margin-top: 2em; }
 
   /* ---------- ท้ายจอ */
@@ -896,7 +897,7 @@ function toast(text) {
 // ------------------------------------------------------------------ แชทผู้จัดการพอร์ต (/api/manager)
 const CHAT_MAX = 10;                       // แสดงเฉพาะข้อความล่าสุด
 const toLatest = () => requestAnimationFrame(() => { const l = $("chat"); l.scrollTop = l.scrollHeight; });
-const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓" };
+const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓", trade: "💰" };
 const SRC = { claude: "🤖 Claude", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", rules: "📏 กฎ" };
 const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 60000));

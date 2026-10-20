@@ -114,6 +114,21 @@ class Collector:
                 self._connect()
             return list(self.mt5.positions_get() or ())
 
+    def closed_result(self, ticket: int) -> dict | None:
+        """ผลจริงของไม้ที่ปิดแล้ว (จาก deal history) — None = ยังไม่มี deal ปิด (โบรกยังบันทึกไม่ทัน)"""
+        with self._lock:
+            mt5 = self.mt5
+            ds = list(mt5.history_deals_get(position=ticket) or ())
+            ins = [d for d in ds if d.entry == mt5.DEAL_ENTRY_IN]
+            outs = [d for d in ds if d.entry in (mt5.DEAL_ENTRY_OUT, mt5.DEAL_ENTRY_OUT_BY)]
+            if not ins or not outs:
+                return None
+            i, o = ins[0], outs[-1]
+            return {"ticket": ticket, "bot": self.by_magic.get(i.magic), "symbol": self._canonical(i.symbol),
+                    "side": "BUY" if i.type == 0 else "SELL", "volume": i.volume, "open_price": i.price,
+                    "close_price": o.price, "reason": _exit_reason(o.comment),
+                    "profit": round(sum(d.profit + d.commission + d.swap + d.fee for d in ds), 2)}
+
     def symbol_meta(self, broker_symbol: str) -> tuple[float, float, int]:
         """(contract size, ระยะ SL ขั้นต่ำเป็นราคา, digits)"""
         with self._lock:

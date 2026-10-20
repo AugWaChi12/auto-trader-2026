@@ -104,14 +104,14 @@ def notifier():  # noqa: ANN201
     return _notifier
 
 
-def say(kind: str, text: str, **data: Any) -> dict:
-    """kind: analysis 🧠 · action ⚡ · alert ⚠️ · info ℹ️ · journal 📓"""
+def say(kind: str, text: str, notify: bool | None = None, **data: Any) -> dict:
+    """kind: analysis 🧠 · action ⚡ · alert ⚠️ · info ℹ️ · journal 📓 · notify=False = ไม่ส่ง Telegram"""
     msg = {"t": datetime.now(timezone.utc).isoformat(timespec="seconds"), "kind": kind, "text": text, **data}
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(msg, ensure_ascii=False) + "\n")
     log.info("[%s] %s", kind, text)
-    if kind in NOTIFY_KINDS:
+    if kind in NOTIFY_KINDS and notify is not False:
         icon = {"action": "⚡", "alert": "⚠️", "journal": "📓"}[kind]
         notifier().send(f"{icon} {text}")
     return msg
@@ -429,6 +429,9 @@ class Manager:
         self.day = bkk_day()
         self.last_snap: Snapshot | None = None
         self.research_proc: Any = None
+        self.known: dict[int, str] | None = None        # ticket → บอท ของไม้ที่เห็นเปิดอยู่ (ไว้จับตอนปิด)
+        self.pending_closed: dict[int, str] = {}         # ไม้ที่หายไปแล้วแต่ deal ปิดยังไม่มา
+        self.close_why: dict[str, str] = {}              # บอท → เหตุผลที่ผู้จัดการสั่งปิดล่าสุด
         self.last_shadow = 0.0
         self.llm = None
         which = os.environ.get("MANAGER_AI") or ("gemini" if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -480,7 +483,10 @@ class Manager:
         elif a.kind == "close":
             res = self.col.close_bot_positions(a.bot)
             ok = sum(1 for r in res if r.get("ok"))
-            say("action", f"✋ สั่งปิดไม้ {a.bot} ({ok}/{len(res)}) — {a.reason}", bot=a.bot, act="close", src=a.src)
+            self.close_why[a.bot] = ({"gemini": "Gemini", "gemini_smart": "Gemini", "claude": "Claude"}.get(a.src, "ผู้จัดการ")
+                                     + " ปิด: " + a.reason)
+            say("action", f"✋ สั่งปิดไม้ {a.bot} ({ok}/{len(res)}) — {a.reason}", bot=a.bot, act="close", src=a.src,
+                notify=False)                                   # Telegram ได้ข้อความผลจริงตอนปิดเสร็จแทน (trade_closed)
 
     def brain_name(self) -> str:
         return f"{self.llm.name} + {self.brain.name}" if self.llm else self.brain.name
@@ -562,7 +568,9 @@ class Manager:
             return
         main_magic = col.bots.get("main")
         by_bot: dict[str, list] = {}
-        for p in col.raw_positions():
+        raw = col.raw_positions()
+        self.report_closed(raw)
+        for p in raw:
             bot = col.by_magic.get(p.magic)
             if bot and p.magic != main_magic:
                 by_bot.setdefault(bot, []).append(p)
@@ -585,12 +593,67 @@ class Manager:
                         why = f"{bot} กำไรเคยถึง +{pk:.2f}$ เหลือ {pnl[p.ticket]:+.2f}$ — ปิดเก็บก่อนหดหมด"
                         break
             if why:
+                self.close_why[bot] = "ผู้จัดการปิด: " + why.split(" — ")[-1] + f" (ตอนสั่งลอย {floating:+.2f}$)"
                 res = col.close_bot_positions(bot)
                 say("action", f"✋ สั่งปิดไม้ {bot} ({sum(1 for r in res if r.get('ok'))}/{len(res)}) — {why}",
-                    bot=bot, act="close", src="rules")
+                    bot=bot, act="close", src="rules", notify=False)
                 continue
             for p in ps:
                 self._lock_profit(bot, p, peaks[p.ticket])
+
+    def report_closed(self, raw: list) -> None:
+        """ไม้ที่หายไปจากรายการเปิด → ดึงผลจริงจาก MT5 → แจ้ง Telegram ทันที (รวมทุกชิ้นของบอทเดียวกันเป็นข้อความเดียว)"""
+        col = self.col
+        if not hasattr(col, "closed_result"):
+            return
+        now = {p.ticket: col.by_magic[p.magic] for p in raw if p.magic in col.by_magic}
+        if self.known is None:                                # เริ่มงาน: จำไม้ที่เปิดอยู่ ไม่แจ้งย้อนหลัง
+            self.known = now
+            return
+        for t, bot in self.known.items():
+            if t not in now:
+                self.pending_closed[t] = bot
+        self.known = now
+        done: dict[str, list[dict]] = {}
+        for t in list(self.pending_closed):
+            r = col.closed_result(t)
+            if r is None:
+                continue                                      # deal ยังไม่มา → รอบหน้า
+            bot = self.pending_closed.pop(t)
+            done.setdefault(r["bot"] or bot, []).append(r)
+        for bot, rs in done.items():
+            self.notify_closed(bot, rs)
+
+    def notify_closed(self, bot: str, rs: list[dict]) -> None:
+        pnl = round(sum(r["profit"] for r in rs), 2)
+        r0 = rs[0]
+        reasons = {r["reason"] for r in rs}
+        why = self.close_why.pop(bot, None) if reasons <= {"manual_close"} else None
+        if why is None:
+            why = " / ".join(sorted({
+                ("ชน SL (ล็อกกำไรไว้)" if r["profit"] > 0 else "ชน SL") if r["reason"] == "SL" else
+                "ถึง TP" if r["reason"] == "TP" else "ปิดโดยผู้จัดการ" if r["reason"] == "manual_close" else r["reason"]
+                for r in rs}))
+        vol = round(sum(r["volume"] for r in rs), 2)
+        name = SYMBOL_TH.get(r0["symbol"], r0["symbol"])
+        pieces = f" ({len(rs)} ชิ้น)" if len(rs) > 1 else ""
+        day = self.day_total()
+        icon = "🟢" if pnl > 0 else "🔴" if pnl < 0 else "⚪"
+        text = (f"{icon} {bot} {name} {r0['side']} {vol}{pieces} · {pnl:+.2f}$ · {why}"
+                + (f"\n📊 วันนี้: {day['pnl']:+.2f}$ (ชนะ {day['wins']} แพ้ {day['losses']})" if day else ""))
+        say("trade", text, bot=bot, act="closed", pnl=pnl, notify=False)
+        notifier().send(text)
+
+    def day_total(self) -> dict | None:
+        """ผลไม้ที่ปิดแล้ววันนี้ (เวลาไทย) ของทุกบอท"""
+        try:
+            getattr(self.col, "_cache", {}).clear()             # ไม้เพิ่งปิด → ต้องได้ตัวเลขใหม่ ไม่ใช่ cache
+            pb = (self.col.data() or {}).get("per_bot") or {}
+        except Exception:  # noqa: BLE001
+            return None
+        return {"pnl": round(sum((s.get("today") or 0) for s in pb.values()), 2),
+                "wins": sum(s.get("today_wins") or 0 for s in pb.values()),
+                "losses": sum((s.get("today_trades") or 0) - (s.get("today_wins") or 0) for s in pb.values())}
 
     def _lock_profit(self, bot: str, p: Any, peak: float) -> None:
         if peak < LOCK_START:

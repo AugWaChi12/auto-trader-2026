@@ -737,3 +737,33 @@ def test_gemini_falls_back_to_next_model_when_overloaded(monkeypatch) -> None:  
     with pytest.raises(RuntimeError):
         b.ask("x")
     assert len(tried) == 1                                                  # error อื่นไม่ลองรุ่นสำรอง
+
+
+def test_closed_trades_reported_with_real_pnl_once_per_bot(monkeypatch) -> None:  # noqa: ANN001
+    from bot.live import notify as N
+    sent = []
+    monkeypatch.setattr(M, "_notifier", NS(send=lambda t: sent.append(t), token=None, chat=None))
+    results = {11: {"bot": "m5_6", "symbol": "BTCUSD", "side": "BUY", "volume": 0.25, "reason": "manual_close", "profit": 34.87},
+               12: {"bot": "m5_6", "symbol": "BTCUSD", "side": "BUY", "volume": 0.25, "reason": "manual_close", "profit": 34.86},
+               13: None}                                                    # deal ยังไม่มา
+
+    class Col(GuardCol):
+        def closed_result(self, t):  # noqa: ANN001, ANN201
+            return results.get(t)
+
+        def data(self):  # noqa: ANN201
+            return {"per_bot": {"m5_6": {"today": 69.73, "today_trades": 2, "today_wins": 2},
+                                "m5_4": {"today": -118.87, "today_trades": 1, "today_wins": 0}}}
+    col = Col([P(11, 21, 30.0), P(12, 21, 30.0), P(13, 30, 5.0)])
+    col.bots["m5_6"] = 21
+    col.by_magic = {v: k for k, v in col.bots.items()}
+    m = M.Manager(col)
+    m.report_closed(col.raw_positions())                                    # เริ่มงาน: จำไว้ ไม่แจ้ง
+    m.close_why["m5_6"] = "ผู้จัดการปิด: ถึงเป้า +50$"
+    m.report_closed([])                                                     # ทั้ง 3 ไม้หายไป
+    assert len(sent) == 1 and "m5_6 BTC BUY 0.5 (2 ชิ้น) · +69.73$ · ผู้จัดการปิด: ถึงเป้า +50$" in sent[0]
+    assert "วันนี้: -49.14$ (ชนะ 2 แพ้ 1)" in sent[0]
+    assert 13 in m.pending_closed                                           # รอ deal รอบหน้า
+    results[13] = {"bot": "m5_10", "symbol": "XAUUSD", "side": "SELL", "volume": 0.04, "reason": "SL", "profit": -33.76}
+    m.report_closed([])
+    assert sent[-1].startswith("🔴 m5_10 ทอง SELL 0.04 · -33.76$ · ชน SL") and not m.pending_closed
