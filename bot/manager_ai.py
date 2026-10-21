@@ -29,6 +29,8 @@ DAILY_MAX = int(os.environ.get("MANAGER_LLM_DAILY_MAX") or 0)
 SMART_DAILY_MAX = int(os.environ.get("MANAGER_SMART_DAILY_MAX") or 0)
 # Claude ผ่าน Claude Code + แพ็กเกจสมาชิก (CLAUDE_CODE_OAUTH_TOKEN) — ลำดับแรกของจังหวะสำคัญ · 0 = ไม่ใช้
 CLAUDE_DAILY_MAX = int(os.environ.get("MANAGER_CLAUDE_DAILY_MAX") or 10)
+# แชท Telegram (เจ้าของถาม → Claude/Gemini ตอบจากข้อมูลจริง) · โควตาแยกจากการตัดสินใจของผู้จัดการ
+CHAT_DAILY_MAX = int(os.environ.get("MANAGER_CHAT_DAILY_MAX") or 40)
 USAGE_PATH = C.STATE_DIR / "llm_usage.json"
 
 
@@ -50,14 +52,14 @@ def _usage() -> dict[str, int]:
 
 def quota_left(reserve: int = 0, key: str = "main") -> int:
     """ครั้งที่ยังเรียกได้วันนี้ (ตามวันของ Google) ของรุ่นปกติ (main) / รุ่นฉลาด (smart) — ไม่จำกัด = ค่าใหญ่มาก"""
-    cap = {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX}.get(key, DAILY_MAX)
+    cap = {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX, "chat": CHAT_DAILY_MAX}.get(key, DAILY_MAX)
     if cap <= 0:
-        return 0 if key in ("smart", "claude") else 10**9
+        return 0 if key in ("smart", "claude", "chat") else 10**9
     return max(cap - reserve - _usage().get(key, 0), 0)
 
 
 def count_call(key: str = "main") -> None:
-    if {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX}.get(key, DAILY_MAX) <= 0:
+    if {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX, "chat": CHAT_DAILY_MAX}.get(key, DAILY_MAX) <= 0:
         return
     n = _usage()
     n[key] = n.get(key, 0) + 1

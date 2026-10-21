@@ -106,6 +106,26 @@ loss_streak ≥ 3 · ตลาดเพิ่งเปลี่ยนสภา�
   reason สั้นแต่มีตัวเลข เช่น "ใช้ระยะ SL ไป 72% · 3 แท่งล่าสุดปิดต่ำลง · ER 0.47 เทรนด์ลงสวน buy"
 """
 
+CHAT_MODEL = os.environ.get("MANAGER_CHAT_MODEL") or "sonnet"          # ตอบแชทให้เร็ว (ถามได้หลายครั้ง/วัน)
+CHAT_EFFORT = os.environ.get("MANAGER_CHAT_EFFORT") or "medium"
+CHAT_SYSTEM = """คุณคือผู้ช่วยวิเคราะห์ของ "ศูนย์วิจัยเทรดอัตโนมัติ" บนบัญชี DEMO ของ FxPro MT5 ตอบเจ้าของพอร์ตทาง Telegram
+ข้อมูลที่ได้ (JSON ใน stdin):
+- now: สภาพตลาดปัจจุบัน + บอททุกตัว (main + m5_1–m5_19: สาย, ตลาด, กำไรวันนี้/รวม, ไม้ที่ถืออยู่, lot_scale) แบบเดียวกับที่ผู้จัดการใช้ตัดสินใจ
+- report: รายงานวิจัยจากไม้จริง (แยกสาย/บอท/สภาพตลาด/ช่วงเวลา/ทิศเทรนด์ พร้อมช่วงความเชื่อมั่น 95%, ตัวกรอง, คะแนนคำทำนาย, คะแนนการปิดไม้)
+  ตัวเลข $/ไม้ ในรายงาน = หน่วย lot มาตรฐาน (ทอง 0.04 · NAS100 0.73 · BTC 0.17) · real_usd_total = เงินจริง
+- recent_trades: ไม้ที่ปิดล่าสุด (เงินจริง profit + profit_std) · assignments: กลยุทธ์ปัจจุบันของแต่ละบอท + ประวัติการเปลี่ยน
+- alloc: ตัวคูณขนาดไม้ที่ผู้จัดการตั้ง · journal: บันทึกท้ายวัน · manager_chat: ข้อความล่าสุดของผู้จัดการ · research: งานวิจัยรายคืน
+- history: บทสนทนาก่อนหน้ากับเจ้าของ (ใช้ตีความคำถามต่อเนื่อง)
+
+วิธีตอบ:
+- ภาษาไทย กระชับ อ่านง่ายบนมือถือ (ไม่เกิน ~12 บรรทัด ยกเว้นถูกขอรายละเอียด) · ใช้ bullet/อีโมจิเล็กน้อยได้ · ห้ามใช้ตาราง markdown
+- ทุกตัวเลขต้องมาจากข้อมูล ห้ามเดา/แต่ง · ไม่มีข้อมูลพอ → บอกตรงๆ ว่าไม่มี และบอกว่าดูได้ที่ไหน/ต้องรออะไร
+- แยก "เงินจริง" กับ "หน่วย lot มาตรฐาน" ให้ชัดเมื่อพูดถึงกำไรขาดทุน
+- ไม้น้อย (< ~20) → เตือนว่ายังเป็นเรื่องดวงได้ · บอกช่วงความเชื่อมั่นเมื่อมี
+- คุณสั่งการอะไรไม่ได้ (อ่านอย่างเดียว) ถ้าถูกขอให้ปิดไม้/ปรับบอท ให้บอกว่าผู้จัดการพอร์ตจะตัดสินใจเองตามหลักฐาน หรือให้เจ้าของสั่งผ่านหน้าเว็บ
+- นี่คือบัญชีทดลองเพื่อการวิจัย ไม่ใช่คำแนะนำการลงทุนเงินจริง
+"""
+
 ACT_SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["say", "actions"],
     "properties": {
@@ -123,9 +143,12 @@ ACT_SCHEMA = {
 class ClaudeCode:
     name = "Claude"
 
-    def _run(self, system: str, instruction: str, data: str, schema: dict | None = None) -> Any:
-        cmd = [BIN, "-p", instruction, "--output-format", "json", "--model", MODEL, "--effort", EFFORT,
-               "--fallback-model", FALLBACK, "--tools", "", "--system-prompt", system, "--no-session-persistence", "--strict-mcp-config"]
+    def _run(self, system: str, instruction: str, data: str, schema: dict | None = None,
+             model: str = MODEL, effort: str = EFFORT) -> Any:
+        cmd = [BIN, "-p", instruction, "--output-format", "json", "--model", model, "--effort", effort,
+               "--tools", "", "--system-prompt", system, "--no-session-persistence", "--strict-mcp-config"]
+        if FALLBACK and FALLBACK != model:
+            cmd += ["--fallback-model", FALLBACK]
         if schema is not None:
             cmd += ["--json-schema", json.dumps(schema, ensure_ascii=False)]
         r = subprocess.run(cmd, input=data, capture_output=True, text=True, timeout=TIMEOUT,
@@ -156,6 +179,12 @@ class ClaudeCode:
                     x["reason"] = f'{x.get("reason", "")} (มั่นใจ {a["confidence"]}%)'
                 calls.append((a["name"], x))
         return calls
+
+    def answer(self, question: str, data: str) -> str:
+        """ตอบคำถามของเจ้าของพอร์ตทาง Telegram จากข้อมูลจริง (อ่านอย่างเดียว · ไม่มีเครื่องมือ)"""
+        out = self._run(CHAT_SYSTEM, f"คำถาม: {question}\n\nข้อมูลพอร์ต/งานวิจัยทั้งหมดอยู่ใน stdin (JSON) — ตอบจากข้อมูลนี้",
+                        data, model=CHAT_MODEL, effort=CHAT_EFFORT)
+        return (out.get("result") or "").strip()
 
     def write(self, prompt: str) -> str:
         out = self._run(CLAUDE_SYSTEM, "ข้อมูลอยู่ใน stdin — เขียนตามที่ขอเป็นข้อความธรรมดา ภาษาไทย", prompt)

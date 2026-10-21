@@ -891,6 +891,9 @@ class Manager:
             n_rows = self.learner.rebuild(dataset.load())
             log.info("learner: สร้างตารางใหม่เป็นหน่วย lot มาตรฐานจาก %d ไม้", n_rows)
         self.allocate()                          # เริ่มงาน = ตั้งขนาดไม้จากหลักฐานล่าสุดทันที (ไม่ต้องรอข้ามวัน)
+        if notifier().token and os.environ.get("MANAGER_TELEGRAM_CHAT", "1") != "0":
+            from .telegram_chat import TelegramChat
+            TelegramChat(self).start()           # เจ้าของถามทาง Telegram → ตอบจากข้อมูลจริง (เธรดเบื้องหลัง)
         n = 0
         while True:
             try:
