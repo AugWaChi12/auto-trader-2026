@@ -66,5 +66,7 @@ def test_question_goes_to_claude_then_gemini_then_quota(chat) -> None:  # noqa: 
 def test_long_answers_are_split_and_help_command(chat) -> None:  # noqa: ANN001
     chat.reply("ก" * 8000)
     assert [len(x) for x in chat.sent] == [3900, 3900, 200]
+    chat.reply("**ตัวหนา**")
+    assert chat.sent[-1] == "ตัวหนา"
     chat.handle("/help@MyBot")
     assert "/status" in chat.sent[-1]

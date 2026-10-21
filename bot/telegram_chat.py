@@ -62,6 +62,7 @@ class TelegramChat:
 
     def reply(self, text: str) -> None:
         n = self._notifier()
+        text = text.replace("**", "").replace("__", "")                # ส่งเป็นข้อความธรรมดา — markdown จะโชว์เป็นดอกจัน
         for i in range(0, max(len(text), 1), 3900):                # Telegram รับไม่เกิน 4096 ตัวอักษรต่อข้อความ
             try:
                 self._tg("sendMessage", {"chat_id": n.chat, "text": text[i:i + 3900], "disable_web_page_preview": True})
