@@ -592,7 +592,7 @@ class Manager:
 
     def paper(self, a: Action, s: Snapshot) -> None:
         """โหมดไม่พักบอท: "พัก" = ทำนายว่าบอทนี้ไม่ควรเข้าไม้ช่วงนี้ · "ให้กลับ" = ปิดคำทำนายของผู้สั่งคนเดิม"""
-        who = {"rules": "กฎ", "gemini": "Gemini", "claude": "Claude"}.get(a.src, a.src)
+        who = {"rules": "กฎ", "gemini": "Gemini", "claude": "Claude"}.get(a.src.split("_")[0], a.src)   # gemini_smart / claude_smart → ชื่อเดียวกัน
         if a.kind == "resume":
             if shadow.end_paper(a.bot, a.src, s.t):
                 say("analysis", f"📝 {who} ถอนคำทำนาย {a.bot} — {a.reason}", src=a.src, bot=a.bot)
