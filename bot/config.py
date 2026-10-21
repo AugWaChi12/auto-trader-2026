@@ -96,7 +96,14 @@ RISK_PROFILES: dict[str, RiskConfig] = {
 NEWS_BLACKOUT_MIN = 30
 
 # ---------------------------------------------------------------------------- live (เฟส 2: demo เท่านั้น)
-LIVE_STRATEGIES = ["xau_momo"]
+# main ย้ายไป M5 (2026-10-21 ตามคำขอ — เดิม M15 เข้าได้วันละ ≤ 1 ไม้):
+#   xau_momo เดิม (ดูแลไม้ที่ถืออยู่ต่อได้) + ema ทอง M5 = สายเดียวในวิจัย M5 ทองที่บวกทั้ง walk-forward (+$8.56/วัน ที่ 0.04 lot)
+#   และช่วงทดสอบซ่อน 2 เดือน (+$15.69/วัน) · พารามิเตอร์ตายตัว (ไม่ปรับตามงานวิจัยรายคืน — main คือตัวทดสอบไปข้างหน้า)
+MAIN_M5: dict[str, dict] = {
+    "main_ema": {"family": "ema", "symbol": "XAUUSD", "plan": "native",
+                 "params": {"fast": 20, "slow": 50, "sl_atr": 3.0, "tp_r": 2.0, "max_hold": 96}},
+}
+LIVE_STRATEGIES = ["xau_momo", *MAIN_M5]
 LIVE_PROFILE = "demo_1k"
 MAGIC = 26101501                     # ติดทุกออเดอร์ของบอท — ไม่แตะไม้ที่คนเปิดเอง
 POLL_SECONDS = 5
@@ -116,7 +123,8 @@ _T = {"tf": "M1", "profile": "test_free", "allocation": 1000.0}
 N_TEST = 19
 LIVE_INSTANCES: dict[str, dict] = {
     # ทดสอบไปข้างหน้า — ห้ามแตะ
-    "main":    {"strategies": LIVE_STRATEGIES, "tf": "M15", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0},
+    "main":    {"strategies": LIVE_STRATEGIES, "tf": "M5", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0,
+                "warmup": 30000},
     # บอททดสอบ 19 ตัว (2 เกาะ): m5_1–9 = BTC · m5_10–19 = ทอง + NAS100 (เพิ่ม 2026-10-18 · magic +30..+39)
     # งานของแต่ละตัวอยู่ใน bot/m5_bots.json (วิจัยเต็ม) / state/m5_bots.json (ปรับใหม่ทุกคืน)
     # timeframe ปรับได้จากหน้าเว็บ /settings · warmup: ตัวแยกสภาวะตลาด (H1) ต้องใช้ ~100 วัน แต่ MT5 ให้ได้ไม่เกิน ~99,990 แท่ง
@@ -278,6 +286,9 @@ def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = 
         out.append(builders[type(c)](c, timeframe))
     if tags:
         from .strategy.catalog import build
+        for tag, b in MAIN_M5.items():
+            if tag in tags:
+                out.append(build(b["family"], b["symbol"], b["params"], M5_PLANS[b["plan"]], timeframe, tag))
         for b in load_m5_bots():
             if b["bot"] in tags:
                 out.append(build(b["family"], b["symbol"], b["params"], M5_PLANS[b["plan"]], timeframe, b["bot"]))

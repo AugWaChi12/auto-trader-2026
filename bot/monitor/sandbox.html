@@ -322,7 +322,7 @@ const money = (v) => (v >= 0 ? "+" : "−") + "$" + Math.abs(v || 0).toFixed(2);
 const FAM = {
   levels: [0xff9f43, "นักล่าแนวรับ"], momo: [0xee5a9b, "นักวิ่งเช้า"], pullback: [0x34b8c4, "รอย่อ"], bb: [0x9b7bff, "สวนขอบ"],
   donchian: [0x3d8bfd, "ทะลุกรอบ"], orb: [0xff8fa3, "เปิดตลาด"], ema: [0x2ecc71, "เส้นตัด"], rsi2: [0xf4cf2b, "สวนสุดโต่ง"],
-  volx: [0x9aa5b1, "รอตลาดเงียบ"], main: [0xf2b632, "บอทหลัก · ทอง M15"], boss: [0x7b5cff, "ผู้จัดการพอร์ต"],
+  volx: [0x9aa5b1, "รอตลาดเงียบ"], main: [0xf2b632, "บอทหลัก · ทอง M5"], boss: [0x7b5cff, "ผู้จัดการพอร์ต"],
 };
 const LIGHT = { off: 0x5b6270, rest: 0xaab2c0, watch: 0x4fb3ff, aim: 0xffcf33, target: 0xffb020, win: 0x22c46a, lose: 0xff5a50 };
 
@@ -983,7 +983,7 @@ function renderPerf() {
   if (!$("perf").classList.contains("open")) return;
   const m = MGR.data || {}, pb = D?.per_bot || {}, res = D?.research || {};
   const rows = Object.entries(pb).sort((a, z) => (z[1].total || 0) - (a[1].total || 0));
-  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${esc(n === "main" ? "ทอง M15" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
+  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${esc(n === "main" ? "ทอง M5" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
     <td class="r ${(s.today || 0) + (s.floating || 0) >= 0 ? "up" : "down"}">${money((s.today || 0) + (s.floating || 0))}</td>
     <td class="r ${(s.total || 0) >= 0 ? "up" : "down"}">${money(s.total || 0)}</td><td class="r">${s.trades || 0}</td><td class="r">${s.win_rate == null ? "–" : s.win_rate + "%"}</td>
     <td class="r">${MGR.pauses[n] ? "⏸ พัก" : esc(gateText(res[n]?.params))}</td></tr>`).join("");

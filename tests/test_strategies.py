@@ -261,7 +261,7 @@ def test_m5_bots_build_from_research_assignments() -> None:
         assert s.tag == b["bot"] and s.symbol == b["symbol"]
     assert dict(C.RISK_PROFILES["m5_fixed"].fixed_lots)["BTCUSD"] == C._S["btc_lot"]
     assert C.RISK_PROFILES["m5_fixed"].daily_profit_target == C._S["daily_target"]
-    assert C.LIVE_INSTANCES["main"]["tf"] == "M15" and C.LIVE_INSTANCES["main"]["strategies"] == ["xau_momo"]
+    assert C.LIVE_INSTANCES["main"]["tf"] == "M5" and C.LIVE_INSTANCES["main"]["strategies"] == ["xau_momo", "main_ema"]
 
 
 def test_btc_trades_weekends_and_respects_broker_min_stop() -> None:
