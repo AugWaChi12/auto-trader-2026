@@ -63,6 +63,19 @@ GIVEBACK_PEAK = 15.0          # ไม้เคยกำไรถึงนี้
 GUARD_SEC = 10                # ตัวเฝ้าไม้แบบเร็ว: เช็กไม้ที่เปิดอยู่ทุกกี่วินาที (กฎ +$50 / กำไรหดคืน / ล็อกกำไรที่โบรก)
 LOCK_START = 15.0             # กำไรลอยเคยถึงนี้ ($/ไม้) → เลื่อน SL ที่โบรกไปล็อกกำไรไว้ LOCK_KEEP ของจุดสูงสุด
 LOCK_KEEP = 0.5
+# ผู้ใช้สั่ง 2026-10-21: "กำไร 30+ ลงเหลือ 25 ก็ปิด" → เคยถึง TRAIL_START แล้ว ยอมให้หดได้แค่ TRAIL_GAP จากจุดสูงสุด
+#   (30 → ปิดที่ 25 · 40 → ปิดที่ 35) · ต่ำกว่า TRAIL_START ใช้กฎหดเหลือครึ่งเหมือนเดิม
+TRAIL_START = float(os.environ.get("MANAGER_TRAIL_START") or 30)
+TRAIL_GAP = float(os.environ.get("MANAGER_TRAIL_GAP") or 5)
+
+
+def profit_floor(peak: float) -> float | None:
+    """กำไรต่ำสุดที่ยอมให้ไม้หดลงไป ก่อนปิด/ก่อนล็อก SL (None = ยังไม่คุ้มครอง)"""
+    if peak >= TRAIL_START:
+        return peak - TRAIL_GAP
+    if peak >= GIVEBACK_PEAK:
+        return peak * LOCK_KEEP
+    return None
 STALE_HOURS, STALE_LOSS = 3.0, -20.0   # ถือนานเกิน และยังขาดทุนเกิน → ตัดทิ้ง
 VOL_SPIKE = 3.0               # ช่วง 15 นาทีล่าสุดกว้างกว่าค่ากลาง 3 ชม. กี่เท่า → พักบอท BTC
 VOL_PAUSE_MIN = 30
@@ -594,8 +607,8 @@ class Manager:
     def guard(self) -> None:
         """ตัวเฝ้าไม้แบบเร็ว (ทุก GUARD_SEC วินาที, เฉพาะบอททดสอบ):
           1) กำไรลอยรวมของบอทถึง TAKE_PROFIT_USD → ปิดทั้งบอท
-          2) ไม้เคยกำไร ≥ GIVEBACK_PEAK แล้วหดเหลือ ≤ ครึ่ง → ปิดทั้งบอท
-          3) ไม้เคยกำไร ≥ LOCK_START → เลื่อน SL ที่โบรกไปล็อก LOCK_KEEP ของจุดสูงสุด (ถ้าระยะขั้นต่ำของโบรกยอม)
+          2) ไม้เคยกำไร ≥ GIVEBACK_PEAK แล้วหดเหลือ ≤ ครึ่ง → ปิดทั้งบอท · เคยถึง ≥ TRAIL_START แล้วหดเกิน TRAIL_GAP → ปิด
+          3) ไม้เคยกำไร ≥ LOCK_START → เลื่อน SL ที่โบรกไปล็อกที่ profit_floor (ถ้าระยะขั้นต่ำของโบรกยอม)
         ข้อ 3 ทำให้โบรกปิดให้ทันทีที่ราคาย้อน แม้ผู้จัดการจะล่มหรือเช็กไม่ทัน"""
         col = self.col
         if not hasattr(col, "raw_positions"):
@@ -622,7 +635,8 @@ class Manager:
             else:
                 for p in ps:
                     pk = peaks[p.ticket]
-                    if pk >= GIVEBACK_PEAK and pnl[p.ticket] <= pk * 0.5:
+                    fl = profit_floor(pk)
+                    if fl is not None and pnl[p.ticket] <= fl:
                         why = f"{bot} กำไรเคยถึง +{pk:.2f}$ เหลือ {pnl[p.ticket]:+.2f}$ — ปิดเก็บก่อนหดหมด"
                         break
             if why:
@@ -702,7 +716,7 @@ class Manager:
         if per_price <= 0:
             return
         buy = p.type == 0
-        keep = peak * LOCK_KEEP
+        keep = profit_floor(peak) or peak * LOCK_KEEP
         target = p.price_open + (keep / per_price if buy else -keep / per_price)
         now = p.price_current
         limit = now - min_dist * 1.1 if buy else now + min_dist * 1.1        # โบรกไม่รับ SL ใกล้ราคากว่าระยะขั้นต่ำ

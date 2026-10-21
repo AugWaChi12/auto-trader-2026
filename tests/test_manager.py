@@ -822,3 +822,17 @@ def test_closed_trades_reported_with_real_pnl_once_per_bot(monkeypatch) -> None:
     results[13] = {"bot": "m5_10", "symbol": "XAUUSD", "side": "SELL", "volume": 0.04, "reason": "SL", "profit": -33.76}
     m.report_closed([])
     assert sent[-1].startswith("🔴 m5_10 ทอง SELL 0.04 · -33.76$ · ชน SL") and not m.pending_closed
+
+
+def test_guard_trails_5_dollars_once_profit_reached_30() -> None:
+    assert M.profit_floor(10) is None and M.profit_floor(20) == 10 and M.profit_floor(30) == 25 and M.profit_floor(42) == 37
+    col = GuardCol([P(1, 30, 32.0)])                                       # m5_10 กำไร 32
+    m = M.Manager(col)
+    m.guard()
+    assert col.closed == []
+    col.positions = [P(1, 30, 27.5)]                                       # ยังไม่ต่ำกว่า 32 − 5
+    m.guard()
+    assert col.closed == []
+    col.positions = [P(1, 30, 26.9)]                                       # หดเกิน $5 จากจุดสูงสุด → ปิด
+    m.guard()
+    assert col.closed == ["m5_10"]
