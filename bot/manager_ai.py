@@ -304,9 +304,11 @@ class AIBrain:
                               f"{self.src}_smart" if smart else self.src)
         except Exception as e:  # noqa: BLE001 — AI ล่มต้องไม่ทำให้ผู้จัดการหยุด
             log.warning("%s: %s", self.name, e)
-            if s.t - self.last_error > 3600:
+            if s.t - self.last_error > 6 * 3600:          # ล่มชั่วคราวเป็นเรื่องปกติของ API ฟรี → แจ้งแค่บนเว็บ ไม่เกิน 6 ชม./ครั้ง
                 self.last_error = s.t
-                say("alert", f"สมอง {self.name} ติดต่อไม่ได้ ({type(e).__name__}) — ใช้สมองตามกฎต่อไปก่อน", src="rules")
+                backup = "Claude ยังดูแลจังหวะสำคัญ · " if getattr(self, "claude", None) is not None else ""
+                say("info", f"สมอง {self.name} ติดต่อไม่ได้ชั่วคราว ({type(e).__name__}) — {backup}ช่วงปกติใช้สมองตามกฎแทน",
+                    src="rules", notify=False)
             return []
 
     def ask(self, prompt: str, smart: bool = False) -> list[tuple[str, dict[str, Any]]]:
