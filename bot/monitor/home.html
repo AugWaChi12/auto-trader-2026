@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="th" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="google" content="notranslate">
+<title>The Tree · ศูนย์วิจัยเทรด AI</title>
+<meta name="description" content="ศูนย์วิจัยเทรดอัตโนมัติ: บอท 20 ตัว (BTC / ทอง / NAS100) + ผู้จัดการพอร์ต AI ทำงานสดบนบัญชี DEMO">
+<meta name="theme-color" content="#0a0f1e">
+<meta property="og:title" content="The Tree · ศูนย์วิจัยเทรด AI">
+<meta property="og:description" content="บอท 20 ตัว + ผู้จัดการพอร์ต AI (Claude) ทำงานสดบนบัญชีทดลอง — ทุกการตัดสินใจถูกให้คะแนนจากผลจริง">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌳</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0f1e; --bg2: #0e1528;
+    --surface: rgba(255, 255, 255, .045); --surface-2: rgba(255, 255, 255, .07); --surface-solid: #121a30;
+    --line: rgba(255, 255, 255, .09); --line-2: rgba(255, 255, 255, .16);
+    --text: #eef1f8; --text-2: #b8c0d4; --muted: #8590a8;
+    --up: #2fd27a; --down: #ff6b6b; --warn: #fab219;
+    --accent: #8b7bff; --accent-2: #3987e5; --series: #3987e5;
+    --div-neg: #e66767; --div-mid: #383835; --div-pos: #3987e5;
+    --radius: 18px; --radius-s: 12px; --gap: 16px;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    --shadow: 0 20px 50px rgba(0, 0, 0, .35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); }
+  body {
+    font-family: "IBM Plex Sans Thai", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; color: var(--text);
+    font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden;
+  }
+  /* แสงพื้นหลังแบบนิ่ง (ไม่มีแอนิเมชันต่อเนื่อง → ไม่กินเครื่อง) */
+  body::before {
+    content: ""; position: fixed; inset: -20vh -10vw auto; height: 90vh; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(40vw 30vh at 15% 20%, rgba(139, 123, 255, .22), transparent 70%),
+      radial-gradient(35vw 28vh at 85% 10%, rgba(57, 135, 229, .18), transparent 70%),
+      radial-gradient(30vw 25vh at 60% 60%, rgba(47, 210, 122, .07), transparent 70%);
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px 120px; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+
+  /* ---------- header ---------- */
+  header.top {
+    position: sticky; top: 0; z-index: 20; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    background: rgba(10, 15, 30, .72); border-bottom: 1px solid var(--line);
+  }
+  .bar { max-width: 1280px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-size: 19px;
+          background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 6px 18px rgba(139, 123, 255, .35); }
+  .brand small { display: block; font-weight: 500; color: var(--muted); font-size: 11.5px; margin-top: -3px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2);
+          padding: 4px 10px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 0 rgba(47, 210, 122, .6); animation: ping 2.4s infinite; }
+  .dot.off { background: var(--down); animation: none; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(47, 210, 122, .55); } 70% { box-shadow: 0 0 0 7px rgba(47, 210, 122, 0); } 100% { box-shadow: 0 0 0 0 rgba(47, 210, 122, 0); } }
+  nav.links { margin-left: auto; display: flex; gap: 6px; }
+  .btn { border: 1px solid var(--line); background: var(--surface); padding: 7px 13px; border-radius: 11px; font-size: 13.5px;
+         display: inline-flex; align-items: center; gap: 6px; transition: background .15s, border-color .15s; text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: var(--surface-2); border-color: var(--line-2); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  @media (max-width: 860px) { nav.links .hide-s { display: none; } .brand small { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { display: grid; grid-template-columns: 1.35fr repeat(4, 1fr); gap: var(--gap); margin: 22px 0 var(--gap); }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+  .kpi .lbl { color: var(--muted); font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 26px; font-weight: 700; margin-top: 4px; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi .sub { color: var(--text-2); font-size: 12.5px; margin-top: 2px; }
+  .kpi.big { background: linear-gradient(135deg, rgba(139, 123, 255, .16), rgba(57, 135, 229, .08)); border-color: rgba(139, 123, 255, .3); }
+  .kpi.big .val { font-size: 34px; }
+  .demo { font-size: 10.5px; padding: 1px 7px; border-radius: 99px; background: rgba(250, 178, 25, .14); color: var(--warn); border: 1px solid rgba(250, 178, 25, .3); }
+  @media (max-width: 1060px) { .hero { grid-template-columns: repeat(2, 1fr); } .kpi.big { grid-column: 1 / -1; } }
+
+  /* ---------- grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--gap); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; min-width: 0; position: relative; }
+  .card h2 { font-size: 15px; margin: 0; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .card .head .spacer { flex: 1; }
+  .c8 { grid-column: span 8; } .c4 { grid-column: span 4; } .c12 { grid-column: span 12; } .c6 { grid-column: span 6; }
+  @media (max-width: 1060px) { .c8, .c4, .c6 { grid-column: span 12; } }
+  .more { font-size: 12.5px; color: var(--accent); background: none; border: 0; padding: 4px 2px; }
+  .more:hover { text-decoration: underline; }
+  .seg { display: inline-flex; background: rgba(0, 0, 0, .25); border: 1px solid var(--line); border-radius: 10px; padding: 2px; }
+  .seg button { border: 0; background: none; padding: 4px 10px; border-radius: 8px; font-size: 12.5px; color: var(--text-2); }
+  .seg button.on { background: var(--surface-2); color: var(--text); }
+  .note { color: var(--muted); font-size: 13px; padding: 10px 0; }
+
+  /* ---------- equity chart ---------- */
+  .chart { position: relative; height: 260px; }
+  .chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .axis text { fill: var(--muted); font-size: 11px; font-family: var(--mono); }
+  .grid-l { stroke: rgba(255, 255, 255, .06); stroke-width: 1; }
+  .zero-l { stroke: rgba(255, 255, 255, .22); stroke-width: 1; stroke-dasharray: 3 4; }
+  .xhair { stroke: rgba(255, 255, 255, .35); stroke-width: 1; }
+  .tip { position: fixed; z-index: 60; pointer-events: none; background: var(--surface-solid); border: 1px solid var(--line-2);
+         border-radius: 10px; padding: 7px 10px; font-size: 12.5px; box-shadow: var(--shadow); opacity: 0; transition: opacity .1s; max-width: 280px; }
+  .tip.show { opacity: 1; }
+  .tip b { font-family: var(--mono); }
+
+  /* ---------- markets ---------- */
+  .mkts { display: grid; gap: 10px; }
+  .mkt { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-s);
+         background: rgba(0, 0, 0, .18); border: 1px solid var(--line); }
+  .mkt .nm { font-weight: 600; font-size: 13.5px; }
+  .mkt .px { font-family: var(--mono); font-size: 17px; font-weight: 600; }
+  .mkt .ch { font-size: 12px; font-family: var(--mono); }
+  .spark { width: 110px; height: 40px; }
+
+  /* ---------- feed ---------- */
+  .feed { display: grid; gap: 8px; }
+  .msg { display: grid; grid-template-columns: 26px 1fr; gap: 8px; padding: 9px 10px; border-radius: var(--radius-s); background: rgba(0, 0, 0, .16); border: 1px solid transparent; }
+  .msg .ic { font-size: 16px; line-height: 1.4; }
+  .msg .meta { font-size: 11.5px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .msg .tx { font-size: 13.5px; color: var(--text-2); overflow-wrap: anywhere; }
+  .msg.action { border-color: rgba(139, 123, 255, .25); }
+  .msg.trade .tx { color: var(--text); }
+  .src { font-size: 10.5px; padding: 0 7px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--text-2); }
+  .src.claude { border-color: rgba(217, 119, 87, .55); color: #f3b39b; }
+  .src.gemini { border-color: rgba(57, 135, 229, .55); color: #9cc4f5; }
+  .clip .tx { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* ---------- bots ---------- */
+  .bots { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .bot { text-align: left; border: 1px solid var(--line); background: rgba(0, 0, 0, .16); border-radius: 14px; padding: 12px 13px;
+         display: grid; gap: 6px; transition: transform .15s, border-color .15s, background .15s; min-width: 0; }
+  .bot:hover { transform: translateY(-2px); border-color: var(--line-2); background: rgba(255, 255, 255, .05); }
+  .bot .r1 { display: flex; align-items: center; gap: 6px; }
+  .bot .nm { font-weight: 700; font-family: var(--mono); font-size: 13.5px; }
+  .bot .fam { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bot .pnl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .bot .pnl .t { font-family: var(--mono); font-weight: 600; font-size: 16px; }
+  .bot .pnl .a { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .chip { font-size: 10.5px; padding: 0 6px; border-radius: 99px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+  .chip.scale-up { background: rgba(47, 210, 122, .15); color: var(--up); }
+  .chip.scale-dn { background: rgba(255, 107, 107, .14); color: var(--down); }
+  .chip.open { background: rgba(250, 178, 25, .14); color: var(--warn); }
+  .chip.main { background: rgba(242, 182, 50, .16); color: #f2c25a; }
+  .meter { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .06); position: relative; overflow: hidden; }
+  .meter i { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+  .meter .mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: rgba(255, 255, 255, .25); }
+
+  /* ---------- brain board ---------- */
+  .board { display: grid; gap: 10px; }
+  .brow { display: grid; grid-template-columns: 112px 1fr 64px; align-items: center; gap: 10px; font-size: 13px; }
+  .brow .nm { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hbar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, .06); position: relative; }
+  .hbar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--series); }
+  .hbar .ref { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: rgba(255, 255, 255, .45); border-radius: 2px; }
+  .brow .v { font-family: var(--mono); text-align: right; font-size: 12.5px; }
+  .sublbl { font-size: 12px; color: var(--muted); margin: 12px 0 6px; }
+
+  /* ---------- research ---------- */
+  .concl { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .concl li { font-size: 13.5px; color: var(--text-2); padding-left: 16px; position: relative; }
+  .concl li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 6px; height: 6px; border-radius: 2px; background: var(--accent); }
+
+  /* ---------- modal ---------- */
+  dialog.modal { border: 1px solid var(--line-2); border-radius: 22px; background: var(--surface-solid); color: var(--text); padding: 0;
+                 width: min(980px, calc(100vw - 24px)); max-height: min(88vh, 900px); box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+  dialog.modal::backdrop { background: rgba(4, 7, 16, .66); backdrop-filter: blur(4px); }
+  dialog.modal[open] { animation: pop .18s ease-out; }
+  @keyframes pop { from { transform: translateY(10px) scale(.985); opacity: 0; } to { transform: none; opacity: 1; } }
+  .mhead { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 16px 20px; background: var(--surface-solid);
+           border-bottom: 1px solid var(--line); }
+  .mhead h3 { margin: 0; font-size: 17px; }
+  .mhead .x { margin-left: auto; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; width: 34px; height: 34px; font-size: 16px; }
+  .mbody { padding: 18px 20px 22px; overflow: auto; max-height: calc(min(88vh, 900px) - 68px); display: grid; gap: 18px; }
+  .sec h4 { margin: 0 0 10px; font-size: 14px; color: var(--text-2); font-weight: 600; }
+  .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .kv div { background: rgba(0, 0, 0, .2); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; }
+  .kv span { display: block; font-size: 11.5px; color: var(--muted); }
+  .kv b { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  table.t td { padding: 7px 8px; border-bottom: 1px solid rgba(255, 255, 255, .05); vertical-align: top; }
+  table.t td.r, table.t th.r { text-align: right; font-family: var(--mono); }
+  .tbl-wrap { overflow-x: auto; }
+  .heat td.cell { text-align: center; font-family: var(--mono); font-size: 12px; border-radius: 6px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chips button { border: 1px solid var(--line); background: var(--surface); padding: 4px 11px; border-radius: 99px; font-size: 12.5px; color: var(--text-2); }
+  .chips button.on { background: var(--accent); border-color: transparent; color: #fff; }
+
+  /* ---------- sandbox drawer ---------- */
+  .fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 30; box-shadow: 0 12px 30px rgba(57, 135, 229, .4); padding: 11px 18px; border-radius: 99px; }
+  .drawer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; height: min(78vh, 760px); background: var(--surface-solid);
+            border-top: 1px solid var(--line-2); border-radius: 22px 22px 0 0; box-shadow: 0 -20px 60px rgba(0, 0, 0, .5);
+            transform: translateY(105%); transition: transform .28s cubic-bezier(.2, .8, .2, 1); display: flex; flex-direction: column; }
+  .drawer.open { transform: none; }
+  .drawer .dh { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .drawer .grip { width: 40px; height: 4px; border-radius: 4px; background: var(--line-2); margin: 0 auto; position: absolute; left: 0; right: 0; top: 5px; }
+  .drawer iframe { flex: 1; border: 0; width: 100%; border-radius: 0 0 0 0; background: #9fd8ff; }
+  .drawer .ph { flex: 1; display: grid; place-items: center; color: var(--muted); }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 28px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <div class="brand"><div class="logo">🌳</div><div>The Tree<small>ศูนย์วิจัยเทรด AI</small></div></div>
+    <span class="live" id="live"><span class="dot" id="liveDot"></span><span id="liveTxt">กำลังเชื่อมต่อ…</span></span>
+    <nav class="links">
+      <button class="btn hide-s" data-open="control">🧠 ห้องผู้จัดการ</button>
+      <button class="btn hide-s" data-open="research">🔬 งานวิจัย</button>
+      <button class="btn hide-s" data-open="chat">💬 แชทผู้จัดการ</button>
+      <button class="btn primary" id="sbBtn">🏝 Sandbox</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero" aria-label="ภาพรวม">
+    <div class="kpi big"><div class="lbl">Equity ทั้งบัญชี <span class="demo">DEMO</span></div><div class="val mono" id="kEq">–</div><div class="sub" id="kEqSub">–</div></div>
+    <div class="kpi"><div class="lbl">📅 วันนี้ (ปิดแล้ว + ลอย)</div><div class="val mono" id="kToday">–</div><div class="sub" id="kTodaySub">–</div></div>
+    <div class="kpi"><div class="lbl">📈 รวมตั้งแต่เริ่ม</div><div class="val mono" id="kTotal">–</div><div class="sub" id="kTotalSub">–</div></div>
+    <div class="kpi"><div class="lbl">📂 ไม้ที่ถืออยู่</div><div class="val mono" id="kOpen">–</div><div class="sub" id="kOpenSub">–</div></div>
+    <div class="kpi"><div class="lbl">🤖 ผู้จัดการ AI</div><div class="val" id="kBrain">–</div><div class="sub" id="kBrainSub">–</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card c8">
+      <div class="head"><h2>💹 กำไร/ขาดทุนสะสม <span class="muted" style="font-weight:400;font-size:12.5px">(เงินจริง · ไม้ที่ปิดแล้ว)</span></h2><span class="spacer"></span>
+        <div class="seg" id="rng"><button data-r="day">วันนี้</button><button data-r="3d">3 วัน</button><button data-r="all" class="on">ทั้งหมด</button></div></div>
+      <div class="chart" id="eq"></div>
+    </div>
+    <div class="card c4">
+      <div class="head"><h2>🌍 ตลาด</h2><span class="spacer"></span><span class="muted" style="font-size:12px">M5 · 5 ชม. ล่าสุด</span></div>
+      <div class="mkts" id="mkts"></div>
+    </div>
+
+    <div class="card c8">
+      <div class="head"><h2>🤖 บอท</h2>
+        <div class="seg" id="isl"><button data-i="all" class="on">ทั้งหมด</button><button data-i="1">₿ BTC</button><button data-i="2">🥇 ทอง · NAS</button></div>
+        <span class="spacer"></span>
+        <div class="seg" id="sortBy"><button data-s="today" class="on">วันนี้</button><button data-s="total">รวม</button></div></div>
+      <div class="bots" id="bots"></div>
+    </div>
+    <div class="card c4">
+      <div class="head"><h2>⚡ ผู้จัดการตอนนี้</h2><span class="spacer"></span><button class="more" data-open="chat">ดูทั้งหมด →</button></div>
+      <div class="feed clip" id="feed"></div>
+    </div>
+
+    <div class="card c6">
+      <div class="head"><h2>🎯 ใครตัดสินใจแม่นกว่า</h2><span class="spacer"></span><button class="more" data-open="control">ห้องผู้จัดการ →</button></div>
+      <div id="brainBoard"></div>
+    </div>
+    <div class="card c6">
+      <div class="head"><h2>🔬 งานวิจัยบอกอะไร</h2><span class="spacer"></span><button class="more" data-open="research">รายละเอียด →</button></div>
+      <div id="researchBox"></div>
+    </div>
+  </section>
+  <footer>บัญชีทดลอง (DEMO) เพื่อการวิจัย · ไม่ใช่คำแนะนำการลงทุน · <a href="/report">รายงานวิจัยฉบับเต็ม</a> · <a href="/sandbox">Sandbox เต็มจอ</a></footer>
+</div>
+
+<button class="btn primary fab" id="fab">🏝 เปิด Sandbox</button>
+<div class="drawer" id="drawer" aria-hidden="true">
+  <div class="dh"><div class="grip"></div><b>🏝 Sandbox · หมู่บ้านบอท</b><span class="muted" style="font-size:12px">โหลดเมื่อเปิด · ปิดแล้วคืนหน่วยความจำ</span>
+    <span style="flex:1"></span><a class="btn" href="/sandbox" target="_blank" rel="noopener">⤢ เต็มจอ</a><button class="btn" id="sbClose">⌄ หด</button></div>
+  <div class="ph" id="sbPh">กำลังโหลด Sandbox…</div>
+</div>
+
+<dialog class="modal" id="dlg"><div class="mhead"><h3 id="dlgT"></h3><button class="x" id="dlgX" aria-label="ปิด">✕</button></div><div class="mbody" id="dlgB"></div></dialog>
+<div class="tip" id="tip"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const TZ = "Asia/Bangkok";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = (v, d = 2) => v == null || isNaN(v) ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const usd = v => v == null ? "–" : "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const cls = v => v > 0 ? "up" : v < 0 ? "down" : "";
+const hhmm = iso => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+const dmy = iso => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+const FAM = { levels: "นักล่าแนวรับ", momo: "นักวิ่งเช้า", pullback: "รอย่อ", bb: "สวนขอบ", donchian: "ทะลุกรอบ", orb: "เปิดตลาด", ema: "เส้นตัด",
+              rsi2: "สวนสุดโต่ง", volx: "รอตลาดเงียบ", "momo+ema": "บอทหลัก · momo + ema" };
+const SYM = { BTCUSD: "₿ BTC", XAUUSD: "🥇 ทอง", NAS100: "📊 NAS100" };
+const WHO = { rules: "📏 กฎ", guard: "🛡 ตัวเฝ้าไม้", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", claude: "🤖 Claude", claude_smart: "🤖 Claude" };
+const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓", trade: "💰" };
+const REG = { trend: "เทรนด์", range: "ออกข้าง", mixed: "ไม่ชัดทาง" };
+const SESS = { asia: "เอเชีย", europe: "ยุโรป", us: "อเมริกา" };
+const srcCls = s => (s || "").startsWith("claude") ? "claude" : (s || "").startsWith("gemini") ? "gemini" : "";
+
+let D = null, M = null, BARS = {}, RANGE = "all", ISL = "all", SORT = "today";
+
+// ---------------------------------------------------------------- tooltip (ตัวเดียวใช้ทั้งหน้า)
+const tip = $("tip");
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.classList.add("show");
+  const r = tip.getBoundingClientRect();
+  tip.style.left = Math.min(window.innerWidth - r.width - 8, x + 14) + "px";
+  tip.style.top = Math.max(8, y - r.height - 12) + "px";
+}
+const hideTip = () => tip.classList.remove("show");
+document.addEventListener("pointerover", e => { const t = e.target.closest("[data-tip]"); if (t) showTip(t.dataset.tip, e.clientX, e.clientY); });
+document.addEventListener("pointermove", e => { const t = e.target.closest("[data-tip]"); if (t) showTip(t.dataset.tip, e.clientX, e.clientY); });
+document.addEventListener("pointerout", e => { if (e.target.closest("[data-tip]")) hideTip(); });
+
+// ---------------------------------------------------------------- ข้อมูล
+async function getJSON(u) { const r = await fetch(u, { cache: "no-store" }); if (!r.ok) throw new Error(r.status); return r.json(); }
+const botsList = () => Object.keys(D?.per_bot || {}).sort((a, z) => (a === "main" ? -1 : z === "main" ? 1 : +a.split("_")[1] - +z.split("_")[1]));
+const famOf = n => n === "main" ? "momo+ema" : D?.research?.[n]?.family;
+const symOf = n => n === "main" ? "XAUUSD" : D?.research?.[n]?.symbol;
+const islOf = n => symOf(n) === "BTCUSD" ? "1" : "2";
+const scaleOf = n => M?.alloc?.[n]?.scale ?? 1;
+const todayOf = s => (s.today || 0) + (s.floating || 0);
+
+// ---------------------------------------------------------------- hero
+function renderHero() {
+  const a = D.account || {}, st = D.stats || {}, opens = D.open || [];
+  $("kEq").textContent = usd(a.equity);
+  $("kEqSub").innerHTML = `balance ${usd(a.balance)} · ลอย <span class="${cls(a.floating)}">${money(a.floating)}</span>`;
+  const t = (st.today || 0) + (a.floating || 0);
+  $("kToday").innerHTML = `<span class="${cls(t)}">${money(t)}</span>`;
+  $("kTodaySub").textContent = `${st.today_trades || 0} ไม้ · ชนะ ${st.today_wins || 0}`;
+  $("kTotal").innerHTML = `<span class="${cls(st.total)}">${money(st.total)}</span>`;
+  $("kTotalSub").textContent = `${st.trades || 0} ไม้ · ชนะ ${st.win_rate ?? "–"}%`;
+  $("kOpen").textContent = opens.length;
+  const fl = opens.reduce((s, o) => s + (o.profit || 0), 0);
+  $("kOpenSub").innerHTML = opens.length ? `ลอยรวม <span class="${cls(fl)}">${money(fl)}</span>` : "ไม่มีไม้เปิด";
+  const ok = !D.error;
+  $("liveDot").classList.toggle("off", !ok);
+  $("liveTxt").textContent = ok ? `สด · ${hhmm(D.now)}` : "กำลังเชื่อมต่อ…";
+}
+function renderBrainKpi() {
+  const sc = M?.shadow?.score || {}, cl = sc.claude_smart || sc.claude;
+  const srcs = new Set((M?.messages || []).map(m => m.src));
+  $("kBrain").innerHTML = srcs.has("claude_smart") || cl ? "🤖 Claude" : srcs.has("gemini") || srcs.has("gemini_smart") ? "✨ Gemini" : "📏 กฎ";
+  $("kBrainSub").textContent = cl?.calls ? `ทำนายถูก ${cl.right}/${cl.calls} ครั้ง` : "+ กฎอัตโนมัติทุก 10 วิ";
+}
+
+// ---------------------------------------------------------------- equity curve (SVG + crosshair)
+function renderEquity() {
+  const box = $("eq"), all = D.pnl_curve || [];
+  const now = Date.now(), H7 = 7 * 3600e3, dayStart = Math.floor((now + H7) / 864e5) * 864e5 - H7;   // เที่ยงคืนเวลาไทย
+  const from = RANGE === "day" ? dayStart : RANGE === "3d" ? now - 3 * 864e5 : 0;
+  const before = all.filter(p => Date.parse(p[0]) < from), base = before.length ? before[before.length - 1][1] : 0;
+  const pts = all.filter(p => Date.parse(p[0]) >= from).map(p => [Date.parse(p[0]), p[1] - base]);
+  if (pts.length < 1) { box.innerHTML = '<div class="note">ยังไม่มีไม้ที่ปิดในช่วงนี้</div>'; return; }
+  pts.unshift([from || pts[0][0] - 60e3, 0]);
+  const W = box.clientWidth || 600, H = box.clientHeight || 260, L = 58, R = 10, T = 12, B = 26;
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = xs[0], x1 = Math.max(xs[xs.length - 1], x0 + 1);
+  let lo = Math.min(0, ...ys), hi = Math.max(0, ...ys); const padv = (hi - lo) * .08 || 10; lo -= padv; hi += padv;
+  const X = t => L + (t - x0) / (x1 - x0) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  // ticks แบบ "สวย"
+  const step = (() => { const raw = (hi - lo) / 4, p = 10 ** Math.floor(Math.log10(raw)), m = raw / p; return (m < 1.5 ? 1 : m < 3 ? 2 : m < 7 ? 5 : 10) * p; })();
+  let grid = "", yl = "";
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    grid += `<line class="grid-l" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/>`;
+    yl += `<text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end">${v === 0 ? "0" : (v > 0 ? "+" : "−") + Math.abs(v).toLocaleString("en-US")}</text>`;
+  }
+  let xl = "";
+  for (let i = 0; i <= 4; i++) { const t = x0 + (x1 - x0) * i / 4; xl += `<text x="${X(t)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === 4 ? "end" : "middle"}">${RANGE === "day" ? hhmm(t) : dmy(t).replace(/\s\d+:\d+$/, "")}</text>`; }
+  const path = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
+  const last = ys[ys.length - 1], col = last >= 0 ? "var(--up)" : "var(--down)";
+  const area = `${path}L${X(xs[xs.length - 1]).toFixed(1)},${Y(0)}L${X(x0)},${Y(0)}Z`;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="กราฟกำไรขาดทุนสะสม ล่าสุด ${money(last)}">
+    <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${last >= 0 ? "#2fd27a" : "#ff6b6b"}" stop-opacity=".28"/><stop offset="1" stop-color="${last >= 0 ? "#2fd27a" : "#ff6b6b"}" stop-opacity="0"/></linearGradient></defs>
+    <g class="axis">${grid}${yl}${xl}</g><line class="zero-l" x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}"/>
+    <path d="${area}" fill="url(#ga)"/><path d="${path}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${X(xs[xs.length - 1])}" cy="${Y(last)}" r="4.5" fill="${col}" stroke="var(--bg)" stroke-width="2"/>
+    <text x="${Math.min(X(xs[xs.length - 1]) - 8, W - R - 4)}" y="${Y(last) - 10}" text-anchor="end" fill="var(--text)" font-family="var(--mono)" font-size="12" font-weight="600" stroke="var(--bg)" stroke-width="4" paint-order="stroke" stroke-linejoin="round">${money(last)}</text>
+    <g id="xh" style="display:none"><line class="xhair" id="xhl" y1="${T}" y2="${H - B}"/><circle id="xhc" r="4.5" fill="${col}" stroke="var(--bg)" stroke-width="2"/></g>
+    <rect x="${L}" y="0" width="${W - L - R}" height="${H}" fill="transparent" id="xhit"/></svg>`;
+  const hit = $("xhit"), g = $("xh");
+  hit.addEventListener("pointermove", e => {
+    const r = hit.ownerSVGElement.getBoundingClientRect(), tx = x0 + ((e.clientX - r.left) * W / r.width - L) / (W - L - R) * (x1 - x0);
+    let i = 0, best = Infinity; for (let k = 0; k < pts.length; k++) { const d = Math.abs(pts[k][0] - tx); if (d < best) { best = d; i = k; } }
+    const p = pts[i]; g.style.display = ""; $("xhl").setAttribute("x1", X(p[0])); $("xhl").setAttribute("x2", X(p[0]));
+    $("xhc").setAttribute("cx", X(p[0])); $("xhc").setAttribute("cy", Y(p[1]));
+    const step = i ? p[1] - pts[i - 1][1] : 0;
+    showTip(`${dmy(p[0])}<br>สะสม <b class="${cls(p[1])}">${money(p[1])}</b>${i ? `<br>ไม้นี้ <b class="${cls(step)}">${money(step)}</b>` : ""}`, e.clientX, e.clientY);
+  });
+  hit.addEventListener("pointerleave", () => { g.style.display = "none"; hideTip(); });
+}
+
+// ---------------------------------------------------------------- ตลาด
+function sparkSvg(bars) {
+  if (!bars || bars.length < 2) return "";
+  const c = bars.map(b => b[4]), lo = Math.min(...c), hi = Math.max(...c), W = 110, H = 40;
+  const p = c.map((v, i) => `${i ? "L" : "M"}${(i / (c.length - 1) * W).toFixed(1)},${(H - 3 - (v - lo) / ((hi - lo) || 1) * (H - 6)).toFixed(1)}`).join("");
+  const col = c[c.length - 1] >= c[0] ? "var(--up)" : "var(--down)";
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${p}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+}
+function renderMarkets() {
+  $("mkts").innerHTML = ["BTCUSD", "XAUUSD", "NAS100"].map(s => {
+    const q = D?.quotes?.[s] || {}, b = BARS[s] || [], first = b[0]?.[4], px = q.bid ?? b[b.length - 1]?.[4];
+    const ch = first && px ? (px - first) / first * 100 : null;
+    return `<div class="mkt"><div><div class="nm">${SYM[s]}</div><div class="px">${px == null ? "–" : px.toLocaleString("en-US", { maximumFractionDigits: s === "XAUUSD" ? 2 : 1 })}</div>
+      <div class="ch ${cls(ch)}">${ch == null ? "" : (ch > 0 ? "▲ +" : ch < 0 ? "▼ " : "") + ch.toFixed(2) + "%"}</div></div>
+      <div data-tip="${esc(SYM[s])} ช่วง 5 ชม. ล่าสุด (แท่ง M5)">${sparkSvg(b)}</div></div>`;
+  }).join("");
+}
+
+// ---------------------------------------------------------------- บอท
+function renderBots() {
+  const pb = D.per_bot || {}, opens = D.open || [];
+  let names = botsList().filter(n => ISL === "all" || islOf(n) === ISL);
+  names.sort((a, z) => SORT === "today" ? todayOf(pb[z]) - todayOf(pb[a]) : (pb[z].total || 0) - (pb[a].total || 0));
+  const maxAbs = Math.max(1, ...names.map(n => Math.abs(SORT === "today" ? todayOf(pb[n]) : pb[n].total || 0)));
+  $("bots").innerHTML = names.map(n => {
+    const s = pb[n], v = SORT === "today" ? todayOf(s) : s.total || 0, sc = scaleOf(n), op = opens.filter(o => o.bot === n).length;
+    const w = Math.abs(v) / maxAbs * 50;
+    return `<button class="bot" data-bot="${n}" aria-label="รายละเอียด ${n}">
+      <div class="r1"><span class="nm">${n === "main" ? "★ main" : n}</span>${n === "main" ? '<span class="chip main">หลัก</span>' : ""}
+        ${sc !== 1 ? `<span class="chip ${sc > 1 ? "scale-up" : "scale-dn"}" data-tip="${esc(M?.alloc?.[n]?.reason || "")}">×${sc}</span>` : ""}
+        ${op ? `<span class="chip open">● ${op} ไม้</span>` : ""}<span style="flex:1"></span><span class="muted" style="font-size:11.5px">${SYM[symOf(n)] || ""}</span></div>
+      <div class="fam">${esc(FAM[famOf(n)] || famOf(n) || "–")} <span class="muted">(${esc(famOf(n) || "")})</span></div>
+      <div class="pnl"><span class="t ${cls(v)}">${money(v)}</span><span class="a">${SORT === "today" ? "รวม " + money(s.total || 0, 0) : (s.trades || 0) + " ไม้ · " + (s.win_rate ?? "–") + "%"}</span></div>
+      <div class="meter"><span class="mid"></span><i style="${v >= 0 ? `left:50%;width:${w}%;background:var(--up)` : `right:50%;width:${w}%;background:var(--down)`}"></i></div>
+    </button>`;
+  }).join("") || '<div class="note">ยังไม่มีข้อมูลบอท</div>';
+}
+
+// ---------------------------------------------------------------- แชทผู้จัดการ (ย่อ)
+function msgHtml(m) {
+  return `<div class="msg ${esc(m.kind)}"><div class="ic">${KIND[m.kind] || "•"}</div><div><div class="meta">${hhmm(m.t)}
+    ${m.src ? `<span class="src ${srcCls(m.src)}">${esc(WHO[m.src] || m.src)}</span>` : ""}${m.bot ? `<span class="mono">${esc(m.bot)}</span>` : ""}</div>
+    <div class="tx">${esc(m.text)}</div></div></div>`;
+}
+function renderFeed() {
+  const ms = (M?.messages || []).filter(m => m.kind !== "info" || /ล็อกกำไร|ตรวจ/.test(m.text)).slice(-5).reverse();
+  $("feed").innerHTML = ms.map(msgHtml).join("") || '<div class="note">ยังไม่มีข้อความ</div>';
+}
+
+// ---------------------------------------------------------------- ใครแม่นกว่า
+function scoreRows(sc) {
+  return Object.entries(sc || {}).filter(([, x]) => x.calls).sort((a, z) => z[1].calls - a[1].calls).map(([s, x]) => {
+    const acc = x.right / x.calls * 100;
+    return `<div class="brow" data-tip="${esc(WHO[s] || s)}: ถูก ${x.right} ผิด ${x.wrong} จาก ${x.calls} ครั้ง<br>ถ้าเชื่อทั้งหมด ${money(-x.missed)}<br>เส้นขาว = 50% (โยนเหรียญ)">
+      <span class="nm">${esc(WHO[s] || s)}</span><div class="hbar"><i style="width:${acc}%"></i><span class="ref"></span></div><span class="v">${acc.toFixed(0)}% <span class="muted">(${x.calls})</span></span></div>`;
+  }).join("");
+}
+function closeRows(cs) {
+  const ent = Object.entries(cs || {}).filter(([, x]) => x.n);
+  if (!ent.length) return '<div class="note">ยังไม่มีการปิดไม้ที่ตรวจผลแล้ว (ตรวจหลังปิด ≥ 30 นาที)</div>';
+  const mx = Math.max(1, ...ent.map(([, x]) => Math.abs(x.saved)));
+  return ent.map(([s, x]) => `<div class="brow" data-tip="${esc(WHO[s] || s)}: สั่งปิด ${x.n} ครั้ง · ดีกว่าปล่อย ${x.helped} · แย่กว่า ${x.hurt}<br>รวม ${money(x.saved)} เทียบกับถือจนชน SL/TP">
+      <span class="nm">${esc(WHO[s] || s)}</span><div class="hbar"><span class="ref"></span><i style="${x.saved >= 0 ? `left:50%;width:${Math.abs(x.saved) / mx * 50}%;background:var(--up)` : `left:${50 - Math.abs(x.saved) / mx * 50}%;width:${Math.abs(x.saved) / mx * 50}%;background:var(--down)`}"></i></div>
+      <span class="v ${cls(x.saved)}">${money(x.saved, 0)}</span></div>`).join("");
+}
+function renderBrainBoard() {
+  const sc = M?.shadow?.score || {};
+  $("brainBoard").innerHTML = `<div class="sublbl" style="margin-top:0">คำทำนาย "บอทนี้ไม่ควรเข้า" — % ที่ทายถูก (ตรวจจากไม้จริง)</div>
+    <div class="board">${scoreRows(sc) || '<div class="note">ยังไม่มีคำทำนายที่ตรวจผลแล้ว</div>'}</div>
+    <div class="sublbl">การสั่งปิดไม้ — ดีกว่าปล่อยไว้กี่ดอลลาร์</div><div class="board">${closeRows(M?.closes)}</div>`;
+}
+
+// ---------------------------------------------------------------- งานวิจัย (ย่อ)
+function renderResearch() {
+  const r = M?.report || {}, o = r.overall || {};
+  $("researchBox").innerHTML = !o.n ? '<div class="note">ยังไม่มีรายงาน — สร้างทุกเที่ยงคืนเวลาไทย</div>' : `
+    <div class="kv" style="margin-bottom:12px"><div><span>ไม้จริงทั้งหมด</span><b>${r.trades}</b></div>
+      <div><span>เฉลี่ยต่อไม้ (lot มาตรฐาน)</span><b class="${cls(o.avg)}">${money(o.avg)}</b></div>
+      <div><span>ช่วงความเชื่อมั่น 95%</span><b style="font-size:13px">${o.ci ? money(o.ci[0]) + " ถึง " + money(o.ci[1]) : "–"}</b></div></div>
+    <ul class="concl">${(r.conclusions || []).slice(0, 4).map(c => `<li>${esc(c)}</li>`).join("")}</ul>`;
+}
+
+// ---------------------------------------------------------------- modal
+const dlg = $("dlg");
+function openModal(title, html) { $("dlgT").innerHTML = title; $("dlgB").innerHTML = html; if (!dlg.open) dlg.showModal(); $("dlgB").scrollTop = 0; }
+$("dlgX").onclick = () => dlg.close();
+dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+dlg.addEventListener("close", hideTip);
+
+function botModal(n) {
+  const s = D.per_bot[n] || {}, r = D.research?.[n] || {}, al = M?.alloc?.[n] || {}, opens = (D.open || []).filter(o => o.bot === n);
+  const trades = (D.trades || []).filter(t => t.bot === n), msgs = (M?.messages || []).filter(m => m.bot === n).slice(-8).reverse();
+  const rb = M?.report?.by_bot?.[n], calls = (M?.shadow?.open || []).filter(c => c.bot === n);
+  const params = n === "main" ? "xau_momo (เข้า 12:00 UTC) + ema 20/50 · ตายตัว" : Object.entries(r.params || {}).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("/") || "–" : v}`).join(" · ");
+  openModal(`${n === "main" ? "★ main" : n} <span class="muted" style="font-weight:400;font-size:14px">${SYM[symOf(n)] || ""} · ${esc(FAM[famOf(n)] || famOf(n) || "")}</span>`, `
+    <div class="kv"><div><span>วันนี้ (รวมลอย)</span><b class="${cls(todayOf(s))}">${money(todayOf(s))}</b></div><div><span>รวมทั้งหมด</span><b class="${cls(s.total)}">${money(s.total || 0)}</b></div>
+      <div><span>ไม้ / ชนะ</span><b>${s.trades || 0} · ${s.win_rate ?? "–"}%</b></div><div><span>ดีสุด / แย่สุด</span><b style="font-size:13px"><span class="up">${money(s.best)}</span> / <span class="down">${money(s.worst)}</span></b></div>
+      <div><span>ขนาดไม้ (ผู้จัดการตั้ง)</span><b>×${al.scale ?? 1}</b></div>
+      ${rb ? `<div><span>เฉลี่ย/ไม้ (lot มาตรฐาน)</span><b class="${cls(rb.avg)}">${money(rb.avg)}</b></div>` : ""}</div>
+    ${al.reason ? `<div class="sec"><h4>⚖️ เหตุผลเรื่องขนาดไม้</h4><div class="muted" style="font-size:13.5px">${esc(al.reason)} <span class="src">${esc(WHO[al.by] || al.by || "")}</span></div></div>` : ""}
+    <div class="sec"><h4>🧬 กลยุทธ์</h4><div style="font-size:13.5px"><b>${esc(famOf(n) || "–")}</b> · ${esc(r.plan || "")}<div class="muted mono" style="font-size:12px;margin-top:4px">${esc(params)}</div>
+      ${r.wf_usd_day != null ? `<div class="muted" style="font-size:12.5px;margin-top:6px">งานวิจัย: walk-forward ${money(r.wf_usd_day)}/วัน · ช่วงทดสอบซ่อน ${money(r.holdout_usd_day)}/วัน (ที่ lot มาตรฐาน)</div>` : ""}</div></div>
+    ${opens.length ? `<div class="sec"><h4>📂 ไม้ที่ถืออยู่</h4><div class="tbl-wrap"><table class="t"><tr><th>ฝั่ง</th><th class="r">lot</th><th class="r">เข้า</th><th class="r">ตอนนี้</th><th class="r">SL</th><th class="r">กำไร</th></tr>
+      ${opens.map(o => `<tr><td>${o.side}</td><td class="r">${o.volume}</td><td class="r">${o.open_price}</td><td class="r">${o.price}</td><td class="r">${o.sl ?? "–"}</td><td class="r ${cls(o.profit)}">${money(o.profit)}</td></tr>`).join("")}</table></div></div>` : ""}
+    ${calls.length ? `<div class="sec"><h4>🔮 คำทำนายที่ยังมีผล</h4>${calls.map(c => `<div style="font-size:13px"><span class="src ${srcCls(c.src)}">${esc(WHO[c.src] || c.src)}</span> ${esc(c.reason || "")}</div>`).join("")}</div>` : ""}
+    <div class="sec"><h4>🧾 ไม้ล่าสุด</h4>${trades.length ? `<div class="tbl-wrap"><table class="t"><tr><th>ปิดเมื่อ</th><th>ฝั่ง</th><th class="r">lot</th><th>เหตุ</th><th class="r">กำไร</th></tr>
+      ${trades.map(t => `<tr><td>${dmy(t.close_time)}</td><td>${t.side}</td><td class="r">${t.volume}</td><td>${esc(t.reason)}</td><td class="r ${cls(t.profit)}">${money(t.profit)}</td></tr>`).join("")}</table></div>`
+      : '<div class="note">ไม่มีในไม้ล่าสุด 20 ไม้ของทั้งพอร์ต</div>'}</div>
+    <div class="sec"><h4>⚡ ผู้จัดการพูดถึงบอทนี้</h4><div class="feed">${msgs.map(msgHtml).join("") || '<div class="note">ยังไม่มี</div>'}</div></div>`);
+}
+
+function controlModal() {
+  const sc = M?.shadow?.score || {}, al = M?.alloc || {};
+  const acts = (M?.messages || []).filter(m => m.kind === "action" || /เปลี่ยนสาย|ปรับขนาดไม้/.test(m.text)).slice(-30).reverse();
+  const order = n => (n === "main" ? -1 : +n.split("_")[1]);
+  const scaled = Object.entries(al).sort((a, z) => ((a[1].scale ?? 1) === 1) - ((z[1].scale ?? 1) === 1) || order(a[0]) - order(z[0]));
+  const j = (M?.journal || []).slice(-1)[0];
+  openModal("🧠 ห้องควบคุมผู้จัดการ", `
+    <div class="sec"><h4>🎯 คำทำนาย "ไม่ควรเข้า" — ใครแม่นกว่า</h4><div class="board">${scoreRows(sc) || '<div class="note">ยังไม่มี</div>'}</div>
+      <div class="muted" style="font-size:12px;margin-top:8px">ทายถูก = ช่วงที่ทำนาย บอทนั้นเปิดไม้แล้วขาดทุน · เส้นขาว = 50% · ตัวเลขในวงเล็บ = จำนวนครั้ง</div></div>
+    <div class="sec"><h4>✋ การสั่งปิดไม้ — เทียบกับปล่อยไว้จนชน SL/TP หรือครบ 24 ชม.</h4><div class="board">${closeRows(M?.closes)}</div></div>
+    <div class="sec"><h4>⚖️ ขนาดไม้ที่ผู้จัดการตั้ง</h4><div class="tbl-wrap"><table class="t"><tr><th>บอท</th><th class="r">ตัวคูณ</th><th>โดย</th><th>เหตุผล</th></tr>
+      ${scaled.map(([b, a]) => `<tr><td class="mono">${esc(b)}</td><td class="r ${a.scale > 1 ? "up" : a.scale < 1 ? "down" : ""}">×${a.scale}</td><td>${esc(WHO[a.by] || a.by || "")}</td><td class="muted">${esc(a.reason || "")}</td></tr>`).join("")}</table></div></div>
+    ${j ? `<div class="sec"><h4>📓 บันทึกท้ายวันล่าสุด (${esc(j.day)})</h4><div style="font-size:13.5px;color:var(--text-2)">${esc(j.text)}${j.ai ? `<div style="margin-top:8px;color:var(--text)">${esc(j.ai)}</div>` : ""}</div></div>` : ""}
+    <div class="sec"><h4>⚡ คำสั่งล่าสุด</h4><div class="feed">${acts.map(msgHtml).join("") || '<div class="note">ยังไม่มี</div>'}</div></div>`);
+}
+
+function divColor(v, mx, n = 99) {   // diverging: แดง ← เทา → น้ำเงิน · ไม้น้อยสีจางลง (ยังเชื่อไม่ได้)
+  const t = Math.max(-1, Math.min(1, v / (mx || 1))), a = Math.abs(t) * Math.min(1, n / 10);
+  const [r, g, b] = t < 0 ? [230, 103, 103] : [57, 135, 229];
+  return `rgba(${Math.round(56 + (r - 56) * a)},${Math.round(56 + (g - 56) * a)},${Math.round(53 + (b - 53) * a)},1)`;
+}
+function forest(entries, label) {   // จุด + ช่วงความเชื่อมั่น 95% ต่อกลุ่ม
+  const rows = entries.filter(([, s]) => s && s.n);
+  if (!rows.length) return '<div class="note">ยังไม่มีข้อมูล</div>';
+  const lo = Math.min(0, ...rows.map(([, s]) => s.ci ? s.ci[0] : s.avg)), hi = Math.max(0, ...rows.map(([, s]) => s.ci ? s.ci[1] : s.avg));
+  const W = 620, rowH = 30, L = 150, R = 70, H = rows.length * rowH + 22, X = v => L + (v - lo) / ((hi - lo) || 1) * (W - L - R);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="${esc(label)}">
+    <line x1="${X(0)}" x2="${X(0)}" y1="4" y2="${H - 18}" class="zero-l"/>
+    <text x="${X(0)}" y="${H - 4}" text-anchor="middle" fill="var(--muted)" font-size="11" font-family="var(--mono)">0</text>
+    ${rows.map(([k, s], i) => { const y = 14 + i * rowH, c = s.avg >= 0 ? "#2fd27a" : "#ff6b6b";
+      return `<g data-tip="${esc(label)} <b>${esc(k)}</b><br>${s.n} ไม้ · เฉลี่ย ${money(s.avg)}/ไม้${s.ci ? `<br>95%: ${money(s.ci[0])} ถึง ${money(s.ci[1])}` : ""}<br>ชนะ ${s.win}% · ${esc(s.sig || "")}">
+        <rect x="0" y="${y - 13}" width="${W}" height="${rowH - 2}" fill="transparent"/>
+        <text x="0" y="${y + 4}" fill="var(--text-2)" font-size="12.5">${esc(k)} <tspan fill="var(--muted)" font-size="11">(${s.n})</tspan></text>
+        ${s.ci ? `<line x1="${X(s.ci[0])}" x2="${X(s.ci[1])}" y1="${y}" y2="${y}" stroke="${c}" stroke-width="2" stroke-linecap="round" opacity=".55"/>` : ""}
+        <circle cx="${X(s.avg)}" cy="${y}" r="5" fill="${c}" stroke="var(--surface-solid)" stroke-width="2"/>
+        <text x="${W}" y="${y + 4}" text-anchor="end" fill="var(--text)" font-size="12" font-family="var(--mono)">${money(s.avg)}</text></g>`; }).join("")}</svg>`;
+}
+function researchModal() {
+  const r = M?.report || {}, learned = M?.learned || {}, fams = Object.keys(learned).sort();
+  const mx = Math.max(1, ...fams.flatMap(f => Object.values(learned[f]).map(c => Math.abs(c.avg))));
+  const heat = fams.length ? `<div class="tbl-wrap"><table class="t heat"><tr><th>สาย</th>${Object.values(REG).map(x => `<th class="r" style="text-align:center">${x}</th>`).join("")}</tr>
+    ${fams.map(f => `<tr><td>${esc(FAM[f] || f)} <span class="muted">(${esc(f)})</span></td>${Object.keys(REG).map(rg => { const c = learned[f][rg];
+      return c ? `<td class="cell" style="background:${divColor(c.avg, mx, c.n)}" data-tip="${esc(f)} ตอน${REG[rg]}: ${c.n} ไม้ · เฉลี่ย ${money(c.avg)}/ไม้ · ชนะ ${c.win_rate}%">${money(c.avg, 1)}<br><span style="opacity:.75">${c.n} ไม้</span></td>` : `<td class="cell muted">–</td>`; }).join("")}</tr>`).join("")}</table></div>
+    <div class="muted" style="font-size:12px;margin-top:6px">สีน้ำเงิน = ได้ · แดง = เสีย · เทา = ใกล้ 0 (ต่อไม้ ที่ lot มาตรฐาน) · ไม้น้อยกว่า 10 สีจะจางลง</div>` : '<div class="note">ยังไม่มี</div>';
+  const named = (obj, map) => Object.entries(obj || {}).map(([k, v]) => [map?.[k] || k, v]);
+  openModal("🔬 งานวิจัยจากไม้จริง", `
+    <div class="kv"><div><span>ไม้จริง</span><b>${r.trades ?? "–"}</b></div><div><span>เงินจริงรวม</span><b class="${cls(r.real_usd_total)}">${money(r.real_usd_total)}</b></div>
+      <div><span>เฉลี่ย/ไม้ (lot มาตรฐาน)</span><b class="${cls(r.overall?.avg)}">${money(r.overall?.avg)}</b></div><div><span>ช่วง</span><b style="font-size:13px">${esc((r.period || []).join(" → "))}</b></div></div>
+    <div class="sec"><h4>📌 ข้อสรุป</h4><ul class="concl">${(r.conclusions || []).map(c => `<li>${esc(c)}</li>`).join("")}</ul></div>
+    <div class="sec"><h4>🧬 แต่ละสาย: เฉลี่ยต่อไม้ + ช่วงความเชื่อมั่น 95%</h4>${forest(named(r.by_family, FAM), "สาย")}
+      <div class="muted" style="font-size:12px">เส้นคร่อม 0 = ยังสรุปไม่ได้ว่าได้หรือเสียจริง</div></div>
+    <div class="sec"><h4>🗺 สาย × สภาพตลาด (ผู้จัดการใช้ตารางนี้ตัดสินใจ)</h4>${heat}</div>
+    <div class="sec"><h4>🕐 ช่วงเวลา (UTC)</h4>${forest(named(r.by_session, SESS), "ช่วง")}</div>
+    <div class="sec"><h4>🌊 สภาพตลาดตอนเปิดไม้</h4>${forest(named(r.by_regime, REG), "ตลาด")}</div>
+    <div class="sec"><h4>⚠️ จุดอ่อนที่เห็นชัด</h4>${(M?.lessons || []).map(x => `<div style="font-size:13.5px">• ${esc(FAM[x.family] || x.family)} ตอน ${esc(x.when)} — ${x.n} ไม้ เฉลี่ย <span class="down">${money(x.avg)}</span></div>`).join("") || '<div class="note">ยังไม่มี</div>'}</div>
+    <div><a class="btn" href="/report" target="_blank" rel="noopener">📄 รายงานฉบับเต็ม</a></div>`);
+}
+
+let CHAT_F = "all";
+function chatModal() {
+  const F = { all: "ทั้งหมด", action: "⚡ คำสั่ง", analysis: "🧠 วิเคราะห์", trade: "💰 ผลไม้", journal: "📓 บันทึก", alert: "⚠️ เตือน" };
+  const list = (M?.messages || []).filter(m => CHAT_F === "all" || m.kind === CHAT_F).slice().reverse();
+  openModal("💬 แชทผู้จัดการพอร์ต", `<div class="chips" id="chatF">${Object.entries(F).map(([k, v]) => `<button data-f="${k}" class="${k === CHAT_F ? "on" : ""}">${v}</button>`).join("")}</div>
+    <div class="feed">${list.map(msgHtml).join("") || '<div class="note">ไม่มีข้อความประเภทนี้</div>'}</div>`);
+  $("chatF").onclick = e => { const b = e.target.closest("button"); if (b) { CHAT_F = b.dataset.f; chatModal(); } };
+}
+const MODALS = { control: controlModal, research: researchModal, chat: chatModal };
+document.addEventListener("click", e => {
+  const o = e.target.closest("[data-open]"); if (o && M) { MODALS[o.dataset.open](); return; }
+  const b = e.target.closest("[data-bot]"); if (b && D) botModal(b.dataset.bot);
+});
+
+// ---------------------------------------------------------------- ตัวกรอง
+function seg(id, attr, set) {
+  $(id).addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    [...$(id).children].forEach(x => x.classList.toggle("on", x === b)); set(b.dataset[attr]); });
+}
+seg("rng", "r", v => { RANGE = v; D && renderEquity(); });
+seg("isl", "i", v => { ISL = v; D && renderBots(); });
+seg("sortBy", "s", v => { SORT = v; D && renderBots(); });
+
+// ---------------------------------------------------------------- Sandbox (โหลดเมื่อเปิด · หดแล้วถอดออก คืนหน่วยความจำ)
+const drawer = $("drawer");
+function openSandbox() {
+  if (drawer.classList.contains("open")) return closeSandbox();
+  drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); $("fab").textContent = "⌄ หด Sandbox";
+  if (!drawer.querySelector("iframe")) {
+    const f = document.createElement("iframe"); f.src = "/sandbox"; f.title = "Sandbox หมู่บ้านบอท"; f.loading = "eager";
+    f.onload = () => $("sbPh").style.display = "none"; $("sbPh").style.display = ""; drawer.appendChild(f);
+  }
+}
+function closeSandbox() {
+  drawer.classList.remove("open"); drawer.setAttribute("aria-hidden", "true"); $("fab").textContent = "🏝 เปิด Sandbox";
+  setTimeout(() => { if (!drawer.classList.contains("open")) drawer.querySelector("iframe")?.remove(); }, 320);
+}
+$("sbBtn").onclick = openSandbox; $("fab").onclick = openSandbox; $("sbClose").onclick = closeSandbox;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && drawer.classList.contains("open") && !dlg.open) closeSandbox(); });
+
+// ---------------------------------------------------------------- วนดึงข้อมูล (หยุดเองเมื่อแท็บถูกซ่อน)
+async function pullApi() { try { D = await getJSON("/api"); renderHero(); renderEquity(); renderBots(); renderMarkets(); } catch { $("liveDot").classList.add("off"); $("liveTxt").textContent = "ขาดการเชื่อมต่อ"; } }
+async function pullMgr() { try { M = await getJSON("/api/manager"); renderBrainKpi(); renderFeed(); renderBrainBoard(); renderResearch(); D && renderBots(); } catch { /* รอบหน้า */ } }
+async function pullBars() {
+  for (const s of ["BTCUSD", "XAUUSD", "NAS100"]) { try { BARS[s] = (await getJSON(`/api/bars?symbol=${s}&tf=M5&n=60`)).bars || []; } catch { /* ตลาดปิด */ } }
+  D && renderMarkets();
+}
+const loops = [[pullApi, 10e3], [pullMgr, 20e3], [pullBars, 60e3]];
+let timers = [];
+function start() { stop(); loops.forEach(([f, ms]) => { f(); timers.push(setInterval(f, ms)); }); }
+function stop() { timers.forEach(clearInterval); timers = []; }
+document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => D && renderEquity(), 150); });
+start();
+</script>
+</body>
+</html>

@@ -31,7 +31,7 @@ log = logging.getLogger("monitor")
 HERE = Path(__file__).parent
 PAGES = {"/": HERE / "index.html", "/index.html": HERE / "index.html", "/charts": HERE / "charts.html",
          "/radar": HERE / "radar.html", "/techniques": HERE / "techniques.html", "/live": HERE / "live.html",
-         "/sandbox": HERE / "sandbox.html", "/settings": HERE / "settings.html", "/stream": HERE / "stream.html"}
+         "/sandbox": HERE / "sandbox.html", "/home": HERE / "home.html", "/settings": HERE / "settings.html", "/stream": HERE / "stream.html"}
 TECHNIQUES = C.ROOT / "research" / "techniques.json"
 RADAR_STATS = C.ROOT / "research" / "out" / "radar_stats.json"
 TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1")
@@ -459,7 +459,7 @@ def restart_test_bots() -> None:
 
 # โหมดสาธารณะ (เปิดให้คนทั่วไปดูผ่านโดเมน): หน้า /sandbox อย่างเดียว อ่านอย่างเดียว ไม่มีปุ่มสั่งงาน ไม่โชว์เลขบัญชี/log
 PUBLIC = __import__("os").environ.get("PUBLIC_READONLY") == "1"
-PUBLIC_SYMBOLS = ("BTCUSD", "XAUUSD")
+PUBLIC_SYMBOLS = ("BTCUSD", "XAUUSD", "NAS100")
 
 
 def public_view(d: dict) -> dict:
@@ -494,7 +494,9 @@ def manager_payload() -> bytes:
                        "journal": M.read_journal(14), "research": research,
                        "shadow": {"score": scoreboard(), "recent": recent(15), "open": open_calls()},
                        "lessons": Learner().lessons(limit=6), "alloc": alloc_summary(), "closes": close_board(),
-                       "report": {k: rep.get(k) for k in ("generated", "trades", "period", "overall", "conclusions")},
+                       "report": {k: rep.get(k) for k in ("generated", "trades", "period", "overall", "conclusions", "unit",
+                                                          "real_usd_total", "by_family", "by_bot", "by_regime", "by_session",
+                                                          "by_trend", "predictions", "closes")},
                        "explore": {"finished": ex.get("finished"), "found": ex.get("found"), "top": (ex.get("rows") or [])[:5]}}, ensure_ascii=False, default=str).encode()
 
 
@@ -575,10 +577,8 @@ def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:
 
         def _public_get(self, url) -> None:  # noqa: ANN001
             """โหมดสาธารณะ: เปิดได้เฉพาะสิ่งที่หน้า /sandbox ใช้ — ที่เหลือ 404"""
-            if url.path == "/":
-                self.send_response(302)
-                self.send_header("Location", "/sandbox")      # ไลฟ์ TikTok ใช้ /sandbox?stream=1 เอง
-                self.end_headers()
+            if url.path in ("/", "/home"):
+                self._send(PAGES["/home"].read_bytes(), "text/html")   # หน้าหลัก (ไลฟ์ TikTok ใช้ /sandbox?stream=1 เอง)
             elif url.path == "/sandbox":
                 self._send(PAGES["/sandbox"].read_bytes(), "text/html")
             elif url.path == "/api":
