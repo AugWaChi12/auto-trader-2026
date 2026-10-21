@@ -1,11 +1,13 @@
-# หน้าสาธารณะ: https://$PUBLIC_DOMAIN → หมู่บ้านบอท (/sandbox) อ่านอย่างเดียว
+# หน้าสาธารณะ: https://$PUBLIC_DOMAIN → หน้าหลัก (/) + หมู่บ้านบอท (/sandbox) อ่านอย่างเดียว
 # Caddy ขอใบรับรอง Let's Encrypt ให้เอง · ส่งต่อไปที่ monitor โหมด PUBLIC_READONLY (ไม่มีหน้า/ปุ่มสั่งงาน)
 {$PUBLIC_DOMAIN} {
 	encode gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
+		# หน้าหลักฝัง /sandbox ในลิ้นชักของตัวเอง → อนุญาตเฉพาะโดเมนเดียวกัน (เว็บอื่นยังฝังไม่ได้)
+		X-Frame-Options SAMEORIGIN
+		Content-Security-Policy "frame-ancestors 'self'"
 		Referrer-Policy no-referrer
 		-Server
 	}
