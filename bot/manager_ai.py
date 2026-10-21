@@ -28,7 +28,7 @@ DAILY_MAX = int(os.environ.get("MANAGER_LLM_DAILY_MAX") or 0)
 # รุ่นฉลาดสำหรับจังหวะสำคัญ (มีไม้เปิด / สภาพตลาดเปลี่ยน / แกว่งแรง / บันทึกท้ายวัน) · 0 = ไม่ใช้ · เก็บ 1 ครั้งให้บันทึกท้ายวัน
 SMART_DAILY_MAX = int(os.environ.get("MANAGER_SMART_DAILY_MAX") or 0)
 # Claude ผ่าน Claude Code + แพ็กเกจสมาชิก (CLAUDE_CODE_OAUTH_TOKEN) — ลำดับแรกของจังหวะสำคัญ · 0 = ไม่ใช้
-CLAUDE_DAILY_MAX = int(os.environ.get("MANAGER_CLAUDE_DAILY_MAX") or 10)
+CLAUDE_DAILY_MAX = int(os.environ.get("MANAGER_CLAUDE_DAILY_MAX") or 15)
 # แชท Telegram (เจ้าของถาม → Claude/Gemini ตอบจากข้อมูลจริง) · โควตาแยกจากการตัดสินใจของผู้จัดการ
 CHAT_DAILY_MAX = int(os.environ.get("MANAGER_CHAT_DAILY_MAX") or 40)
 # วันที่ขาดทุนหนัก: ทุกครั้งที่ขาดทุนรวมของวัน (รวมไม้ลอย) ลึกลงอีก BAD_DAY_STEP → เรียกสมองฉลาดมารับมือทันที
