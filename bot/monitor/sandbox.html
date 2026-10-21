@@ -329,9 +329,9 @@ const FAM = {
 const LIGHT = { off: 0x5b6270, rest: 0xaab2c0, watch: 0x4fb3ff, aim: 0xffcf33, target: 0xffb020, win: 0x22c46a, lose: 0xff5a50 };
 
 // ------------------------------------------------------------------ renderer / scene
-// เครื่องสเปกต่ำ / มือถือ → ไม่ทำ antialias · ความละเอียดต่ำลง · เงาเล็กลง · 30 fps (เดสก์ท็อป 40 fps)
+// เครื่องสเปกต่ำ / มือถือ → ไม่ทำ antialias · ความละเอียดต่ำลง · เงาเล็กลง · วาดเว้นเฟรมสม่ำเสมอ (60 Hz → 30 fps)
+// เครื่องปกติวาดทุกเฟรมของจอ (จำกัดเฟรมแบบหารไม่ลงตัว เช่น 40 บนจอ 60 Hz → ระยะห่างภาพไม่เท่ากัน = กระตุก)
 const LOW = (navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 4 || matchMedia("(pointer: coarse)").matches;
-const FPS = LOW ? 30 : 40;
 const renderer = new THREE.WebGLRenderer({ antialias: !LOW, powerPreference: "low-power" });
 let PR = Math.min(devicePixelRatio, LOW ? 1 : 1.5);
 renderer.setPixelRatio(PR);
@@ -1211,14 +1211,13 @@ function animateRobot(r, t, dt) {
 
 // ------------------------------------------------------------------ วนลูป
 const clock = new THREE.Clock();
-let lastDraw = 0, lastTidy = 0, slow = 0, degraded = false;
+let tick = 0, lastTidy = 0, slow = 0, degraded = false;
 function frame(now = performance.now()) {
   requestAnimationFrame(frame);
-  if (document.hidden || now - lastDraw < 1000 / FPS - 2) return;     // จำกัดเฟรม · แท็บซ่อน = ไม่วาด
-  lastDraw = now;
+  if (document.hidden || (LOW && tick++ % 2)) return;                 // แท็บซ่อน = ไม่วาด · เครื่องอ่อน = เว้นเฟรมสม่ำเสมอ
   const raw = clock.getDelta(), dt = Math.min(raw, .05), t = clock.elapsedTime;
   if (!degraded) {                                                     // วาดช้าต่อเนื่อง (< ~20 fps) → ลดความละเอียด + ปิดเงา
-    slow = raw > .05 ? slow + 1 : Math.max(0, slow - 1);
+    slow = raw > (LOW ? .07 : .05) ? slow + 1 : Math.max(0, slow - 1);
     if (slow > 90) { degraded = true; PR = 1; renderer.setPixelRatio(1); renderer.shadowMap.enabled = false;
                      scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); resize(); }
   }
