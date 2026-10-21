@@ -92,6 +92,9 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
   ถ้าไม้ยังน้อย (< 8) อย่าเชื่อมาก
 - "prediction_scoreboard_30d" = คะแนนการตัดสินใจย้อนหลังแยกตามผู้สั่ง (rules / gemini / claude): right/wrong/calls
   missed < 0 = ถ้าเชื่อจะประหยัด, missed > 0 = ถ้าเชื่อจะพลาดกำไร — ถ้าคุณทายผิดบ่อยกว่ากฎ ให้ทำนายน้อยลง/เปลี่ยนเกณฑ์
+- "close_scoreboard_30d" = คะแนนการสั่งปิดไม้แยกตามผู้สั่ง: saved > 0 = ปิดแล้วดีกว่าปล่อยจนชน SL/TP · < 0 = ปิดเร็วไป
+- set_lot_scale = ปรับขนาดไม้ของบอท (0.25–2.0 เท่า) ตามหลักฐาน — field "lot_scale" ของบอทคือค่าปัจจุบัน (ไม่มี = 1)
+- ตัวเลข $/ไม้ ใน learned/lessons คิดเป็น lot มาตรฐานของงานวิจัยแล้ว (ทอง 0.04 · NAS100 0.73 · BTC 0.17)
 - "lessons" = จุดอ่อนที่ชัดที่สุดจากไม้จริง (สาย × เงื่อนไข) · งานวิจัยทุกคืนจะทดสอบตัวกรองจากจุดอ่อนพวกนี้บนข้อมูลย้อนหลัง
   ถ้าผ่าน จะใส่ให้บอทเอง (bots.*.gate) — คุณไม่ต้องสั่ง แต่ช่วยอธิบายให้คนดูเข้าใจได้
 
@@ -110,6 +113,10 @@ FUNCTIONS = [   # JSON Schema ของแต่ละคำสั่ง — Cla
     {"name": "close_positions", "description": "ปิดไม้ทั้งหมดที่บอทตัวนี้ถืออยู่ทันทีด้วยราคาตลาด",
      "schema": {"type": "object", "additionalProperties": False, "required": ["bot", "reason"],
                 "properties": {"bot": _BOT, "reason": {"type": "string"}}}},
+    {"name": "set_lot_scale", "description": "ปรับขนาดไม้ของบอทนี้เป็น scale เท่าของ lot มาตรฐาน (0.25–2.0) — มีผลกับไม้ใหม่ทันที "
+                                              "อยู่ถึงรอบปรับประจำวันของกฎ (ขึ้นวันใหม่เวลาไทย)",
+     "schema": {"type": "object", "additionalProperties": False, "required": ["bot", "scale", "reason"],
+                "properties": {"bot": _BOT, "scale": {"type": "number"}, "reason": {"type": "string"}}}},
     {"name": "say", "description": "ข้อความวิเคราะห์ที่จะขึ้นในแชทของหน้า /sandbox (ภาษาไทย สั้น กระชับ)",
      "schema": {"type": "object", "additionalProperties": False, "required": ["text"],
                 "properties": {"text": {"type": "string"}}}},
@@ -148,6 +155,8 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
                         **({"m5_candles_t_o_h_l_c": [[str(b[0])[11:16], *b[1:]] for b in to_m5(bars, 6)]} if m_open else {})}
     gates = {b["bot"]: {k: b["params"][k] for k in ("skip_regimes", "skip_sessions") if b["params"].get(k)} or None
              for b in C.load_m5_bots()}
+    from . import allocator, close_score
+    alloc = allocator.summary()
     bots = {}
     for n, b in sorted(s.test_bots().items()):
         p = pauses.get(n)
@@ -161,6 +170,8 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
             entry["loss_streak"] = b["streak"]
         if gates.get(n):
             entry["gate"] = gates[n]
+        if alloc.get(n) and alloc[n].get("scale") not in (None, 1.0):
+            entry["lot_scale"] = alloc[n]["scale"]
         if p:
             entry["paused"] = {"minutes_left": int((p["until"] - s.t) / 60), "by": p.get("src", "rules"), "reason": p.get("reason")}
         if b["open"]:
@@ -179,6 +190,7 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
         "bots": bots,
         "learned_by_strategy_and_regime": load_summary(),
         "prediction_scoreboard_30d": scoreboard(),
+        "close_scoreboard_30d": close_score.scoreboard(),
         "lessons": Learner().lessons(),
         "research_report_conclusions": _report_conclusions(),
         "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(8)],
@@ -205,6 +217,11 @@ def to_actions(calls: list[tuple[str, dict[str, Any]]], src: str) -> list[Action
             acts.append(Action("resume", x["bot"], reason=why, src=src))
         elif name == "close_positions":
             acts.append(Action("close", x["bot"], reason=why, src=src))
+        elif name == "set_lot_scale":
+            try:
+                acts.append(Action("scale", x["bot"], reason=why, src=src, value=float(x.get("scale") or 1.0)))
+            except (TypeError, ValueError):
+                continue
     return acts
 
 

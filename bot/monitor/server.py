@@ -485,13 +485,15 @@ def manager_payload() -> bytes:
     from ..shadow import open_calls, recent, scoreboard
     from ..live_report import load as load_report
     from ..research_weekly import load_explore
+    from ..allocator import summary as alloc_summary
+    from ..close_score import scoreboard as close_board
     rep, ex = load_report(), load_explore()
     rs = load_status()
     research = {k: rs.get(k) for k in ("started", "finished", "running", "minutes", "summary", "error")}
     return json.dumps({"messages": M.read_log(80), "pauses": M.load_pauses(), "learned": load_summary(),
                        "journal": M.read_journal(14), "research": research,
                        "shadow": {"score": scoreboard(), "recent": recent(15), "open": open_calls()},
-                       "lessons": Learner().lessons(limit=6),
+                       "lessons": Learner().lessons(limit=6), "alloc": alloc_summary(), "closes": close_board(),
                        "report": {k: rep.get(k) for k in ("generated", "trades", "period", "overall", "conclusions")},
                        "explore": {"finished": ex.get("finished"), "found": ex.get("found"), "top": (ex.get("rows") or [])[:5]}}, ensure_ascii=False, default=str).encode()
 

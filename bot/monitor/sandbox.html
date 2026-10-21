@@ -983,7 +983,8 @@ function renderPerf() {
   if (!$("perf").classList.contains("open")) return;
   const m = MGR.data || {}, pb = D?.per_bot || {}, res = D?.research || {};
   const rows = Object.entries(pb).sort((a, z) => (z[1].total || 0) - (a[1].total || 0));
-  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${esc(n === "main" ? "ทอง M5" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
+  const sc = n => { const a = (m.alloc || {})[n]; return a && a.scale != null && a.scale !== 1 ? ` <span class="k" title="${esc(a.reason || "")}">×${a.scale}</span>` : ""; };
+  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b>${sc(n)}</td><td>${esc(n === "main" ? "ทอง M5" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
     <td class="r ${(s.today || 0) + (s.floating || 0) >= 0 ? "up" : "down"}">${money((s.today || 0) + (s.floating || 0))}</td>
     <td class="r ${(s.total || 0) >= 0 ? "up" : "down"}">${money(s.total || 0)}</td><td class="r">${s.trades || 0}</td><td class="r">${s.win_rate == null ? "–" : s.win_rate + "%"}</td>
     <td class="r">${MGR.pauses[n] ? "⏸ พัก" : esc(gateText(res[n]?.params))}</td></tr>`).join("");

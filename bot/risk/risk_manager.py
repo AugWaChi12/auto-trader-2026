@@ -63,8 +63,9 @@ class SizeDecision:
 
 class RiskManager:
     def __init__(self, cfg: RiskConfig, account: IAccount, news: NewsCalendar | None = None,
-                 real_equity: Callable[[], float] | None = None) -> None:
+                 real_equity: Callable[[], float] | None = None, lot_scale: Callable[[], float] | None = None) -> None:
         self.cfg = cfg
+        self.lot_scale = lot_scale          # ผู้จัดการปรับขนาดไม้ตายตัวแบบ dynamic (allocator) — None = 1 เท่า
         self.account = account
         self.real_equity = real_equity      # equity จริงของบัญชี (live) — account อาจเป็น sub-account เสมือน
         self.news = news
@@ -154,9 +155,14 @@ class RiskManager:
         margin_per_lot = entry * spec.contract_size * spec.margin_rate
         fixed = dict(self.cfg.fixed_lots).get(sig.symbol)
         if fixed:
+            try:
+                k = float(self.lot_scale()) if self.lot_scale else 1.0
+            except Exception:  # noqa: BLE001 — อ่านไฟล์ผู้จัดการไม่ได้ → ขนาดมาตรฐาน
+                k = 1.0
+            fixed = max(spec.volume_min, spec.round_volume_down(fixed * k))
             if margin_per_lot * fixed > self.account.free_margin() * self.cfg.max_margin_use:
                 return SizeDecision(0.0, f"margin (fixed {fixed} lot)")
-            return SizeDecision(spec.round_volume_down(fixed))
+            return SizeDecision(fixed)
         risk_money = min(equity, self.account.balance()) * self.cfg.risk_per_trade
         loss_per_lot = (stop_dist + spec.slippage) * spec.contract_size + spec.commission_per_lot
         volume = spec.round_volume_down(risk_money / loss_per_lot)

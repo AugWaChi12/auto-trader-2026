@@ -17,7 +17,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from . import config as C
-from . import dataset, shadow
+from . import allocator, close_score, dataset, shadow
 
 MD_PATH = C.STATE_DIR / "live_report.md"
 JSON_PATH = C.STATE_DIR / "live_report.json"
@@ -53,27 +53,35 @@ def build() -> dict:
     out: dict = {"generated": datetime.now(timezone.utc).isoformat(timespec="minutes"), "trades": len(rows)}
     if rows:
         out["period"] = [min(r["open_time"] for r in rows)[:10], max(r["open_time"] for r in rows)[:10]]
-    out["overall"] = stats([r["profit"] for r in rows])
+    out["unit"] = "lot มาตรฐาน (ทอง 0.04 · NAS100 0.73 · BTC 0.17)"
+    out["real_usd_total"] = round(sum(r["profit"] for r in rows), 2)
+    out["overall"] = stats([r["profit_std"] for r in rows])
     fam: dict[str, list[float]] = defaultdict(list)
     for r in rows:
-        fam[r["family"]].append(r["profit"])
+        fam[r["family"]].append(r["profit_std"])
     exp = {b["family"]: b.get("wf_usd_trade") for b in assigned.values()}
     out["by_family"] = {f: {**stats(x), "research_usd_trade": exp.get(f)} for f, x in sorted(fam.items())}
     for dim in ("regime", "session", "trend"):
         g: dict[str, list[float]] = defaultdict(list)
         for r in rows:
             if r.get(dim):
-                g[r[dim]].append(r["profit"])
+                g[r[dim]].append(r["profit_std"])
         out[f"by_{dim}"] = {k: stats(v) for k, v in sorted(g.items())}
     gates = {}
     for r in rows:
         if r["gate_mode"] == "observe" and r["gate_sig"]:
-            gates.setdefault((r["bot"], r["gate_sig"]), {"flag": [], "other": []})["flag" if r["gate_flag"] else "other"].append(r["profit"])
+            gates.setdefault((r["bot"], r["gate_sig"]), {"flag": [], "other": []})["flag" if r["gate_flag"] else "other"].append(r["profit_std"])
     out["gates"] = [{"bot": b, "gate": sig, "would_block": stats(v["flag"]), "kept": stats(v["other"])}
                     for (b, sig), v in sorted(gates.items())]
     sb = shadow.scoreboard(days=3650)
     out["predictions"] = {src: {**x, "accuracy": round(x["right"] / x["calls"] * 100) if x["calls"] else None,
                                 "ci": wilson(x["right"], x["calls"])} for src, x in sb.items()}
+    bots: dict[str, list[float]] = defaultdict(list)
+    for r in rows:
+        bots[r["bot"]].append(r["profit_std"])
+    out["by_bot"] = {b: stats(x) for b, x in sorted(bots.items())}
+    out["closes"] = close_score.scoreboard(days=3650)
+    out["alloc"] = allocator.summary()
     out["conclusions"] = conclusions(out)
     return out
 
@@ -99,6 +107,10 @@ def conclusions(r: dict) -> list[str]:
             better = wb["avg"] < kp["avg"]
             c.append(f"ตัวกรอง {g['bot']} ({g['gate']}): ไม้ที่จะบล็อก {wb['avg']:+.2f}$/ไม้ vs ไม้อื่น {kp['avg']:+.2f}$/ไม้ — "
                      + ("ไปทางที่คาด ✅" if better else "ไม่เป็นอย่างที่คาด ❌"))
+    for src, x in r.get("closes", {}).items():
+        if x["n"] >= 10:
+            c.append(f"การสั่งปิดไม้ของ {close_score.WHO.get(src, src)}: {x['n']} ครั้ง ดีกว่าปล่อย {x['helped']} ครั้ง · "
+                     f"รวม {x['saved']:+.2f}$ " + ("— ช่วยพอร์ต ✅" if x["saved"] > 0 else "— ปิดเร็วไป ❌"))
     for src, p in r["predictions"].items():
         if p["calls"] >= 20 and p["ci"]:
             c.append(f"คำทำนายของ {src}: ถูก {p['accuracy']}% (95% ช่วง {p['ci'][0]}–{p['ci'][1]}%) จาก {p['calls']} ครั้ง"
@@ -116,6 +128,7 @@ def _fmt(s: dict) -> str:
 def markdown(r: dict) -> str:
     L = [f"# รายงานวิจัยจากไม้จริง (บัญชี DEMO)", "",
          f"สร้างเมื่อ {r['generated']} UTC · ไม้ทั้งหมด {r['trades']}" + (f" · ช่วง {r['period'][0]} ถึง {r['period'][1]}" if r.get("period") else ""),
+         "", f"_ตัวเลข $/ไม้ ทุกส่วนคิดเป็น {r.get('unit', 'lot มาตรฐาน')} · เงินจริงรวม {r.get('real_usd_total', 0):+.2f}$_",
          "", "## ข้อสรุป", *[f"- {x}" for x in r["conclusions"]], "", "## ภาพรวม", f"- {_fmt(r['overall'])}", "",
          "## แยกตามสายกลยุทธ์ (ผลจริง vs งานวิจัยคาด)"]
     for f, s in r["by_family"].items():
@@ -125,6 +138,12 @@ def markdown(r: dict) -> str:
         L += ["", f"## แยกตาม{title}", *[f"- {TH.get(k, k)}: {_fmt(s)}" for k, s in r[f"by_{dim}"].items()]]
     L += ["", "## ตัวกรองโหมดสังเกต (A/B บนไม้จริง)"]
     L += [f"- {g['bot']} `{g['gate']}`: ไม้ที่จะบล็อก {_fmt(g['would_block'])} · ไม้อื่น {_fmt(g['kept'])}" for g in r["gates"]] or ["- ยังไม่มี"]
+    L += ["", "## การสั่งปิดไม้ของผู้จัดการ (เทียบกับปล่อยจนชน SL/TP หรือครบ 24 ชม.)"]
+    L += [f"- {close_score.WHO.get(src, src)}: {x['n']} ครั้ง · ดีกว่าปล่อย {x['helped']} · แย่กว่า {x['hurt']} · รวม {x['saved']:+.2f}$"
+          for src, x in r.get("closes", {}).items()] or ["- ยังไม่มี"]
+    L += ["", "## ขนาดไม้ที่ผู้จัดการตั้ง"]
+    L += [f"- {b}: ×{a['scale']:g} ({a.get('by')}) — {a.get('reason')}" for b, a in sorted(r.get("alloc", {}).items())
+          if a.get("scale") not in (None, 1.0)] or ["- ทุกตัวขนาดมาตรฐาน"]
     L += ["", "## คำทำนายของผู้จัดการ"]
     L += [f"- {src}: ถูก {p['right']}/{p['calls']}" + (f" ({p['accuracy']}%, 95% {p['ci'][0]}–{p['ci'][1]}%)" if p["ci"] else "")
           + f" · ถ้าเชื่อทั้งหมด {-p['missed']:+.2f}$" for src, p in r["predictions"].items()] or ["- ยังไม่มี"]
@@ -149,6 +168,22 @@ def load() -> dict:
 
 def telegram_summary(r: dict) -> str:
     o = r["overall"]
-    return (f"📑 รายงานวิจัยประจำสัปดาห์ · ไม้จริง {r['trades']} ไม้ · {_fmt(o)}\n" + "\n".join(f"• {x}" for x in r["conclusions"][:6])
-            + "\nฉบับเต็ม: หน้าเว็บ → 📈 ผลงาน → รายงานวิจัย")
+    bots = sorted(((b, s) for b, s in r.get("by_bot", {}).items() if s.get("n")), key=lambda x: x[1]["total"])
+    L = [f"📑 รายงานวิจัยประจำสัปดาห์ · ไม้จริง {r['trades']} ไม้ · เงินจริงรวม {r.get('real_usd_total', 0):+.2f}$",
+         f"ต่อไม้ (lot มาตรฐาน): {_fmt(o)}"]
+    if bots:
+        L.append("🏆 ดีสุด: " + ", ".join(f"{b} {s['total']:+.0f}$" for b, s in bots[::-1][:3])
+                 + " · 🐢 แย่สุด: " + ", ".join(f"{b} {s['total']:+.0f}$" for b, s in bots[:3]))
+    preds = [f"{shadow.WHO.get(s, s)} {p['right']}/{p['calls']}" for s, p in r.get("predictions", {}).items() if p.get("calls")]
+    if preds:
+        L.append("🔮 คำทำนายถูก: " + " · ".join(preds))
+    closes = [f"{close_score.WHO.get(s, s)} {x['saved']:+.0f}$ ({x['n']} ครั้ง)" for s, x in r.get("closes", {}).items()]
+    if closes:
+        L.append("✋ สั่งปิดไม้ดีกว่าปล่อย: " + " · ".join(closes))
+    sc = [f"{b} ×{a['scale']:g}" for b, a in sorted(r.get("alloc", {}).items()) if a.get("scale") not in (None, 1.0)]
+    if sc:
+        L.append("⚖️ ขนาดไม้: " + ", ".join(sc))
+    L += [f"• {x}" for x in r["conclusions"][:6]]
+    L.append("ฉบับเต็ม: หน้าเว็บ → รายงานวิจัย (/report)")
+    return "\n".join(L)
 

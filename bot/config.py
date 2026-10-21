@@ -253,6 +253,19 @@ STRATEGY_CONFIGS: list[BreakoutConfig | SweepConfig | MomentumConfig] = [
 ]
 
 
+# lot มาตรฐานที่งานวิจัยใช้ — แปลงกำไร/ขาดทุนทุกไม้เป็นหน่วยนี้ก่อนคิดสถิติ (ไม้ที่เทรด lot ต่างกันจะได้เทียบกันได้)
+STD_LOTS = {"XAUUSD": 0.04, "NAS100": 0.73, "BTCUSD": 0.17}
+
+
+def std_profit(symbol: str | None, volume: float | str | None, profit: float) -> float:
+    try:
+        v = float(volume or 0)
+    except (TypeError, ValueError):
+        v = 0.0
+    std = STD_LOTS.get(symbol or "")
+    return round(profit * std / v, 2) if std and v > 0 else round(profit, 2)
+
+
 M5_BOTS_FILE = ROOT / "bot" / "m5_bots.json"          # งานจากการวิจัยเต็ม (ติดมากับโค้ด)
 M5_BOTS_TUNED = ROOT / "state" / "m5_bots.json"       # งานที่ปรับพารามิเตอร์ใหม่ทุกสัปดาห์บนเซิร์ฟเวอร์ (python -m bot research) — ถ้ามี ใช้อันนี้ก่อน
 # ล็อกกำไรแบบไต่ของบอท M5 (ดอลลาร์ ที่ทอง 0.04 lot ≈ 0.5 / 1 / 2 ATR ของ M5)

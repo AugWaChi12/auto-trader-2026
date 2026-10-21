@@ -30,6 +30,7 @@ from ..execution.order_guard import OrderGuard
 from ..risk.news import NewsCalendar
 from .awake import keep_awake
 from ..risk.risk_manager import RiskManager
+from .. import allocator
 from .fileio import atomic_write
 from .mt5_broker import Mt5Broker
 from .notify import Notifier
@@ -82,7 +83,8 @@ class LiveRunner:
         now = datetime.now(UTC)
         news = NewsCalendar.default(C.NEWS_CSV, (now.year - 1, now.year + 1), C.NEWS_BLACKOUT_MIN)
         self.risk = RiskManager(C.RISK_PROFILES[self.profile], self.broker, news,
-                                real_equity=lambda: float(self.broker.mt5.account_info().equity))
+                                real_equity=lambda: float(self.broker.mt5.account_info().equity),
+                                lot_scale=None if self.instance == "main" else (lambda: allocator.scale_of(self.instance)))
         if self._risk_path.exists():
             self.risk.load_state(json.loads(self._risk_path.read_text(encoding="utf-8")))
             log.info("risk state restored: %s", self.risk.to_state())

@@ -75,6 +75,7 @@ class Learner:
         self.table: dict[str, dict[str, dict]] = d.get("table", {})
         self.detail: dict[str, dict[str, dict]] = d.get("detail", {})      # สาย → "sess:asia" / "trend:against" → ผล
         self.counted: list[str] = d.get("counted", [])
+        self.unit: str = d.get("unit", "usd")              # "std" = ตารางคิดเป็น lot มาตรฐานแล้ว
 
     def observe(self, bots: dict[str, dict], regime: str | None, er: float | None, t: float, trend_dir: int = 0,
                 by_symbol: dict[str, tuple] | None = None, bars: dict[str, list] | None = None) -> list[dict]:
@@ -120,25 +121,48 @@ class Learner:
 
     def _count(self, k: str, rec: dict, r: dict, learned: list[dict]) -> None:
         """นับไม้ที่ปิดแล้ว 1 ไม้ · ไม่รู้สภาพตลาดตอนเปิด → ไม่เข้าตาราง (แต่ยังส่งออกไปเป็นแถวใน dataset)"""
+        p = C.std_profit(rec.get("symbol") or r.get("symbol"), r.get("volume"), r["profit"])
         if rec.get("regime"):
             cell = self.table.setdefault(rec["family"] or "?", {}).setdefault(rec["regime"], {"n": 0, "pnl": 0.0, "wins": 0})
             cell["n"] += 1
-            cell["pnl"] = round(cell["pnl"] + r["profit"], 2)
-            cell["wins"] += r["profit"] > 0
+            cell["pnl"] = round(cell["pnl"] + p, 2)
+            cell["wins"] += p > 0
             for key in (f"sess:{rec.get('session')}", f"trend:{rec.get('trend')}"):
                 if "None" in key:
                     continue
                 c2 = self.detail.setdefault(rec["family"] or "?", {}).setdefault(key, {"n": 0, "pnl": 0.0, "wins": 0})
                 c2["n"] += 1
-                c2["pnl"] = round(c2["pnl"] + r["profit"], 2)
-                c2["wins"] += r["profit"] > 0
+                c2["pnl"] = round(c2["pnl"] + p, 2)
+                c2["wins"] += p > 0
         self.counted = (self.counted + [k])[-5000:]
         self.tape.pop(k, None)
         learned.append({**r, **rec, "profit": r["profit"]})
 
     def _save_all(self) -> None:
         _save(TAPE_PATH, self.tape)
-        _save(LEARN_PATH, {"table": self.table, "detail": self.detail, "counted": self.counted})
+        _save(LEARN_PATH, {"table": self.table, "detail": self.detail, "counted": self.counted, "unit": self.unit})
+
+    def rebuild(self, rows: list[dict]) -> int:
+        """สร้างตาราง สาย × สภาพตลาด ใหม่จาก dataset (หน่วย lot มาตรฐาน) — ใช้ครั้งเดียวตอนเปลี่ยนหน่วย
+        ไม้เก่าที่เทรด lot ใหญ่จะไม่ถ่วงผลเกินจริง"""
+        self.table, self.detail = {}, {}
+        for r in rows:
+            fam, p = r.get("family") or "?", r["profit_std"]
+            if r.get("regime"):
+                cell = self.table.setdefault(fam, {}).setdefault(r["regime"], {"n": 0, "pnl": 0.0, "wins": 0})
+                cell["n"] += 1
+                cell["pnl"] = round(cell["pnl"] + p, 2)
+                cell["wins"] += p > 0
+                for key in (f"sess:{r.get('session')}", f"trend:{r.get('trend')}"):
+                    if key.endswith(":") or "None" in key:
+                        continue
+                    c2 = self.detail.setdefault(fam, {}).setdefault(key, {"n": 0, "pnl": 0.0, "wins": 0})
+                    c2["n"] += 1
+                    c2["pnl"] = round(c2["pnl"] + p, 2)
+                    c2["wins"] += p > 0
+        self.unit = "std"
+        self._save_all()
+        return len(rows)
 
     def backfill(self, rows: dict[str, list[dict]], bots: dict[str, dict], bars: dict[str, list], since: str | None) -> list[dict]:
         """เติมไม้ที่ปิดแล้วแต่ยังไม่เคยนับ (ตอนเริ่มงาน) · rows = บอท → ไม้จริงจาก MT5 · bots = บอท → {family, symbol}

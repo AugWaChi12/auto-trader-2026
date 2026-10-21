@@ -40,6 +40,7 @@ PAUSES_PATH = C.STATE_DIR / "manager_pauses.json"
 TICK_SEC = 60
 BACKFILL_BARS = 20_000        # แท่ง M1 ย้อนหลังตอนเติมไม้ตกหล่น (~14 วัน)
 REPORT_EVERY_MIN = 30
+SCALE_GAP_MIN = 120           # AI ปรับขนาดไม้บอทเดิมได้ไม่ถี่กว่านี้
 MAX_ACTIONS_PER_HOUR = 120    # กันบั๊กสั่งรัวเท่านั้น (DEMO ให้ลองได้เต็มที่)
 MAX_PAUSE_MIN = 24 * 60
 
@@ -281,6 +282,7 @@ class Action:
     reason: str = ""
     src: str = "rules"
     tag: str = ""             # regime = พักเพราะสภาพตลาด (ให้กลับเองเมื่อตลาดเปลี่ยน)        # rules | claude — หน้าเว็บโชว์ว่าสมองไหนสั่ง
+    value: float = 0.0        # scale = ตัวคูณ lot
 
 
 class RuleBrain:
@@ -442,6 +444,8 @@ class Manager:
         self.known: dict[int, str] | None = None        # ticket → บอท ของไม้ที่เห็นเปิดอยู่ (ไว้จับตอนปิด)
         self.pending_closed: dict[int, str] = {}         # ไม้ที่หายไปแล้วแต่ deal ปิดยังไม่มา
         self.close_why: dict[str, str] = {}              # บอท → เหตุผลที่ผู้จัดการสั่งปิดล่าสุด
+        self.close_ctx: dict[int, dict] = {}             # ticket → {src, why, sl, tp} ตอนสั่งปิด (ไว้ให้คะแนนการปิด)
+        self.last_scale: dict[str, float] = {}           # บอท → เวลาที่ AI ปรับขนาดไม้ล่าสุด
         self.last_shadow = 0.0
         self.llm = None
         which = os.environ.get("MANAGER_AI") or ("gemini" if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -465,6 +469,8 @@ class Manager:
             return f"สั่งการครบ {MAX_ACTIONS_PER_HOUR} ครั้งในชั่วโมงนี้แล้ว"
         if a.kind == "close" and not s.bots[a.bot]["open"]:
             return "ไม่มีไม้ให้ปิด"
+        if a.kind == "scale" and s.t - self.last_scale.get(a.bot, 0) < SCALE_GAP_MIN * 60:
+            return f"ปรับขนาดไม้ {a.bot} ไปแล้วเมื่อไม่ถึง {SCALE_GAP_MIN} นาที"
         return ""
 
     def execute(self, a: Action, s: Snapshot, pauses: dict[str, dict]) -> None:
@@ -490,7 +496,15 @@ class Manager:
                 save_pauses(pauses)
                 shadow.record_pause(a.bot, p, s.t)
                 say("action", f"▶ ให้ {a.bot} กลับมาทำงาน — {a.reason}", bot=a.bot, act="resume", src=a.src)
+        elif a.kind == "scale":
+            from . import allocator
+            old = allocator.scale_of(a.bot)
+            new = allocator.set_scale(a.bot, a.value, a.reason, a.src)
+            self.last_scale[a.bot] = s.t
+            say("action", f"⚖️ ปรับขนาดไม้ {a.bot} ×{old:g} → ×{new:g} — {a.reason}", bot=a.bot, act="scale", src=a.src)
         elif a.kind == "close":
+            for o in s.bots[a.bot]["open"]:
+                self.close_ctx[o["ticket"]] = {"src": a.src, "why": a.reason, "sl": o.get("sl"), "tp": o.get("tp")}
             res = self.col.close_bot_positions(a.bot)
             ok = sum(1 for r in res if r.get("ok"))
             self.close_why[a.bot] = ({"gemini": "Gemini", "gemini_smart": "Gemini", "claude": "Claude"}.get(a.src, "ผู้จัดการ")
@@ -522,6 +536,7 @@ class Manager:
             if self.last_snap is not None:
                 self.journal(self.day, self.last_snap)
             self.day = bkk_day()
+            self.allocate()
             self.report(weekly=datetime.fromisoformat(self.day).weekday() == 0)   # ขึ้นวันจันทร์ = ครบสัปดาห์
         self.last_snap = s
         self.maybe_research(s)
@@ -533,6 +548,13 @@ class Manager:
                     say("info", shadow.describe(e), src=e["src"], bot=e["bot"], shadow=e["missed"])
             except Exception:  # noqa: BLE001 — บอทเงาพังต้องไม่ทำให้ผู้จัดการหยุดตัดสินใจ
                 log.exception("shadow evaluate failed")
+            try:
+                from . import close_score
+                for r in close_score.evaluate(self.fetch_bars, s.t):
+                    say("info", close_score.describe(r), src=r["src"] if r["src"] != "guard" else "rules", bot=r["bot"],
+                        saved=r["saved"])
+            except Exception:  # noqa: BLE001
+                log.exception("close score failed")
         if notifier().token and not notifier().chat:
             notifier().discover()
         raw = load_pauses_raw()
@@ -604,6 +626,8 @@ class Manager:
                         break
             if why:
                 self.close_why[bot] = "ผู้จัดการปิด: " + why.split(" — ")[-1] + f" (ตอนสั่งลอย {floating:+.2f}$)"
+                for p in ps:
+                    self.close_ctx[p.ticket] = {"src": "guard", "why": why, "sl": p.sl, "tp": p.tp}
                 res = col.close_bot_positions(bot)
                 say("action", f"✋ สั่งปิดไม้ {bot} ({sum(1 for r in res if r.get('ok'))}/{len(res)}) — {why}",
                     bot=bot, act="close", src="rules", notify=False)
@@ -631,6 +655,10 @@ class Manager:
                 continue                                      # deal ยังไม่มา → รอบหน้า
             bot = self.pending_closed.pop(t)
             done.setdefault(r["bot"] or bot, []).append(r)
+            ctx = self.close_ctx.pop(t, None)
+            if ctx is not None and r["reason"] == "manual_close":
+                from . import close_score
+                close_score.record({**r, "bot": r["bot"] or bot}, ctx)
         for bot, rs in done.items():
             self.notify_closed(bot, rs)
 
@@ -770,6 +798,25 @@ class Manager:
                                 "bots": {n: b["today"] for n, b in tests.items()}, "equity": s.equity}, ensure_ascii=False) + "\n")
         say("journal", f"📓 {text}" + (f"\n{ai}" if ai else ""), src=self.llm.src if (ai and self.llm) else "rules")
 
+    def allocate(self) -> None:
+        """รอบบริหารรายวัน: สลับสายที่พิสูจน์แล้วว่าเสีย (≤ 1 ตัว/วัน) → ตั้งขนาดไม้ทุกบอทจากหลักฐานไม้จริง"""
+        from . import allocator, dataset
+        try:
+            rows = dataset.load()
+            r = allocator.rotate(rows)
+            if r:
+                c, ev = r["candidate"], r["evidence"]
+                say("action", f"🔄 เปลี่ยนสาย {r['bot']} ({SYMBOL_TH.get(r['symbol'], r['symbol'])}): {r['from']} → {r['to']} — "
+                              f"{r['from']} ไม้จริง {ev['n']} ไม้ เฉลี่ย {ev['avg']:+.2f}$/ไม้ (t={ev['t']:+.2f}) · "
+                              f"{r['to']} งานวิจัย walk-forward {c['wf_usd_day']:+.2f} / ช่วงซ่อน {c['holdout_usd_day']:+.2f} $/วัน",
+                    bot=r["bot"], act="rotate", src="rules")
+            ch = allocator.rebalance(rows, C.load_m5_bots())
+            if ch:
+                say("action", "⚖️ ปรับขนาดไม้ประจำวัน: " + " · ".join(f"{x['bot']} ×{x['old']:g}→×{x['new']:g}" for x in ch)
+                    + " (ตามผลจริงของสายปัจจุบัน หน่วย lot มาตรฐาน)", act="scale", src="rules")
+        except Exception:  # noqa: BLE001
+            log.exception("allocate failed")
+
     def report(self, weekly: bool) -> None:
         """รายงานวิจัยจากไม้จริง: เขียนใหม่ทุกคืน · ส่งสรุปเข้า Telegram สัปดาห์ละครั้ง"""
         from . import live_report
@@ -838,6 +885,11 @@ class Manager:
         if not PAUSE_BOTS:
             self.release_all_pauses()
         self.backfill()
+        if self.learner.unit != "std":
+            from . import dataset
+            n_rows = self.learner.rebuild(dataset.load())
+            log.info("learner: สร้างตารางใหม่เป็นหน่วย lot มาตรฐานจาก %d ไม้", n_rows)
+        self.allocate()                          # เริ่มงาน = ตั้งขนาดไม้จากหลักฐานล่าสุดทันที (ไม่ต้องรอข้ามวัน)
         n = 0
         while True:
             try:

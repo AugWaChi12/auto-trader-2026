@@ -54,6 +54,9 @@ CLAUDE_SYSTEM = f"""คุณคือหัวหน้าผู้จัดก
 - pause_bot(bot, minutes 30–240): "ทำนาย" ว่าบอทไม่ควรเข้าไม้ช่วงนี้ — โหมดเรียนรู้: บอทยังเทรดตามปกติ
   ระบบให้คะแนนจากไม้จริง (ช่วงนั้นขาดทุน = คุณถูก · กำไร = คุณผิด) → คะแนนของคุณคือ claude_smart ใน prediction_scoreboard_30d
 - resume_bot(bot): ถอนคำทำนายของคุณเมื่อเหตุผลเดิมหมดไป
+- set_lot_scale(bot, scale 0.25–2.0): ปรับขนาดไม้จริงของบอท (คูณ lot มาตรฐาน) — มีผลกับไม้ใหม่ทันที อยู่ถึงรอบปรับประจำวันของกฎ
+  กฎตั้งค่าให้ทุกวันจาก t-stat ของไม้จริง (field lot_scale ของบอท) คุณสั่งทับได้เมื่อเห็นสิ่งที่ตัวเลขย้อนหลังยังไม่เห็น
+- ระบบสลับสายของบอทที่พิสูจน์แล้วว่าเสียให้เองวันละไม่เกิน 1 ตัว (ไม่ต้องสั่ง)
 - คุณเปิดไม้เองไม่ได้ · ห้ามเขียนว่า "พักบอท" ในข้อความ (ไม่มีบอทถูกพักจริง) ใช้ "ทำนายว่าไม่ควรเข้า"
 - นี่คือ DEMO เพื่อเรียนรู้ ไม่มีเพดานขาดทุน → กล้าตัดสินใจเมื่อหลักฐานถึงเกณฑ์ ผิดได้ แต่ต้องมีเหตุผลที่วัดผลได้
 """
@@ -85,7 +88,12 @@ loss_streak ≥ 3 · ตลาดเพิ่งเปลี่ยนสภา�
 ปรับตัวตามคะแนน: claude_smart แม่นยำ < 50% (calls ≥ 10) → ทำนายเฉพาะเมื่อหลักฐาน ≥ 3 ข้อ · ≥ 60% → ทำนายได้กว้างขึ้น
 คำทำนายเดิมของคุณยังมีผล (paused.by = claude_smart) และเหตุผลยังจริง → ไม่ต้องสั่งซ้ำ · เหตุผลหมด → resume_bot
 
-## 4) ความสม่ำเสมอ
+## 4) ขนาดไม้ (set_lot_scale) — ใช้ไม่บ่อย
+- เพิ่ม (1.5–2.0) เมื่อ: สายนี้เหมาะกับ regime ตอนนี้ (fits_regime = true) + learned ของสาย×regime บวก (n ≥ 8) + บอทกำลังทำผลดี
+- ลด (0.25–0.5) เมื่อ: สภาพตลาดตอนนี้ตรงจุดอ่อนใน lessons / learned ติดลบชัด แต่ยังอยากให้บอทเก็บข้อมูลต่อ
+- ดู close_scoreboard_30d ของคุณด้วย: ถ้าการปิดไม้ของคุณ saved รวมติดลบ → ปิดไม้น้อยลง เข้มเกณฑ์ขึ้น
+
+## 5) ความสม่ำเสมอ
 - อ่าน recent_chat: อย่าสั่งกลับไปกลับมากับบอทเดียวกันภายใน 30 นาทีถ้าตลาดไม่ได้เปลี่ยนจริง
 - เห็นต่างจากที่กฎ/Gemini เพิ่งสั่ง → บอกว่าเห็นต่างเพราะตัวเลขไหน
 - ทุกตัวเลขที่อ้างต้องมาจากข้อมูล (ห้ามเดา/แต่ง) · ข้อมูลไม่พอ = ไม่สั่ง และบอกว่ารออะไร
@@ -93,7 +101,7 @@ loss_streak ≥ 3 · ตลาดเพิ่งเปลี่ยนสภา�
 # รูปแบบคำตอบ (JSON ตาม schema เท่านั้น)
 - say: ภาษาไทย 2–4 ประโยค สำหรับคนดูไลฟ์ — ตลาดแต่ละตัวเป็นยังไง (ตัวเลขสำคัญ) · ไม้ที่ถืออยู่น่าห่วงตรงไหน · ทำอะไร/ไม่ทำเพราะอะไร ·
   สิ่งที่จะจับตาต่อ (เช่น "ถ้า BTC หลุด 67,200 ไม้ buy ของ m5_3 จะเข้าเงื่อนไขปิด")
-- actions: ว่างได้ · แต่ละอัน: name, bot, minutes (pause_bot เท่านั้น), confidence 0–100,
+- actions: ว่างได้ · แต่ละอัน: name, bot, minutes (pause_bot เท่านั้น), scale (set_lot_scale เท่านั้น), confidence 0–100,
   reason สั้นแต่มีตัวเลข เช่น "ใช้ระยะ SL ไป 72% · 3 แท่งล่าสุดปิดต่ำลง · ER 0.47 เทรนด์ลงสวน buy"
 """
 
@@ -103,9 +111,9 @@ ACT_SCHEMA = {
         "say": {"type": "string"},
         "actions": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["name", "bot", "confidence", "reason"],
-            "properties": {"name": {"type": "string", "enum": ["pause_bot", "resume_bot", "close_positions"]},
+            "properties": {"name": {"type": "string", "enum": ["pause_bot", "resume_bot", "close_positions", "set_lot_scale"]},
                            "bot": {"type": "string", "enum": TEST_BOTS},
-                           "minutes": {"type": "integer"}, "confidence": {"type": "integer"},
+                           "minutes": {"type": "integer"}, "scale": {"type": "number"}, "confidence": {"type": "integer"},
                            "reason": {"type": "string"}}}},
     },
 }
@@ -131,7 +139,7 @@ class ClaudeCode:
         return out
 
     def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
-        out = self._run(CLAUDE_SYSTEM + GUIDE, "ข้อมูลพอร์ตอยู่ใน stdin (JSON) — คิดตามขั้นตอนครบทั้ง 4 ข้อ แล้วตอบเป็น JSON ตาม schema",
+        out = self._run(CLAUDE_SYSTEM + GUIDE, "ข้อมูลพอร์ตอยู่ใน stdin (JSON) — คิดตามขั้นตอนครบทั้ง 5 ข้อ แล้วตอบเป็น JSON ตาม schema",
                         prompt, ACT_SCHEMA)
         res = out.get("structured_output")
         if not isinstance(res, dict):

@@ -24,7 +24,7 @@ SETTLE_MIN = 10            # พักจริง: รอให้ไม้จ�
 PAPER_SETTLE_MIN = 60      # คำทำนาย: รอไม้จริงที่เปิดช่วงท้ายปิดก่อนนับ
 MAX_BARS = 100_000         # เพดานแท่งที่ MT5 ส่งให้ต่อครั้ง (M1 ≈ 69 วัน)
 MIN_WARMUP_BARS = 20_000   # แท่งก่อนเริ่มพักขั้นต่ำ ให้อินดิเคเตอร์พร้อมเหมือนบอทจริง
-WHO = {"rules": "กฎ", "gemini": "Gemini Lite", "gemini_smart": "Gemini 3.8", "claude": "Claude", "claude_smart": "Claude (แพ็กเกจ)"}
+WHO = {"guard": "ตัวเฝ้าไม้", "rules": "กฎ", "gemini": "Gemini Lite", "gemini_smart": "Gemini 3.8", "claude": "Claude", "claude_smart": "Claude (แพ็กเกจ)"}
 
 
 def _load() -> list[dict]:
