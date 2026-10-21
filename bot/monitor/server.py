@@ -136,15 +136,15 @@ class Collector:
             return info.trade_contract_size, info.trade_stops_level * info.point, info.digits
 
     def modify_sl(self, ticket: int, sl: float) -> bool:
-        """เลื่อน SL ของไม้บอททดสอบ (ไม่แตะ main · DEMO เท่านั้น)"""
+        """เลื่อน SL ของไม้บอท (DEMO เท่านั้น)"""
         with self._lock:
             mt5 = self.mt5
             acc = mt5.account_info()
             if acc is None or acc.trade_mode != mt5.ACCOUNT_TRADE_MODE_DEMO:
                 raise ValueError("ไม่ใช่บัญชี DEMO — ไม่แก้ SL ให้")
             found = mt5.positions_get(ticket=ticket)
-            if not found or found[0].magic == self.bots.get("main"):
-                return False
+            if not found or found[0].magic not in self.by_magic:
+                return False                              # ไม้ที่คนเปิดเอง (ไม่มี magic ของบอท) ไม่แตะ
             p = found[0]
             r = mt5.order_send({"action": mt5.TRADE_ACTION_SLTP, "position": ticket, "symbol": p.symbol, "sl": sl,
                                 "tp": p.tp or 0.0, "magic": p.magic})

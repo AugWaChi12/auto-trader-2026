@@ -3,7 +3,7 @@ manager_ai.py — ส่วนที่สมอง AI ทุกตัวใช�
 
 ทุก MANAGER_LLM_MIN นาที: ส่งภาพรวมพอร์ต (JSON) ให้ AI → AI ตอบเป็นคำสั่งผ่าน function/tool
   pause_bot / resume_bot / close_positions / say
-คำสั่งทุกข้อยังต้องผ่าน Manager.allowed() (ห้าม main · เพดานต่อชั่วโมง · ปิดได้เฉพาะไม้ที่มีอยู่)
+คำสั่งทุกข้อยังต้องผ่าน Manager.allowed() (เพดานต่อชั่วโมง · ปิดได้เฉพาะไม้ที่มีอยู่)
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ log = logging.getLogger("manager.ai")
 
 LLM_EVERY_MIN = max(5, int(os.environ.get("MANAGER_LLM_MIN") or 15))
 LLM_QUIET_MIN = max(LLM_EVERY_MIN, int(os.environ.get("MANAGER_LLM_QUIET_MIN") or 45))   # พอร์ตว่าง + สภาพตลาดเดิม + ไม่แกว่งแรง → ถามห่างขึ้น
-TEST_BOTS = sorted((n for n in C.LIVE_INSTANCES if n != "main"), key=lambda n: int(n.split("_")[1]))
+TEST_BOTS = sorted(C.LIVE_INSTANCES, key=lambda n: -1 if n == "main" else int(n.split("_")[1]))   # ผู้จัดการดูแลทุกตัวรวม main
 # เพดานครั้ง/วัน (โควตา tier ฟรีของ Google · รีเซ็ตเที่ยงคืนเวลาแปซิฟิก) · 0 = ไม่จำกัด · เก็บ 1 ครั้งไว้ให้บันทึกท้ายวัน
 DAILY_MAX = int(os.environ.get("MANAGER_LLM_DAILY_MAX") or 0)
 # รุ่นฉลาดสำหรับจังหวะสำคัญ (มีไม้เปิด / สภาพตลาดเปลี่ยน / แกว่งแรง / บันทึกท้ายวัน) · 0 = ไม่ใช้ · เก็บ 1 ครั้งให้บันทึกท้ายวัน
@@ -69,7 +69,7 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
   เกาะ 1: m5_1–m5_9 เทรด BTCUSD (เปิด 24/7) · เกาะ 2: m5_10–m5_19 เทรดทองคำ XAUUSD และ NAS100 (ปิดเสาร์-อาทิตย์) — แต่ละบอทมี field "symbol"
   สภาพตลาดต้องดูของตลาดที่บอทนั้นเล่น (markets.<symbol>.regime) ไม่ใช่ของ BTC เสมอไป
 สายกลยุทธ์: ema / donchian / momo / orb / pullback = ตามเทรนด์ · bb / rsi2 / levels = สวนกลับในกรอบ · volx = รอตลาดเงียบแล้วเบรก
-บอท main (ทองคำ M5) ไม่ได้อยู่ใต้การดูแลของคุณ คุณไม่มีเครื่องมือแตะมัน
+บอท main (ทองคำ M5 · 2 กลยุทธ์: xau_momo เข้าวันละ ≤ 1 ไม้ตอน 12:00 UTC + ema 20/50) อยู่ใต้การดูแลของคุณเหมือนตัวอื่น
 
 หน้าที่: อ่านภาพรวมพอร์ตกับตลาดที่ส่งมาทุก {LLM_EVERY_MIN} นาที แล้วตัดสินใจเหมือนผู้จัดการกองทุนที่คุมทีมเทรดเดอร์
 - ทำนายว่าบอทไหนไม่ควรเข้าไม้ช่วงนี้ (pause_bot) เช่น สายตามเทรนด์ตอนตลาดออกข้าง สายสวนเทรนด์ตอนตลาดวิ่งแรง

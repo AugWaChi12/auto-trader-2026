@@ -168,7 +168,7 @@ def test_ai_set_lot_scale_becomes_action_and_manager_applies_it(monkeypatch) -> 
     from bot.manager_ai import to_actions
     acts = to_actions([("set_lot_scale", {"bot": "m5_8", "scale": 1.5, "reason": "rsi2 เหมาะกับตลาดออกข้าง"}),
                        ("set_lot_scale", {"bot": "main", "scale": 2, "reason": "x"})], "claude_smart")
-    assert [(a.kind, a.bot, a.value) for a in acts] == [("scale", "m5_8", 1.5)]
+    assert [(a.kind, a.bot, a.value) for a in acts] == [("scale", "m5_8", 1.5), ("scale", "main", 2.0)]   # main ดูแลเหมือนกัน
     said = []
     monkeypatch.setattr(M, "say", lambda kind, text, **k: said.append(text))
     m = M.Manager.__new__(M.Manager)

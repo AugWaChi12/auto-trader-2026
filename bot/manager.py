@@ -6,7 +6,7 @@ manager.py — ผู้จัดการพอร์ต: เฝ้าบอท
   resume(บอท)        — ให้กลับมาทำงาน
   close(บอท)         — ปิดไม้ที่บอทนั้นถืออยู่ทันที (บัญชี DEMO เท่านั้น)
   + say(ข้อความ)      — รายงาน/วิเคราะห์ ขึ้นแชทในหน้า /sandbox
-ห้ามแตะ main (ทดสอบไปข้างหน้า) · ไม่เปิดไม้เอง · สั่งได้ไม่เกิน MAX_ACTIONS_PER_HOUR
+ดูแลทุกบอทรวม main (ตั้งแต่ 2026-10-21) · ไม่เปิดไม้เอง · สั่งได้ไม่เกิน MAX_ACTIONS_PER_HOUR
 
 สมอง:
   RuleBrain (ค่าเริ่มต้น)  — กฎที่ตรวจสอบได้ทุกข้อ
@@ -188,7 +188,8 @@ class Snapshot:
     bars: dict[str, list[list]] = field(default_factory=dict)    # แท่ง M1 ล่าสุดของทุกตลาดที่บอททดสอบเล่น
 
     def test_bots(self) -> dict[str, dict]:
-        return {n: b for n, b in self.bots.items() if n != "main"}
+        """บอทที่ผู้จัดการดูแล — ทุกตัวรวม main"""
+        return dict(self.bots)
 
     def bars_of(self, symbol: str) -> list[list]:
         return self.bars.get(symbol) or (self.btc_bars if symbol == "BTCUSD" else [])
@@ -218,13 +219,14 @@ def build_snapshot(col: Any) -> Snapshot:
         st = next(iter((hb.get("strategies") or {}).values()), {})
         res = (d.get("research") or {}).get(name, {})
         opens = [o for o in d.get("open") or [] if o["bot"] == name]
-        rows = col.trades_page(name, 1, 10).get("rows", []) if name != "main" else []
+        rows = col.trades_page(name, 1, 10).get("rows", [])
         bots[name] = {"today": round((pb.get("today") or 0) + (pb.get("floating") or 0), 2), "closed_today": pb.get("today") or 0,
                       "total": pb.get("total") or 0, "trades": pb.get("trades") or 0, "win_rate": pb.get("win_rate"),
                       "open": opens, "alive": bool(hb.get("alive")), "state": st.get("state"),
-                      "family": res.get("family"), "symbol": st.get("symbol") or res.get("symbol"),
+                      "family": res.get("family") or (C.MAIN_FAMILY if name == "main" else None),
+                      "symbol": st.get("symbol") or res.get("symbol") or ("XAUUSD" if name == "main" else None),
                       "streak": loss_streak(rows), "target_hit": bool(hb.get("target_hit")), "recent": rows}
-    syms = sorted({b["symbol"] for n, b in bots.items() if n != "main" and b.get("symbol")} | {"BTCUSD"})
+    syms = sorted({b["symbol"] for b in bots.values() if b.get("symbol")} | {"BTCUSD"})
     allbars = {sym: (col.bars(sym, "M1", 200) or {}).get("bars") or [] for sym in syms}
     return Snapshot(now_ts(), float(acc.get("equity") or 0), float(acc.get("balance") or 0), bots, allbars["BTCUSD"],
                     ((d.get("quotes") or {}).get("BTCUSD") or {}).get("bid"), allbars)
@@ -462,8 +464,8 @@ class Manager:
         """ขีดจำกัดความปลอดภัย — คืนเหตุผลถ้าไม่ให้ทำ"""
         if a.kind == "say":
             return ""
-        if a.bot == "main" or a.bot not in s.bots:
-            return "สั่งได้เฉพาะบอททดสอบ"
+        if a.bot not in s.bots:
+            return "ไม่รู้จักบอทนี้"
         self.recent = [t for t in self.recent if s.t - t < 3600]
         if len(self.recent) >= MAX_ACTIONS_PER_HOUR:
             return f"สั่งการครบ {MAX_ACTIONS_PER_HOUR} ครั้งในชั่วโมงนี้แล้ว"
@@ -598,13 +600,12 @@ class Manager:
         col = self.col
         if not hasattr(col, "raw_positions"):
             return
-        main_magic = col.bots.get("main")
         by_bot: dict[str, list] = {}
         raw = col.raw_positions()
         self.report_closed(raw)
         for p in raw:
             bot = col.by_magic.get(p.magic)
-            if bot and p.magic != main_magic:
+            if bot:
                 by_bot.setdefault(bot, []).append(p)
         peaks = self.brain.peaks
         live = {p.ticket for ps in by_bot.values() for p in ps}
@@ -810,7 +811,7 @@ class Manager:
                               f"{r['from']} ไม้จริง {ev['n']} ไม้ เฉลี่ย {ev['avg']:+.2f}$/ไม้ (t={ev['t']:+.2f}) · "
                               f"{r['to']} งานวิจัย walk-forward {c['wf_usd_day']:+.2f} / ช่วงซ่อน {c['holdout_usd_day']:+.2f} $/วัน",
                     bot=r["bot"], act="rotate", src="rules")
-            ch = allocator.rebalance(rows, C.load_m5_bots())
+            ch = allocator.rebalance(rows, C.load_m5_bots() + [{"bot": "main", "family": C.MAIN_FAMILY}])
             if ch:
                 say("action", "⚖️ ปรับขนาดไม้ประจำวัน: " + " · ".join(f"{x['bot']} ×{x['old']:g}→×{x['new']:g}" for x in ch)
                     + " (ตามผลจริงของสายปัจจุบัน หน่วย lot มาตรฐาน)", act="scale", src="rules")
@@ -878,7 +879,7 @@ class Manager:
             say("action", f"▶ ปิดเพดานขาดทุนแล้ว (DEMO ลองเต็มที่) — ปล่อย {', '.join(freed)} กลับมาทำงาน", act="resume")
 
     def run(self) -> None:
-        say("info", f"ผู้จัดการพอร์ตเริ่มงาน ({self.brain_name()}) — เฝ้าบอททดสอบ {C.N_TEST} ตัว (BTC + ทอง/NAS100) ทุก {TICK_SEC} วิ · ไม่แตะ main",
+        say("info", f"ผู้จัดการพอร์ตเริ่มงาน ({self.brain_name()}) — เฝ้าบอท {C.N_TEST + 1} ตัว รวม main (BTC + ทอง/NAS100) ทุก {TICK_SEC} วิ",
             src=self.llm.src if self.llm else "rules")
         if not LOSS_STOPS:
             self.release_loss_stops()

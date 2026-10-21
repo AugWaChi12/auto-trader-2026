@@ -68,6 +68,8 @@ def end_paper(bot: str, src: str, now: float) -> bool:
 
 
 def symbol_of(bot: str) -> str:
+    if bot == "main":
+        return "XAUUSD"
     return next((b["symbol"] for b in C.load_m5_bots() if b["bot"] == bot), "BTCUSD")
 
 

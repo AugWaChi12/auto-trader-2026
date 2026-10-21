@@ -89,11 +89,11 @@ def test_giveback_and_stale_loser_are_closed() -> None:
     assert ("close", "m5_4") in kinds(M.RuleBrain().decide(snap(m5_4=bot(opens=[pos(8, profit=-25, hours=4)])), {}))
 
 
-def test_portfolio_stops_pause_all_test_bots_never_main() -> None:
+def test_portfolio_stops_pause_all_managed_bots_including_main() -> None:
     acts = M.RuleBrain().decide(snap(**{f"m5_{i}": bot(today=-20) for i in range(1, 10)}), {})
-    assert sorted(b for k, b in kinds(acts)) == [f"m5_{i}" for i in range(1, 10)]
+    assert sorted(b for k, b in kinds(acts)) == sorted(["main"] + [f"m5_{i}" for i in range(1, 10)])
     acts = M.RuleBrain().decide(snap(equity=630), {})
-    assert {k for k, _ in kinds(acts)} == {"pause"} and "main" not in {b for _, b in kinds(acts)}
+    assert {k for k, _ in kinds(acts)} == {"pause"} and "main" in {b for _, b in kinds(acts)}
 
 
 class FakeCol:
@@ -105,10 +105,10 @@ class FakeCol:
         return [{"ticket": 1, "ok": True}]
 
 
-def test_guardrails_refuse_main_unknown_and_empty_close() -> None:
+def test_guardrails_allow_main_refuse_unknown_and_empty_close() -> None:
     m = M.Manager(FakeCol())
     s = snap()
-    assert m.allowed(M.Action("pause", "main", 30), s)
+    assert not m.allowed(M.Action("pause", "main", 30), s)               # main อยู่ใต้ผู้จัดการแล้ว (2026-10-21)
     assert m.allowed(M.Action("close", "m5_1"), s)                    # ไม่มีไม้
     assert m.allowed(M.Action("pause", "m5_99", 30), s)
     assert not m.allowed(M.Action("pause", "m5_1", 30), s)
@@ -141,7 +141,7 @@ def test_expired_pause_is_announced_and_removed(monkeypatch) -> None:  # noqa: A
     assert M.load_pauses_raw() == {} and any("ครบเวลาพัก" in x["text"] for x in M.read_log())
 
 
-def test_supervisor_stops_paused_bot_and_never_main(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+def test_supervisor_stops_paused_bots_including_main(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
     from bot import settings
     from bot.live import supervisor as SV
     monkeypatch.setattr(settings, "PATH", tmp_path / "bot_settings.json")
@@ -151,7 +151,7 @@ def test_supervisor_stops_paused_bot_and_never_main(monkeypatch, tmp_path: Path)
     monkeypatch.setattr(sv, "stop", lambda c, why: stopped.append(c.name))
     M.save_pauses({"m5_4": {"until": M.now_ts() + 600}, "main": {"until": M.now_ts() + 600}})
     sv.check_pauses()
-    assert stopped == ["m5_4"] and not sv.enabled("m5_4") and sv.enabled("main") and sv.enabled("manager")
+    assert sorted(stopped) == ["m5_4", "main"] and not sv.enabled("m5_4") and not sv.enabled("main") and sv.enabled("manager")
     M.save_pauses({})
     sv.check_pauses()
     assert sv.enabled("m5_4")
@@ -224,7 +224,7 @@ def test_gemini_brain_maps_function_calls_to_actions(monkeypatch) -> None:  # no
     brain = G.GeminiBrain()
     brain.client = NS(models=NS(generate_content=lambda **kw: seen.update(kw) or NS(function_calls=calls, usage_metadata=None)))
     acts = brain.maybe_decide(snap(bars=bars("trend")), {})
-    assert [(a.kind, a.bot, a.src) for a in acts] == [("say", None, "gemini"), ("resume", "m5_4", "gemini")]
+    assert [(a.kind, a.bot, a.src) for a in acts] == [("say", None, "gemini"), ("resume", "m5_4", "gemini"), ("pause", "main", "gemini")]
     assert seen["model"] == G.MODEL and '"regime"' in seen["contents"]
     brain.client = NS(models=NS(generate_content=lambda **kw: (_ for _ in ()).throw(RuntimeError("quota"))))
     brain.last = 0
@@ -260,9 +260,9 @@ def test_claude_brain_maps_tool_calls_to_actions(monkeypatch) -> None:  # noqa: 
     brain.last = brain.last_error = 0.0
     brain.client = NS(beta=NS(messages=NS(create=lambda **kw: seen.update(kw) or resp)))
     acts = brain.maybe_decide(snap(m5_1=bot(opens=[pos()])), {})
-    assert [(a.kind, a.bot, a.src) for a in acts] == [("say", None, "claude"), ("pause", "m5_2", "claude")]
+    assert [(a.kind, a.bot, a.src) for a in acts] == [("say", None, "claude"), ("pause", "m5_2", "claude"), ("close", "main", "claude")]
     assert acts[1].minutes == 15                                   # ขั้นต่ำ 15 นาที
-    assert "main" not in L.TEST_BOTS and seen["model"] == L.MODEL
+    assert "main" in L.TEST_BOTS and seen["model"] == L.MODEL
     assert json.loads(seen["messages"][0]["content"].split("\n", 1)[1])["bots"]["m5_1"]["open"]
     assert brain.maybe_decide(snap(), {}) == []                     # ยังไม่ถึงรอบถัดไป
 
@@ -747,11 +747,12 @@ def P(ticket, magic, profit, symbol="GOLD", typ=0, open_=4100.0, cur=4105.0, sl=
               price_current=cur, sl=sl, tp=0.0, volume=vol)
 
 
-def test_guard_locks_profit_at_broker_and_never_touches_main() -> None:
+def test_guard_locks_profit_at_broker_and_manages_main_too() -> None:
     col = GuardCol([P(1, 30, 20.0), P(9, 1, 80.0)])                       # m5_10 กำไร 20 · main กำไร 80
     m = M.Manager(col)
     m.guard()
-    assert col.modified and col.modified[0][0] == 1 and col.closed == []
+    assert col.modified and col.modified[0][0] == 1 and col.closed == ["main"]   # main ถึง +$50 → ปิดเหมือนตัวอื่น
+    col.closed = []
     t, sl = col.modified[0]
     assert abs((sl - 4100.0) * 0.04 * 100 - 10.0) < 0.01                  # ล็อก 50% ของ +$20 = +$10
     col.positions = [P(1, 30, 8.0, sl=sl)]                                 # หดเหลือ 8 (< ครึ่งของ 20)

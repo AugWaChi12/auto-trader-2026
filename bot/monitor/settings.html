@@ -71,7 +71,7 @@
 <main>
   <section class="card">
     <h2>ค่าของบอททดสอบ 19 ตัว (m5_1 – m5_9 BTC · m5_10 – m5_19 ทอง/NAS100 ใช้ lot ตามงานวิจัย)</h2>
-    <p class="hint">กดบันทึกแล้วระบบจะรีสตาร์ทบอททดสอบให้เอง (~20 วินาที) · <b>main ไม่ถูกแตะ</b> — เทรดทอง M5 (xau_momo + ema) ตั้งค่าแยก · บัญชี DEMO เท่านั้น</p>
+    <p class="hint">กดบันทึกแล้วระบบจะรีสตาร์ทบอททดสอบให้เอง (~20 วินาที) · main ใช้เป้ารายวัน/ขยาย SL ชุดเดียวกัน (timeframe คงที่ M5 · ทอง 0.04 lot × ตัวคูณของผู้จัดการ) · บัญชี DEMO เท่านั้น</p>
 
     <div class="row">
       <label>Timeframe<span class="sub">ขนาดแท่งเทียนที่บอทใช้ตัดสินใจ</span></label>
@@ -201,7 +201,7 @@ async function bots() {
       const ctl = n === "main" ? '<span class="muted">—</span>' : off
         ? `<button class="mini" data-bot="${esc(n)}" data-act="enable">▶ เปิดบอท</button>`
         : `<button class="mini" data-bot="${esc(n)}" data-act="disable">⏹ ปิดบอท</button> <button class="mini" data-bot="${esc(n)}" data-act="close" ${open ? "" : "disabled"}>✋ ปิดไม้${open ? " (" + open + ")" : ""}</button>`;
-      return `<tr class="${off ? "off" : ""}"><td><b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${n === "main" ? "xau_momo (ไม่แตะ)" : esc(FAM[r?.family] || r?.family || "–")}</td>
+      return `<tr class="${off ? "off" : ""}"><td><b>${n === "main" ? "★ main" : esc(n)}</b></td><td>${n === "main" ? "xau_momo + ema" : esc(FAM[r?.family] || r?.family || "–")}</td>
         <td>${esc(st.symbol || "–")}</td><td>${esc(hb.tf || "–")} ${tfOk ? "" : '<span class="muted">→ ' + esc(wantTf) + " (รอรีสตาร์ท)</span>"}</td>
         <td>${off ? '<span class="muted">⏹ ปิดโดยผู้ใช้</span>' : hb.alive ? '<span class="up">● ทำงาน</span>' : '<span class="down">● หยุด</span>'} <span class="muted">${esc(off ? "" : hb.target_hit ? "🎯 ถึงเป้าแล้ว" : st.state || "")}</span></td>
         <td style="text-align:right" class="${today >= 0 ? "up" : "down"}">${money(today)}</td><td>${ctl}</td></tr>`;

@@ -104,6 +104,8 @@ MAIN_M5: dict[str, dict] = {
                  "params": {"fast": 20, "slow": 50, "sl_atr": 3.0, "tp_r": 2.0, "max_hold": 96}},
 }
 LIVE_STRATEGIES = ["xau_momo", *MAIN_M5]
+MAIN_FAMILY = "momo+ema"             # ชื่อสายของ main ในตารางเรียนรู้/dataset (2 กลยุทธ์รวมกัน)
+MAIN_FAMILY = "momo+ema"             # ชื่อสายของ main ในตารางเรียนรู้/dataset (2 กลยุทธ์รวมกัน)
 LIVE_PROFILE = "demo_1k"
 MAGIC = 26101501                     # ติดทุกออเดอร์ของบอท — ไม่แตะไม้ที่คนเปิดเอง
 POLL_SECONDS = 5
@@ -123,7 +125,9 @@ _T = {"tf": "M1", "profile": "test_free", "allocation": 1000.0}
 N_TEST = 19
 LIVE_INSTANCES: dict[str, dict] = {
     # ทดสอบไปข้างหน้า — ห้ามแตะ
-    "main":    {"strategies": LIVE_STRATEGIES, "tf": "M5", "profile": LIVE_PROFILE, "magic": MAGIC, "allocation": 1000.0,
+    # 2026-10-21 ตามคำขอ: main อยู่ใต้ผู้จัดการเหมือนบอททดสอบ (ไม้ตายตัวทอง 0.04 + ตัวคูณขนาดไม้ · ทำนาย/ปิดไม้/ล็อกกำไร)
+    #   ยกเว้นสลับสาย — main มี 2 กลยุทธ์ตายตัว (MAIN_M5) ไม่ได้อยู่ใน m5_bots.json
+    "main":    {"strategies": LIVE_STRATEGIES, "tf": "M5", "profile": "m5_fixed", "magic": MAGIC, "allocation": 1000.0,
                 "warmup": 30000},
     # บอททดสอบ 19 ตัว (2 เกาะ): m5_1–9 = BTC · m5_10–19 = ทอง + NAS100 (เพิ่ม 2026-10-18 · magic +30..+39)
     # งานของแต่ละตัวอยู่ใน bot/m5_bots.json (วิจัยเต็ม) / state/m5_bots.json (ปรับใหม่ทุกคืน)

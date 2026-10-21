@@ -254,7 +254,7 @@ def test_stream_config_validates_and_never_exposes_key(tmp_path: Path, monkeypat
 
 
 def test_supervisor_follows_settings_file(tmp_path: Path, monkeypatch) -> None:
-    """ปิดบอทในหน้าเว็บ → หยุดเฉพาะตัวนั้น · เปลี่ยน TF → รีสตาร์ทบอททดสอบทุกตัว แต่ไม่แตะ main · ตายแล้วเปิดใหม่"""
+    """ปิดบอทในหน้าเว็บ → หยุดเฉพาะตัวนั้น · เปลี่ยน TF → รีสตาร์ทบอททุกตัวรวม main · ตายแล้วเปิดใหม่"""
     import os
     from bot import settings
     from bot.live import supervisor as sv
@@ -283,8 +283,9 @@ def test_supervisor_follows_settings_file(tmp_path: Path, monkeypatch) -> None:
     settings.save({**settings.load(), "tf": "M1"})
     os.utime(settings.PATH, (2, 2)); s.mtime = 0
     s.check_settings()
-    assert "main" not in stopped and "m5_1" in stopped and "m5_2" not in stopped   # m5_2 ปิดอยู่แล้ว
+    assert "main" in stopped and "m5_1" in stopped and "m5_2" not in stopped   # main ใช้ค่าตั้งเดียวกับตัวอื่นแล้ว   # m5_2 ปิดอยู่แล้ว
 
+    started.clear(); s.tick()                                        # เปิดใหม่ทุกตัวที่ถูกหยุด
     s.children["main"].proc.returncode = 1                          # main ตาย → เปิดใหม่หลัง backoff
     started.clear(); s.tick()
     assert s.children["main"].proc is None and "main" not in started

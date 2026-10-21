@@ -1,5 +1,5 @@
 """
-allocator.py — ผู้จัดการบริหารพอร์ตแบบ dynamic (บอททดสอบเท่านั้น · ไม่แตะ main)
+allocator.py — ผู้จัดการบริหารพอร์ตแบบ dynamic (ทุกบอทรวม main · main ไม่ถูกสลับสาย เพราะกลยุทธ์ตายตัวใน config)
 
   1) ขนาดไม้ (state/manager_alloc.json): บอทแต่ละตัวได้ตัวคูณ lot 0.25–2.0 เท่าของ lot มาตรฐาน
      · กฎ (ทุกวันตอนขึ้นวันใหม่เวลาไทย): ดูผลจริงของสายปัจจุบันของบอทนั้น (หน่วย lot มาตรฐาน) → t-stat
@@ -47,9 +47,7 @@ def save_alloc(a: dict[str, dict]) -> None:
 
 
 def scale_of(bot: str) -> float:
-    """ตัวคูณ lot ปัจจุบันของบอท (ไม่มี/อ่านไม่ได้ = 1.0) · main = 1.0 เสมอ"""
-    if bot == "main":
-        return 1.0
+    """ตัวคูณ lot ปัจจุบันของบอท (ไม่มี/อ่านไม่ได้ = 1.0)"""
     try:
         s = float(load_alloc().get(bot, {}).get("scale", 1.0))
     except (TypeError, ValueError):

@@ -82,13 +82,15 @@ class Supervisor:
                 self.stop(c, "งานวิจัยใหม่")              # รอบถัดไปเปิดใหม่ด้วยพารามิเตอร์ใหม่
 
     def enabled(self, name: str) -> bool:
-        if name in ("main", "manager"):
+        if name == "manager":
             return True
+        if name == "main":
+            return name not in self.paused
         return name not in self.settings["disabled_bots"] and name not in self.paused
 
     def check_pauses(self) -> None:
         """ผู้จัดการสั่งพัก → หยุดบอทนั้น · ครบเวลา → tick() เปิดใหม่เอง"""
-        now = {b for b in M.load_pauses() if b in self.children and b not in ("main", "manager")}
+        now = {b for b in M.load_pauses() if b in self.children and b != "manager"}
         if now == self.paused:
             return
         for b in now - self.paused:
@@ -126,8 +128,8 @@ class Supervisor:
         others_changed = {k: v for k, v in old.items() if k != "disabled_bots"} != \
                          {k: v for k, v in new.items() if k != "disabled_bots"}
         for c in self.children.values():
-            if c.name in ("main", "manager") or c.proc is None:
-                continue                                  # main ไม่อ่านค่าจากหน้าเว็บ · ตัวที่ไม่ได้รันไม่ต้องหยุด
+            if c.name == "manager" or c.proc is None:
+                continue                                  # ตัวที่ไม่ได้รันไม่ต้องหยุด (main ใช้ค่าตั้งเดียวกับตัวอื่นแล้ว)
             if not self.enabled(c.name):
                 self.stop(c, "ปิดในหน้าเว็บ")
             elif others_changed:
