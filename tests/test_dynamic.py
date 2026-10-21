@@ -178,3 +178,17 @@ def test_ai_set_lot_scale_becomes_action_and_manager_applies_it(monkeypatch) -> 
     assert A.scale_of("m5_8") == 1.5 and "×1 → ×1.5" in said[-1]
     m.execute(M.Action("scale", "m5_8", reason="อีกรอบ", src="claude_smart", value=2.0), s, {})
     assert A.scale_of("m5_8") == 1.5                                    # ปรับซ้ำเร็วเกิน → ไม่ทำ
+
+
+def test_deeper_daily_loss_is_an_important_moment(monkeypatch) -> None:  # noqa: ANN001
+    from bot import manager_ai as AI
+    monkeypatch.setattr(AI, "BAD_DAY_STEP", 150.0)
+    brain = AI.AIBrain()
+    mk = lambda pnl: NS(t=time.time(), test_bots=lambda: {"m5_1": {"today": pnl, "open": []}},  # noqa: E731
+                        symbols=lambda: [], bars_of=lambda sym: [], btc_bars=[])
+    brain.last_tickets, brain.last_regimes = frozenset(), {"BTCUSD": None}
+    assert brain._important(mk(-100)) is None
+    assert brain._important(mk(-160)) == "ขาดทุนวันนี้ลึกขึ้น"
+    brain.last_loss = AI.loss_step(mk(-160))                               # ผู้จัดการรับมือขั้นนี้แล้ว
+    assert brain._important(mk(-250)) is None
+    assert brain._important(mk(-310)) == "ขาดทุนวันนี้ลึกขึ้น"              # ลึกลงอีกขั้น → เรียกอีกครั้ง

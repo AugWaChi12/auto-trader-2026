@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import config as C
@@ -31,6 +31,15 @@ SMART_DAILY_MAX = int(os.environ.get("MANAGER_SMART_DAILY_MAX") or 0)
 CLAUDE_DAILY_MAX = int(os.environ.get("MANAGER_CLAUDE_DAILY_MAX") or 10)
 # แชท Telegram (เจ้าของถาม → Claude/Gemini ตอบจากข้อมูลจริง) · โควตาแยกจากการตัดสินใจของผู้จัดการ
 CHAT_DAILY_MAX = int(os.environ.get("MANAGER_CHAT_DAILY_MAX") or 40)
+# วันที่ขาดทุนหนัก: ทุกครั้งที่ขาดทุนรวมของวัน (รวมไม้ลอย) ลึกลงอีก BAD_DAY_STEP → เรียกสมองฉลาดมารับมือทันที
+BAD_DAY_STEP = float(os.environ.get("MANAGER_BAD_DAY_STEP") or 150)
+
+
+def loss_step(s: Snapshot) -> tuple[str, int]:
+    """(วันเวลาไทย, ขั้นขาดทุน) · ขั้น 0 = ยังไม่ถึง −BAD_DAY_STEP · ขั้น 2 = ขาดทุนถึง −2×BAD_DAY_STEP ..."""
+    day = (datetime.fromtimestamp(s.t, timezone.utc) + timedelta(hours=7)).strftime("%Y-%m-%d")
+    pnl = sum(b["today"] for b in s.test_bots().values())
+    return day, int(-pnl // BAD_DAY_STEP) if pnl <= -BAD_DAY_STEP else 0
 USAGE_PATH = C.STATE_DIR / "llm_usage.json"
 
 
@@ -95,6 +104,8 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
 - "prediction_scoreboard_30d" = คะแนนการตัดสินใจย้อนหลังแยกตามผู้สั่ง (rules / gemini / claude): right/wrong/calls
   missed < 0 = ถ้าเชื่อจะประหยัด, missed > 0 = ถ้าเชื่อจะพลาดกำไร — ถ้าคุณทายผิดบ่อยกว่ากฎ ให้ทำนายน้อยลง/เปลี่ยนเกณฑ์
 - "close_scoreboard_30d" = คะแนนการสั่งปิดไม้แยกตามผู้สั่ง: saved > 0 = ปิดแล้วดีกว่าปล่อยจนชน SL/TP · < 0 = ปิดเร็วไป
+- วันที่ขาดทุนหนัก (account.test_bots_today_usd ≤ −150): คุณรับผิดชอบ — หาว่าเสียจากบอทไหน ลดขนาดไม้ (set_lot_scale 0.25–0.5)
+  เฉพาะตัวที่เสียต่อเนื่องและสายไม่เหมาะกับตลาดตอนนี้ ไม่ลดเหมารวม แล้วอธิบายในข้อความ say
 - set_lot_scale = ปรับขนาดไม้ของบอท (0.25–2.0 เท่า) ตามหลักฐาน — field "lot_scale" ของบอทคือค่าปัจจุบัน (ไม่มี = 1)
 - ตัวเลข $/ไม้ ใน learned/lessons คิดเป็น lot มาตรฐานของงานวิจัยแล้ว (ทอง 0.04 · NAS100 0.73 · BTC 0.17)
 - "lessons" = จุดอ่อนที่ชัดที่สุดจากไม้จริง (สาย × เงื่อนไข) · งานวิจัยทุกคืนจะทดสอบตัวกรองจากจุดอ่อนพวกนี้บนข้อมูลย้อนหลัง
@@ -252,6 +263,10 @@ class AIBrain:
         rr = range_ratio(s.btc_bars)
         if rr is not None and rr >= 2.2:
             return "ตลาดแกว่งแรง"
+        day, step = loss_step(s)
+        seen_day, seen_step = getattr(self, "last_loss", ("", 0))
+        if step > (seen_step if seen_day == day else 0):
+            return "ขาดทุนวันนี้ลึกขึ้น"
         return None
 
     def _interval_min(self, s: Snapshot) -> int:
@@ -269,6 +284,7 @@ class AIBrain:
         if use_claude:
             self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
             self.last_tickets = frozenset(o["ticket"] for b in s.test_bots().values() for o in b.get("open") or [])
+            self.last_loss = loss_step(s)
             count_call("claude")
             prompt = "ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses)
             try:
@@ -281,6 +297,7 @@ class AIBrain:
         count_call("smart" if smart else "main")
         self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
         self.last_tickets = frozenset(o["ticket"] for b in s.test_bots().values() for o in b.get("open") or [])
+        self.last_loss = loss_step(s)
         try:
             # รุ่นฉลาดติดป้าย src แยก (เช่น gemini_smart) → คะแนนคำทำนายเทียบสองรุ่นได้จากไม้จริง
             return to_actions(self.ask("ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses), smart=smart),
