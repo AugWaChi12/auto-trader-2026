@@ -192,3 +192,23 @@ def test_deeper_daily_loss_is_an_important_moment(monkeypatch) -> None:  # noqa:
     brain.last_loss = AI.loss_step(mk(-160))                               # ผู้จัดการรับมือขั้นนี้แล้ว
     assert brain._important(mk(-250)) is None
     assert brain._important(mk(-310)) == "ขาดทุนวันนี้ลึกขึ้น"              # ลึกลงอีกขั้น → เรียกอีกครั้ง
+
+
+def test_quiet_periods_use_claude_sonnet_then_gemini_when_capped(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    from bot import manager_ai as AI
+    from tests.test_manager import snap
+    monkeypatch.setattr(AI, "USAGE_PATH", tmp_path / "usage.json")
+    monkeypatch.setattr(AI, "DAILY_MAX", 100)
+    monkeypatch.setattr(AI, "CLAUDE_ROUTINE_MAX", 1)
+    brain = AI.AIBrain()
+    brain.src = "gemini"
+    gem, cl = [], []
+    brain.ask = lambda prompt, smart=False: gem.append(smart) or [("say", {"text": "g"})]
+    brain.claude = NS(ask=lambda prompt, model="opus", effort="high": cl.append((model, effort)) or [("say", {"text": "c"})])
+    monkeypatch.setattr(brain, "_interval_min", lambda s: 0)
+    monkeypatch.setattr(brain, "_important", lambda s: None)              # ตลาดเงียบ
+    s = snap()
+    brain.last = 0
+    assert {a.src for a in brain.maybe_decide(s, {})} == {"claude"} and cl == [("sonnet", "low")]
+    brain.last = 0
+    assert {a.src for a in brain.maybe_decide(s, {})} == {"gemini"} and gem == [False]   # ครบเพดาน Sonnet → Gemini Lite

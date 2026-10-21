@@ -31,6 +31,13 @@ SMART_DAILY_MAX = int(os.environ.get("MANAGER_SMART_DAILY_MAX") or 0)
 CLAUDE_DAILY_MAX = int(os.environ.get("MANAGER_CLAUDE_DAILY_MAX") or 15)
 # แชท Telegram (เจ้าของถาม → Claude/Gemini ตอบจากข้อมูลจริง) · โควตาแยกจากการตัดสินใจของผู้จัดการ
 CHAT_DAILY_MAX = int(os.environ.get("MANAGER_CHAT_DAILY_MAX") or 40)
+# ช่วงปกติ (ตลาดเงียบ ถามทุก LLM_QUIET_MIN นาที) ก็ใช้ Claude รุ่นเบา (Sonnet) · ครบเพดาน/ใช้ไม่ได้ → Gemini → กฎ
+CLAUDE_ROUTINE_MAX = int(os.environ.get("MANAGER_CLAUDE_ROUTINE_MAX") or 40)
+
+
+def _cap(key: str) -> int:
+    return {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX, "chat": CHAT_DAILY_MAX,
+            "claude_routine": CLAUDE_ROUTINE_MAX}.get(key, DAILY_MAX)
 # วันที่ขาดทุนหนัก: ทุกครั้งที่ขาดทุนรวมของวัน (รวมไม้ลอย) ลึกลงอีก BAD_DAY_STEP → เรียกสมองฉลาดมารับมือทันที
 BAD_DAY_STEP = float(os.environ.get("MANAGER_BAD_DAY_STEP") or 150)
 
@@ -61,14 +68,14 @@ def _usage() -> dict[str, int]:
 
 def quota_left(reserve: int = 0, key: str = "main") -> int:
     """ครั้งที่ยังเรียกได้วันนี้ (ตามวันของ Google) ของรุ่นปกติ (main) / รุ่นฉลาด (smart) — ไม่จำกัด = ค่าใหญ่มาก"""
-    cap = {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX, "chat": CHAT_DAILY_MAX}.get(key, DAILY_MAX)
+    cap = _cap(key)
     if cap <= 0:
-        return 0 if key in ("smart", "claude", "chat") else 10**9
+        return 0 if key != "main" else 10**9
     return max(cap - reserve - _usage().get(key, 0), 0)
 
 
 def count_call(key: str = "main") -> None:
-    if {"smart": SMART_DAILY_MAX, "claude": CLAUDE_DAILY_MAX, "chat": CHAT_DAILY_MAX}.get(key, DAILY_MAX) <= 0:
+    if _cap(key) <= 0:
         return
     n = _usage()
     n[key] = n.get(key, 0) + 1
@@ -276,7 +283,15 @@ class AIBrain:
         if self.last and s.t - self.last < self._interval_min(s) * 60:
             return []
         important = bool(self._important(s))
-        use_claude = important and getattr(self, "claude", None) is not None and quota_left(reserve=1, key="claude") > 0
+        has_claude = getattr(self, "claude", None) is not None
+        # Claude ก่อนเสมอ: จังหวะสำคัญ = Opus (ครบเพดาน → Sonnet) · ช่วงปกติ = Sonnet · ใช้ไม่ได้ทั้งคู่ → Gemini → กฎ
+        tier = None
+        if has_claude and important and quota_left(reserve=1, key="claude") > 0:
+            tier = ("claude", "claude_smart", None)
+        elif has_claude and quota_left(key="claude_routine") > 0:
+            from .manager_claude_code import ROUTINE_EFFORT, ROUTINE_MODEL
+            tier = ("claude_routine", "claude", (ROUTINE_MODEL, ROUTINE_EFFORT))
+        use_claude = tier is not None
         smart = important and not use_claude and quota_left(reserve=1, key="smart") > 0
         if not (use_claude or smart) and quota_left(reserve=1) <= 0:   # ครบโควตาทุกทาง → สมองตามกฎทำงานแทน
             return []
@@ -285,13 +300,15 @@ class AIBrain:
             self.last_regimes = {sym: market_regime(s.bars_of(sym))[0] for sym in set(s.symbols()) | {"BTCUSD"}}
             self.last_tickets = frozenset(o["ticket"] for b in s.test_bots().values() for o in b.get("open") or [])
             self.last_loss = loss_step(s)
-            count_call("claude")
+            key, src, light = tier
+            count_call(key)
             prompt = "ภาพรวมพอร์ตตอนนี้:\n" + snapshot_json(s, pauses)
             try:
-                return to_actions(self.claude.ask(prompt), "claude_smart")
+                calls = self.claude.ask(prompt, model=light[0], effort=light[1]) if light else self.claude.ask(prompt)
+                return to_actions(calls, src)
             except Exception as e:  # noqa: BLE001 — Claude ใช้ไม่ได้ → Gemini รุ่นฉลาด/ปกติแทนในรอบเดียวกัน
                 log.warning("claude code: %s", str(e)[:300])
-                smart = quota_left(reserve=1, key="smart") > 0
+                smart = important and quota_left(reserve=1, key="smart") > 0
                 if not smart and quota_left(reserve=1) <= 0:
                     return []
         count_call("smart" if smart else "main")

@@ -43,6 +43,7 @@ services:
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}   # claude setup-token (แพ็กเกจสมาชิก) → Claude ช่วยตัดสินจังหวะสำคัญ
       MANAGER_CLAUDE_DAILY_MAX: ${MANAGER_CLAUDE_DAILY_MAX:-15}
       MANAGER_CLAUDE_MODEL: ${MANAGER_CLAUDE_MODEL:-opus}
+      MANAGER_CLAUDE_ROUTINE_MAX: ${MANAGER_CLAUDE_ROUTINE_MAX:-40}   # ช่วงปกติใช้ Claude Sonnet แทน Gemini Lite
       MANAGER_AI: ${MANAGER_AI:-}                  # gemini | claude (ว่าง = ตามคีย์ที่มี, Gemini ก่อน)
       MANAGER_MODEL: ${MANAGER_MODEL:-}            # ว่าง = gemini-3.8-flash / claude-opus-5-5
       MANAGER_LLM_MIN: ${MANAGER_LLM_MIN:-15}      # ถาม AI ทุกกี่นาที (มีไม้เปิด/ตลาดเปลี่ยน/แกว่งแรง)

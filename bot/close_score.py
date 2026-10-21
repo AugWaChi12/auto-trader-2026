@@ -21,8 +21,8 @@ PATH = C.STATE_DIR / "manager_closes.jsonl"
 HORIZON_H = 24
 SETTLE_MIN = 30
 GIVE_UP_SEC = 3 * 86400
-WHO = {"rules": "กฎ", "guard": "ตัวเฝ้าไม้", "gemini": "Gemini Lite", "gemini_smart": "Gemini 3.8", "claude": "Claude",
-       "claude_smart": "Claude (แพ็กเกจ)"}
+WHO = {"rules": "กฎ", "guard": "ตัวเฝ้าไม้", "gemini": "Gemini Lite", "gemini_smart": "Gemini 3.8", "claude": "Claude Sonnet",
+       "claude_smart": "Claude Opus"}
 
 
 def _load() -> list[dict]:

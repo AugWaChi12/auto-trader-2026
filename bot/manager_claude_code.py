@@ -116,6 +116,8 @@ loss_streak ≥ 3 · ตลาดเพิ่งเปลี่ยนสภา�
   reason สั้นแต่มีตัวเลข เช่น "ใช้ระยะ SL ไป 72% · 3 แท่งล่าสุดปิดต่ำลง · ER 0.47 เทรนด์ลงสวน buy"
 """
 
+ROUTINE_MODEL = os.environ.get("MANAGER_CLAUDE_ROUTINE_MODEL") or "sonnet"    # ช่วงปกติ: เร็ว เบาโควตา
+ROUTINE_EFFORT = os.environ.get("MANAGER_CLAUDE_ROUTINE_EFFORT") or "low"
 CHAT_MODEL = os.environ.get("MANAGER_CHAT_MODEL") or "sonnet"          # ตอบแชทให้เร็ว (ถามได้หลายครั้ง/วัน)
 CHAT_EFFORT = os.environ.get("MANAGER_CHAT_EFFORT") or "medium"
 CHAT_SYSTEM = """คุณคือผู้ช่วยวิเคราะห์ของ "ศูนย์วิจัยเทรดอัตโนมัติ" บนบัญชี DEMO ของ FxPro MT5 ตอบเจ้าของพอร์ตทาง Telegram
@@ -172,9 +174,9 @@ class ClaudeCode:
         log.info("claude %s cost=%s turns=%s", MODEL, out.get("total_cost_usd"), out.get("num_turns"))
         return out
 
-    def ask(self, prompt: str) -> list[tuple[str, dict[str, Any]]]:
+    def ask(self, prompt: str, model: str = MODEL, effort: str = EFFORT) -> list[tuple[str, dict[str, Any]]]:
         out = self._run(CLAUDE_SYSTEM + GUIDE, "ข้อมูลพอร์ตอยู่ใน stdin (JSON) — คิดตามขั้นตอนครบทั้ง 6 ข้อ แล้วตอบเป็น JSON ตาม schema",
-                        prompt, ACT_SCHEMA)
+                        prompt, ACT_SCHEMA, model=model, effort=effort)
         res = out.get("structured_output")
         if not isinstance(res, dict):
             txt = out.get("result") or ""

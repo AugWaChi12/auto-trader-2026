@@ -961,7 +961,7 @@ function toast(text) {
 const CHAT_MAX = 10;                       // แสดงเฉพาะข้อความล่าสุด
 const toLatest = () => requestAnimationFrame(() => { const l = $("chat"); l.scrollTop = l.scrollHeight; });
 const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓", trade: "💰" };
-const SRC = { claude: "🤖 Claude", claude_smart: "🤖 Claude", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", rules: "📏 กฎ" };
+const SRC = { claude: "🤖 Claude Sonnet", claude_smart: "🤖 Claude Opus", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", rules: "📏 กฎ" };
 const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 60000));
 async function refreshManager() {
