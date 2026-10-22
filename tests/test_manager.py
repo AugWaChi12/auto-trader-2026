@@ -372,6 +372,41 @@ def test_lab_retune_keeps_family_per_bot(monkeypatch, tmp_path: Path) -> None:  
     assert [c["bot"] for c in ch] == ["m5_1"]
 
 
+def test_lab_retune_never_makes_sibling_bots_identical(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "research"))
+    import m5_lab
+    from bot import config as C
+    bot_ = lambda n, a: {"bot": n, "family": "orb", "symbol": "BTCUSD", "lot": .17, "params": {"a": a}, "plan": "native"}  # noqa: E731
+    cur = [bot_("m5_5", 1), bot_("m5_6", 1), bot_("m5_7", 3)]          # m5_6 ซ้ำ m5_5 อยู่แล้ว · m5_7 ไม่ซ้ำใคร
+    monkeypatch.setattr(C, "load_m5_bots", lambda: cur)
+    monkeypatch.setattr(m5_lab, "keep_current", lambda b, z: True)       # ชุดเดิมยังสู้ได้ทุกตัว
+    monkeypatch.setattr(sys, "argv", ["m5_lab", "--no-gates"])
+    slot = {"family": "orb", "symbol": "BTCUSD", "live": {"params": {"a": 1}, "plan": "native"},
+            "pre_holdout": {"params": {"a": 2}, "plan": "ratchet"}, "wf": {"usd_day": 1.0}, "holdout": {"usd_day": .5}, "wf_random": None}
+    out = tmp_path / "m5_bots.json"
+    ch = m5_lab.retune({}, [slot], out)
+    got = {b["bot"]: (b["params"], b["plan"]) for b in json.loads(out.read_text(encoding="utf-8"))["bots"]}
+    assert got == {"m5_5": ({"a": 1}, "native"), "m5_6": ({"a": 2}, "ratchet"), "m5_7": ({"a": 3}, "native")}
+    assert [c["bot"] for c in ch] == ["m5_6"]
+
+
+def test_daily_gate_promotion_from_live_evidence(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    from bot import config as C
+    from bot import dataset as DS
+    from bot import research_weekly as RW
+    p = tmp_path / "m5_bots.json"
+    p.write_text(json.dumps({"bots": [
+        {"bot": "m5_8", "params": {"skip_regimes": ["range"], "skip_sessions": [], "gate_mode": "observe"}},
+        {"bot": "m5_9", "params": {"skip_regimes": ["trend"], "skip_sessions": [], "gate_mode": "observe"}}]}), encoding="utf-8")
+    monkeypatch.setattr(C, "M5_BOTS_TUNED", p)
+    ev = {"m5_8": {"n": 25, "avg": -4.0, "t": -2.1}, "m5_9": {"n": 25, "avg": -1.0, "t": -0.4}}
+    monkeypatch.setattr(DS, "gate_evidence", lambda bot, sig: ev[bot])
+    out = RW.promote_gates()
+    assert [x["bot"] for x in out] == ["m5_8"]
+    modes = {b["bot"]: b["params"]["gate_mode"] for b in json.loads(p.read_text(encoding="utf-8"))["bots"]}
+    assert modes == {"m5_8": "active", "m5_9": "observe"} and RW.promote_gates() == []
+
+
 def test_interrupted_research_is_not_stuck_running() -> None:
     from bot import research_weekly as RW
     RW.save_status({"started": M.now_ts() - 4 * 3600, "running": True})

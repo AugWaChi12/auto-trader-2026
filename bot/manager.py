@@ -33,7 +33,8 @@ log = logging.getLogger("manager")
 
 LOG_PATH = C.STATE_DIR / "manager_log.jsonl"
 JOURNAL_PATH = C.STATE_DIR / "manager_journal.jsonl"
-RESEARCH_EVERY_DAYS = float(os.environ.get("RESEARCH_EVERY_DAYS") or 1)   # ทุกคืน (7 = เฉพาะวันอาทิตย์ · 0 = ไม่วิจัยอัตโนมัติ)
+# จูนพารามิเตอร์อาทิตย์ละครั้ง (ไม้จริงต่อชุดพารามิเตอร์จะได้พอตัดสิน · ทุกคืน = ไล่ตามความบังเอิญ) · 1 = ทุกคืน · 0 = ปิด
+RESEARCH_EVERY_DAYS = float(os.environ.get("RESEARCH_EVERY_DAYS") or 7)
 RESEARCH_HOUR_BKK = 4                                                      # ตี 4 เวลาไทย
 EXPLORE_HOUR_BKK = 6                                                       # ล่า edge: วันอาทิตย์ 6 โมงเช้า (หลังวิจัยประจำวันเสร็จ)
 PAUSES_PATH = C.STATE_DIR / "manager_pauses.json"
@@ -818,6 +819,11 @@ class Manager:
         from . import allocator, dataset
         try:
             rows = dataset.load()
+            from .research_weekly import promote_gates
+            for p in promote_gates():                       # ตัวกรองโหมดสังเกตที่ไม้จริงยืนยันแล้ว → ใช้จริง (ทุกวัน ไม่ต้องรองานวิจัย)
+                ev = p["evidence"]
+                say("action", f"🛡 เปิดใช้ตัวกรองจริง {p['bot']}: {p['gate']} — ไม้จริงที่ตัวกรองจะบล็อก {ev['n']} ไม้ "
+                              f"เฉลี่ย {ev['avg']:+.2f}$/ไม้ (t={ev['t']:+.2f})", bot=p["bot"], act="gate", src="rules")
             r = allocator.rotate(rows)
             if r:
                 c, ev = r["candidate"], r["evidence"]

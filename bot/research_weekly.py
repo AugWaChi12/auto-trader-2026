@@ -41,6 +41,7 @@ def save_status(d: dict) -> None:
     atomic_write(STATUS_PATH, json.dumps(d, ensure_ascii=False, indent=1, default=str))
 
 
+PROMOTE_N, PROMOTE_T = 20, -1.0     # ต้องตรงกับ research/m5_lab.py
 GATE_TH = {"trend": "ตลาดเทรนด์", "range": "ตลาดออกข้าง", "mixed": "ตลาดไม่ชัดทาง", "asia": "ช่วงเอเชีย",
            "europe": "ช่วงยุโรป", "us": "ช่วงอเมริกา"}
 
@@ -63,16 +64,42 @@ def _diff(old: dict, new: dict) -> str:
     return ", ".join(parts) or "–"
 
 
+def promote_gates() -> list[dict]:
+    """ทุกวัน (รอบบริหารของผู้จัดการ): ตัวกรองโหมดสังเกตที่ไม้จริงยืนยันว่าช่วยได้ → เปลี่ยนเป็นใช้จริง
+    เกณฑ์เดียวกับงานวิจัย (m5_lab.PROMOTE_N / PROMOTE_T) · supervisor เห็นไฟล์เปลี่ยน → รีสตาร์ทบอทตัวนั้นเอง"""
+    from .dataset import gate_evidence
+    from .strategy.gate import signature
+    path = C.M5_BOTS_TUNED
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    out = []
+    for b in doc.get("bots", []):
+        p = b.get("params") or {}
+        if p.get("gate_mode", "observe") != "observe" or not (p.get("skip_regimes") or p.get("skip_sessions")):
+            continue
+        ev = gate_evidence(b["bot"], signature(p.get("skip_regimes") or [], p.get("skip_sessions") or []))
+        if ev["n"] >= PROMOTE_N and (ev["avg"] or 0) < 0 and (ev["t"] or 0) <= PROMOTE_T:
+            p["gate_mode"] = "active"
+            b["gate_promoted"] = {"at": datetime.now(timezone.utc).isoformat(timespec="minutes"), **ev}
+            out.append({"bot": b["bot"], "gate": _gate_text(p), "evidence": ev})
+    if out:
+        from .live.fileio import atomic_write
+        atomic_write(path, json.dumps(doc, ensure_ascii=False, indent=1, default=str))
+    return out
+
+
 def describe(changes: list[dict], minutes: float) -> str:
     if not changes:
-        return f"🔬 วิจัยประจำวันเสร็จ ({minutes:.0f} นาที): ค่าเดิม + ตัวกรองเดิมยังดีที่สุดทุกตัว — ไม่เปลี่ยนอะไร"
+        return f"🔬 วิจัยประจำสัปดาห์เสร็จ ({minutes:.0f} นาที): ค่าเดิม + ตัวกรองเดิมยังดีที่สุดทุกตัว — ไม่เปลี่ยนอะไร"
     lines = []
     for c in changes:
         g = c.get("gate") or {}
         proof = (f" (ทดสอบย้อนหลัง: ครึ่งที่แย่กว่า {g['score_from']:+.2f}→{g['score_to']:+.2f}$/ไม้ · 2 เดือนล่าสุด "
                  f"{g['holdout_from']:+.2f}→{g['holdout_to']:+.2f}$/วัน)") if g.get("score_to") is not None else ""
         lines.append(f"{c['bot']} ({c['family']}): {_diff(c['old'], c['new'])}{proof} · walk-forward {c['wf_usd_day']:+.2f}$/วัน")
-    return (f"🔬 วิจัยประจำวันเสร็จ ({minutes:.0f} นาที): ปรับ {len(changes)} ตัวด้วยข้อมูลล่าสุด + ตัวกรองจากสิ่งที่ผู้จัดการเรียนรู้ — "
+    return (f"🔬 วิจัยประจำสัปดาห์เสร็จ ({minutes:.0f} นาที): ปรับ {len(changes)} ตัวด้วยข้อมูลล่าสุด + ตัวกรองจากสิ่งที่ผู้จัดการเรียนรู้ — "
             + " · ".join(lines) + " · บอทที่เปลี่ยนจะรีสตาร์ทใช้ค่าใหม่")
 
 
@@ -84,7 +111,7 @@ def run_weekly(download: bool = True) -> list[dict]:
             pass
     t0 = time.time()
     save_status({"started": t0, "running": True})
-    say("info", "🔬 เริ่มวิจัยประจำวัน: ดึงข้อมูลล่าสุดของทุกตลาด (BTC/ทอง/NAS100) → ทดสอบย้อนหลังทุกสาย + ตัวกรองจากสิ่งที่ผู้จัดการเรียนรู้ (ประมาณ 1.5–2 ชม.)")
+    say("info", "🔬 เริ่มวิจัยประจำสัปดาห์: ดึงข้อมูลล่าสุดของทุกตลาด (BTC/ทอง/NAS100) → ทดสอบย้อนหลังทุกสาย + ตัวกรองจากสิ่งที่ผู้จัดการเรียนรู้ (ประมาณ 1.5–2 ชม.)")
     try:
         symbols = sorted({b["symbol"] for b in C.load_m5_bots()}) or ["BTCUSD"]
         if download:
@@ -107,7 +134,7 @@ def run_weekly(download: bool = True) -> list[dict]:
     except Exception as e:  # noqa: BLE001
         log.exception("research failed")
         save_status({"started": t0, "finished": time.time(), "running": False, "error": str(e)})
-        say("alert", f"🔬 วิจัยประจำวันไม่สำเร็จ: {e}")
+        say("alert", f"🔬 วิจัยประจำสัปดาห์ไม่สำเร็จ: {e}")
         return []
     minutes = (time.time() - t0) / 60
     text = describe(changes, minutes)

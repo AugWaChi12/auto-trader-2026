@@ -374,13 +374,28 @@ def retune(meta: dict, slots: list[dict], path: Path) -> list[dict]:
     gk = ("skip_regimes", "skip_sessions", "gate_mode")
     cur = C.load_m5_bots()
     by = {(z["family"], z["symbol"]): z for z in slots if z["live"]}
+    core = lambda p: {k: v for k, v in p.items() if k not in gk}  # noqa: E731
+    # บอทพี่น้อง (สาย + ตลาดเดียวกัน รวม main) ห้ามใช้ชุดพารามิเตอร์ซ้ำกัน — ซ้ำ = ได้ข้อมูลวิจัยเพิ่มน้อย และแพ้พร้อมกันหลายตัว
+    taken = [(m["family"], m["symbol"], core(m["params"])) for m in C.MAIN_M5.values()]
     bots = []
     for b in cur:
         z = by.get((b["family"], b["symbol"]))
-        if z is None or keep_current(b, z):
-            bots.append({**b, "params": {k: v for k, v in b["params"].items() if k not in gk}})
+        mine = core(b["params"])
+        is_free = lambda o: (b["family"], b["symbol"], core(o["params"])) not in taken  # noqa: E731
+        pick = None
+        if z is not None:
+            if is_free(z["live"]) and not keep_current(b, z):
+                pick = z["live"]                                   # ชุดที่ดีสุดยังว่าง และดีกว่าชุดเดิมชัด
+            elif (b["family"], b["symbol"], mine) in taken:        # ชุดเดิมซ้ำพี่น้องอยู่แล้ว → ย้ายไปชุดที่ว่าง
+                pick = next((o for o in (z["live"], z.get("pre_holdout")) if o and is_free(o)), None)
+            if pick is not None and core(pick["params"]) == mine and pick["plan"] == b["plan"]:
+                pick = None
+        if pick is None:
+            bots.append({**b, "params": mine})
+            taken.append((b["family"], b["symbol"], mine))
             continue
-        bots.append({**b, "params": dict(z["live"]["params"]), "plan": z["live"]["plan"], "wf_usd_day": z["wf"]["usd_day"],
+        taken.append((b["family"], b["symbol"], core(pick["params"])))
+        bots.append({**b, "params": dict(pick["params"]), "plan": pick["plan"], "wf_usd_day": z["wf"]["usd_day"],
                      "wf_usd_trade": z["wf"].get("usd_trade"), "holdout_usd_day": z["holdout"]["usd_day"],
                      "random_usd_day": z["wf_random"]["usd_day"] if z.get("wf_random") else None})
     gates = gate_search(bots, int(_arg("--workers", "24"))) if "--no-gates" not in sys.argv else {}
