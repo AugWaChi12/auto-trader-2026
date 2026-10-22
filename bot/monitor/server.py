@@ -505,7 +505,7 @@ def report_page() -> bytes:
     import html
     import re
     from ..live_report import MD_PATH
-    md = MD_PATH.read_text(encoding="utf-8") if MD_PATH.exists() else "# รายงานวิจัยจากไม้จริง\n\nยังไม่มีรายงาน — สร้างครั้งแรกหลังเที่ยงคืนเวลาไทย\n"
+    md = MD_PATH.read_text(encoding="utf-8") if MD_PATH.exists() else "# Research report from live trades\n\nNo report yet — the first one is generated after Bangkok midnight.\n"
     body = []
     for ln in md.splitlines():
         t = html.escape(ln)
@@ -521,12 +521,13 @@ def report_page() -> bytes:
             body.append(f"<p class=n>{t[1:-1]}</p>")
         elif t:
             body.append(f"<p>{t}</p>")
-    return ("<!doctype html><html lang=th><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
-            "<title>รายงานวิจัยจากไม้จริง · หมู่บ้านบอท</title><link href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap' rel=stylesheet>"
-            "<style>body{font-family:'IBM Plex Sans Thai',system-ui,sans-serif;max-width:860px;margin:0 auto;padding:24px 16px 60px;color:#172033;background:#f6f8fc;line-height:1.65}"
-            "h1{font-size:1.5em}h2{font-size:1.1em;margin-top:28px;border-bottom:1px solid #dde3ee;padding-bottom:4px}li{margin:4px 0}"
-            "code{background:#eef1f7;padding:1px 6px;border-radius:6px}.n{color:#5f6b85;font-size:.9em}a{color:#4b33c9}</style></head><body>"
-            "<p><a href='/sandbox'>← กลับหมู่บ้านบอท</a></p>" + "\n".join(body) + "</body></html>").encode()
+    return ("<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+            "<title>Research report · The Tree</title><link href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap' rel=stylesheet>"
+            "<style>body{font-family:'IBM Plex Sans Thai',system-ui,sans-serif;max-width:860px;margin:0 auto;padding:24px 16px 60px;color:#f4f1e8;background:#070707;line-height:1.65}"
+            "h1{font-size:1.5em;color:#f6d77d}h2{font-size:1.05em;margin-top:28px;border-bottom:1px solid rgba(226,184,74,.35);padding-bottom:4px;color:#e2b84a;"
+            "text-transform:uppercase;letter-spacing:.8px}li{margin:4px 0;color:#c2bdae}li::marker{color:#e2b84a}"
+            "code{background:rgba(226,184,74,.12);color:#f6d77d;padding:1px 6px;border-radius:6px}.n{color:#8a8578;font-size:.9em}a{color:#e2b84a}b{color:#f4f1e8}</style></head><body>"
+            "<p><a href='/'>← The Tree home</a> · <a href='/sandbox'>Sandbox</a></p>" + "\n".join(body) + "</body></html>").encode()
 
 
 def make_handler(col: Collector) -> type[BaseHTTPRequestHandler]:

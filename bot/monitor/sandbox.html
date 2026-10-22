@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="th" translate="no">
+<html lang="en" translate="no">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
-<title>หมู่บ้านบอท · ระบบเทรดอัตโนมัติ (DEMO)</title>
-<meta name="description" content="ดูบอทเทรดอัตโนมัติ 20 ตัว (BTC / ทอง / NAS100) ทำงานแบบเรียลไทม์ในหมู่บ้าน 3D 2 เกาะ พร้อมผู้จัดการพอร์ต AI ที่สั่งพัก/ปิดไม้ให้เห็นในแชท — บัญชี DEMO เงินทดลอง ไม่ใช่คำแนะนำการลงทุน">
+<title>Bot Village · The Tree AI Trading Lab (DEMO)</title>
+<meta name="description" content="Watch 20 trading bots (BTC / Gold / NAS100) work live in a 3D village with an AI portfolio manager — demo account, not investment advice.">
 <meta name="theme-color" content="#4aa8f0">
 <meta property="og:type" content="website">
-<meta property="og:title" content="หมู่บ้านบอท · ระบบเทรดอัตโนมัติ (DEMO)">
-<meta property="og:description" content="บอทเทรด BTC ทองคำ และ NAS100 20 ตัว + ผู้จัดการพอร์ต AI ทำงานสดในหมู่บ้าน 3D · บัญชีทดลอง">
+<meta property="og:title" content="Bot Village · The Tree AI Trading Lab (DEMO)">
+<meta property="og:description" content="20 BTC, Gold and NAS100 trading bots + an AI portfolio manager, live in a 3D village · demo account">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,12 +17,13 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #172033; --paper: #fffdf8; --glass: rgba(255, 253, 248, .9); --line: rgba(23, 32, 51, .12);
-    --muted: #5f6b85; --up: #12a150; --down: #e5484d; --accent: #7b5cff; --warn: #f5b301;
-    --radius: 16px; --shadow: 0 10px 30px rgba(18, 30, 60, .18); --gap: 16px;
+    /* theme: black · gold · bright green */
+    --ink: #f4f1e8; --paper: #111110; --glass: rgba(10, 10, 9, .84); --line: rgba(226, 184, 74, .22);
+    --muted: #9a9484; --up: #39ff88; --down: #ff5d5d; --accent: #e2b84a; --gold: #e2b84a; --gold-2: #f6d77d; --warn: #f5b301;
+    --radius: 16px; --shadow: 0 10px 30px rgba(0, 0, 0, .45); --gap: 16px;
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; overflow: hidden; background: #9fd8ff; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #070707; }
   body { font-family: "IBM Plex Sans Thai", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; color: var(--ink);
          font-size: clamp(13px, .45vw + 8px, 16px); -webkit-font-smoothing: antialiased; }
   button { font: inherit; color: inherit; }
@@ -39,10 +40,10 @@
   .topbar > * { pointer-events: auto; }
   .brand { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; flex: none; white-space: nowrap; }
   .logo { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 22px;
-          background: linear-gradient(135deg, #8f74ff, #4aa8f0); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .15); }
+          background: linear-gradient(135deg, var(--gold-2), var(--gold)); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .2); }
   .brand h1 { margin: 0; font-size: 1.12em; font-weight: 700; line-height: 1.2; }
   .brand p { margin: 0; font-size: .78em; color: var(--muted); font-weight: 500; }
-  .demo { align-self: center; background: #ffe48a; border: 1px solid #e9c34a; color: #5c4300; border-radius: 999px;
+  .demo { align-self: center; background: rgba(226, 184, 74, .16); border: 1px solid var(--gold); color: var(--gold-2); border-radius: 999px;
           padding: 4px 12px; font-size: .8em; font-weight: 700; white-space: nowrap; box-shadow: var(--shadow); }
   .spacer { flex: 1; }
   .stats { display: flex; align-items: stretch; padding: 6px; }
@@ -51,7 +52,7 @@
   .stat .k { font-size: .72em; color: var(--muted); font-weight: 600; white-space: nowrap; }
   .stat .v { font-size: 1.08em; font-weight: 700; white-space: nowrap; }
   .stat .v small { font-size: .74em; font-weight: 600; margin-left: 4px; }
-  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1fd165; margin-right: 6px; vertical-align: 1px;
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #39ff88; margin-right: 6px; vertical-align: 1px;
               box-shadow: 0 0 0 0 rgba(31, 209, 101, .6); animation: ping 2s infinite; }
   @keyframes ping { 70% { box-shadow: 0 0 0 7px rgba(31, 209, 101, 0); } 100% { box-shadow: 0 0 0 0 rgba(31, 209, 101, 0); } }
   .subbar { position: fixed; left: var(--gap); top: calc(var(--gap) + 64px); display: flex; align-items: center; gap: 8px; z-index: 5;
@@ -62,13 +63,13 @@
   .tools { display: flex; gap: 6px; flex: none; }
   .tool { display: flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 12px; cursor: pointer; text-decoration: none; color: var(--ink);
           font-weight: 600; font-size: .86em; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--shadow); backdrop-filter: blur(10px); }
-  .tool:hover { background: #fff; transform: translateY(-1px); }
-  .tool[aria-pressed="true"] { background: #efe9ff; border-color: #cbbcff; }
+  .tool:hover { background: rgba(226, 184, 74, .12); transform: translateY(-1px); }
+  .tool[aria-pressed="true"] { background: rgba(226, 184, 74, .18); border-color: var(--gold); color: var(--gold-2); }
   .tool .ico { font-size: 1.1em; line-height: 1; }
   .isl-switch { display: flex; gap: 0; margin-right: 4px; }
   .isl-switch .tool { border-radius: 0; } .isl-switch .tool:first-child { border-radius: 12px 0 0 12px; } .isl-switch .tool:last-child { border-radius: 0 12px 12px 0; border-left: 0; }
-  .isl-switch .tool[aria-pressed="true"] { background: #1d2433; color: #fff; border-color: #1d2433; }
-  .tag3d.island { font-size: 1.15em; background: #1d2433; color: #fff; border-color: #1d2433; }
+  .isl-switch .tool[aria-pressed="true"] { background: linear-gradient(135deg, var(--gold-2), var(--gold)); color: #1a1405; border-color: var(--gold); }
+  .tag3d.island { font-size: 1.15em; background: #0b0b0a; color: var(--gold-2); border-color: var(--gold); }
 
   /* ---------- วิธีดู (popover) */
   .info { position: fixed; left: var(--gap); top: calc(var(--gap) + 112px); width: min(380px, calc(100vw - 32px)); padding: 16px 18px;
@@ -79,10 +80,10 @@
   .info ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
   .info li i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 6px currentColor; }
   .info .flow { font-size: .92em; }
-  .info .note { margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: #fff6d6; font-size: .86em; }
+  .info .note { margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(226, 184, 74, .1); font-size: .86em; }
   .info .x, .card .x, .perf .x { position: absolute; right: 10px; top: 8px; width: 30px; height: 30px; border-radius: 8px; border: 0; background: transparent;
                         cursor: pointer; font-size: 1.2em; font-weight: 700; }
-  .info .x:hover, .card .x:hover, .perf .x:hover { background: rgba(23, 32, 51, .08); }
+  .info .x:hover, .card .x:hover, .perf .x:hover { background: rgba(255, 255, 255, .08); }
 
   /* ---------- ผลงาน (หน้าต่างกลางจอ) */
   .perf { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(920px, calc(100vw - 32px));
@@ -94,16 +95,16 @@
   .perf .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; }
   .perf table { width: 100%; border-collapse: collapse; font-size: .86em; }
   .perf th { text-align: left; color: var(--muted); font-weight: 600; font-size: .9em; padding: 4px 6px; border-bottom: 1px solid var(--line); }
-  .perf td { padding: 5px 6px; border-bottom: 1px solid rgba(23, 32, 51, .06); white-space: nowrap; }
+  .perf td { padding: 5px 6px; border-bottom: 1px solid rgba(255, 255, 255, .06); white-space: nowrap; }
   .perf td.r, .perf th.r { text-align: right; }
   .perf .cell { display: inline-block; min-width: 64px; padding: 2px 6px; border-radius: 6px; text-align: center; }
-  .perf .cell.pos { background: #e3f7ea; } .perf .cell.neg { background: #ffe9e8; } .perf .cell.na { color: #a0a8b8; }
+  .perf .cell.pos { background: rgba(57, 255, 136, .14); } .perf .cell.neg { background: rgba(255, 93, 93, .14); } .perf .cell.na { color: #6f6a5e; }
   .perf .curve { width: 100%; height: 150px; display: block; }
-  .perf .j { padding: 10px 12px; border-radius: 12px; background: #f6f7fb; margin-bottom: 8px; font-size: .88em; line-height: 1.55; }
+  .perf .j { padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .04); margin-bottom: 8px; font-size: .88em; line-height: 1.55; }
   .perf .j b { display: block; margin-bottom: 2px; }
-  .perf .j .ai { margin-top: 4px; color: #3d2a9e; }
+  .perf .j .ai { margin-top: 4px; color: var(--gold-2); }
   .perf .note { font-size: .8em; color: var(--muted); margin-top: 6px; }
-  .backdrop { position: fixed; inset: 0; background: rgba(15, 25, 45, .35); z-index: 7; display: none; }
+  .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); z-index: 7; display: none; }
   .backdrop.open { display: block; }
   @media (max-width: 760px) { .perf .grid { grid-template-columns: 1fr; } }
   html.stream .perf, html.stream .backdrop { display: none !important; }
@@ -121,63 +122,64 @@
   .chat .head { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; cursor: default; }
   .chat .head .t { font-weight: 700; line-height: 1.25; }
   .chat .head .s { font-size: .76em; color: var(--muted); font-weight: 500; }
-  .chat .head .brain { margin-left: auto; font-size: .74em; font-weight: 700; background: #efe9ff; color: #4b33c9; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+  .chat .head .brain { margin-left: auto; font-size: .74em; font-weight: 700; background: rgba(226, 184, 74, .16); color: var(--gold-2); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
   .chat .grab { display: none; }
-  .chat .fold { flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer;
+  .chat .fold { flex: none; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); background: transparent; cursor: pointer;
                 font-size: 1em; line-height: 1; transition: transform .2s ease; }
-  .chat .fold:hover { background: #f1f3f8; }
+  .chat .fold:hover { background: rgba(226, 184, 74, .12); }
   .chat.collapsed { bottom: auto; }
   .chat.collapsed .pz, .chat.collapsed .list { display: none; }
   .chat.collapsed .head { border-bottom: 0; }
   .chat.collapsed .fold { transform: rotate(180deg); }
   html.portrait .chat.collapsed { height: auto; }
-  .chat .pz { padding: 6px 14px; font-size: .78em; font-weight: 600; background: #fff6d6; border-bottom: 1px solid var(--line); }
+  .chat .pz { padding: 6px 14px; font-size: .78em; font-weight: 600; background: rgba(226, 184, 74, .1); color: var(--gold-2); border-bottom: 1px solid var(--line); }
   .chat .pz:empty { display: none; }
   .chat .list { flex: 1; overflow-y: auto; padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
-  .msg { border-radius: 12px; padding: 8px 11px; font-size: .86em; line-height: 1.5; background: #f3f5fa; border: 1px solid transparent; }
+  .msg { border-radius: 12px; padding: 8px 11px; font-size: .86em; line-height: 1.5; background: rgba(255, 255, 255, .04); border: 1px solid transparent; }
   .msg .meta { font-size: .76em; color: var(--muted); font-weight: 600; margin-bottom: 2px; display: flex; gap: 6px; align-items: center; }
   .msg .meta .src { margin-left: auto; }
-  .msg.action { background: #edf3ff; border-color: #d3e1ff; }
-  .msg.alert { background: #fff0ef; border-color: #ffd2cf; }
-  .msg.analysis { background: #f4f0ff; border-color: #e1d8ff; }
-  .msg.info { background: #effaf2; border-color: #cfeeda; }
-  .msg.trade { background: #fffbea; border-color: #f3e2a6; font-weight: 600; }
+  .msg.action { background: rgba(226, 184, 74, .08); border-color: rgba(226, 184, 74, .3); }
+  .msg.alert { background: rgba(255, 93, 93, .08); border-color: rgba(255, 93, 93, .3); }
+  .msg.analysis { background: rgba(255, 255, 255, .04); border-color: rgba(255, 255, 255, .08); }
+  .msg.info { background: rgba(57, 255, 136, .05); border-color: rgba(57, 255, 136, .18); }
+  .msg.trade { background: rgba(226, 184, 74, .12); border-color: rgba(226, 184, 74, .4); font-weight: 600; }
   .chat .empty { color: var(--muted); font-size: .86em; text-align: center; margin-top: 2em; }
 
   /* ---------- ท้ายจอ */
   .disclaimer { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 4; pointer-events: none; max-width: calc(100vw - 32px);
-                background: rgba(23, 32, 51, .78); color: #fff; padding: 5px 14px; border-radius: 999px; font-weight: 500; font-size: .78em;
+                background: rgba(0, 0, 0, .78); color: var(--gold-2); padding: 5px 14px; border-radius: 999px; font-weight: 500; font-size: .78em;
                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* ---------- ป้ายลอยในฉาก 3D (สไตล์การ์ตูน) */
-  .bubble .sc { font-size: .85em; padding: 0 .3em; border-radius: 6px; background: rgba(29, 36, 51, .08); }
+  .bubble .sc { font-size: .85em; padding: 0 .3em; border-radius: 6px; background: rgba(226, 184, 74, .18); }
   .plate .sc { font-size: .85em; }
-  .bubble { position: relative; background: #fffdf6; border: 2px solid #1d2433; border-radius: 12px; padding: .2em .7em; font-weight: 700;
-            font-size: .74em; white-space: nowrap; max-width: 9vw; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 14px rgba(0,0,0,.16); }
+  .bubble { position: relative; background: rgba(10, 10, 9, .92); color: #f4f1e8; border: 1.5px solid var(--gold); border-radius: 12px; padding: .2em .7em; font-weight: 700;
+            font-size: .74em; white-space: nowrap; max-width: 9vw; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 6px 14px rgba(0,0,0,.35); }
   .bubble.hot { max-width: 18vw; font-size: .8em; }
-  .bubble.win { background: #e2fbe9; } .bubble.lose { background: #ffe4e1; } .bubble.aim { background: #fff4c2; } .bubble.off { opacity: .6; }
-  .bubble.rest { background: #eef0f5; font-size: .72em; }
-  .bubble.boss { max-width: 22vw; white-space: normal; font-size: .76em; line-height: 1.35; background: #f3efff; text-align: left; }
-  .plate { background: rgba(255, 253, 246, .9); border: 1.5px solid #1d2433; border-radius: 8px; padding: .05em .45em; text-align: center;
-           line-height: 1.2; box-shadow: 0 3px 8px rgba(0,0,0,.15); font-size: .78em; white-space: nowrap; }
+  .bubble.win { background: rgba(8, 40, 22, .94); border-color: #39ff88; color: #b9ffd6; } .bubble.lose { background: rgba(48, 10, 10, .94); border-color: #ff5d5d; color: #ffd0d0; }
+  .bubble.aim { background: rgba(48, 36, 6, .94); color: var(--gold-2); } .bubble.off { opacity: .6; }
+  .bubble.rest { background: rgba(20, 20, 18, .9); border-color: #55503f; font-size: .72em; }
+  .bubble.boss { max-width: 22vw; white-space: normal; font-size: .76em; line-height: 1.35; background: rgba(10, 10, 9, .95); border-color: var(--gold-2); text-align: left; }
+  .plate { background: rgba(10, 10, 9, .88); color: #f4f1e8; border: 1px solid rgba(226, 184, 74, .6); border-radius: 8px; padding: .05em .45em; text-align: center;
+           line-height: 1.2; box-shadow: 0 3px 8px rgba(0,0,0,.3); font-size: .78em; white-space: nowrap; }
   .plate.hot { font-size: .9em; border-width: 2px; }
   .plate b { font-size: .92em; } .plate .m { font-weight: 800; font-size: .86em; } .plate .f { color: var(--muted); font-size: .72em; font-weight: 650; }
-  .tag3d { background: rgba(255, 253, 246, .92); border: 2px solid #1d2433; border-radius: 10px; padding: .15em .6em; font-weight: 700;
-           font-size: .8em; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,.15); }
+  .tag3d { background: rgba(10, 10, 9, .9); color: #f4f1e8; border: 1.5px solid var(--gold); border-radius: 10px; padding: .15em .6em; font-weight: 700;
+           font-size: .8em; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,.3); }
   .tag3d.big { font-size: 1em; }
-  .tag3d.glow { background: #fff3a6; }
-  .price { font-weight: 800; font-size: .95em; background: #1d2433; color: #fff; border: none; }
+  .tag3d.glow { background: linear-gradient(135deg, var(--gold-2), var(--gold)); color: #1a1405; }
+  .price { font-weight: 800; font-size: .95em; background: linear-gradient(135deg, var(--gold-2), var(--gold)); color: #1a1405; border: none; }
 
   /* ---------- การ์ดรายละเอียดหุ่น */
   .card { position: fixed; display: none; width: min(390px, calc(100vw - 32px)); padding: 16px 18px; font-size: .9em; line-height: 1.55; z-index: 6; }
   .card h4 { margin: 0 32px 6px 0; font-size: 1.12em; }
   .card .k { color: var(--muted); }
   .ctl { display: flex; gap: 8px; margin-top: .7em; flex-wrap: wrap; }
-  .ctl button { border: 1px solid var(--ink); background: #fff; border-radius: 10px; padding: .35em .9em; font-weight: 700; cursor: pointer; }
+  .ctl button { border: 1px solid var(--gold); background: transparent; color: var(--gold-2); border-radius: 10px; padding: .35em .9em; font-weight: 700; cursor: pointer; }
   .ctl button.armed { background: var(--down); border-color: var(--down); color: #fff; }
   .ctl button:disabled { opacity: .45; cursor: default; }
   #ctlNote { margin-top: .5em; font-weight: 600; font-size: .9em; }
-  .loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 1.2em; font-weight: 600; z-index: 2; color: #1d3b66; }
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 1.2em; font-weight: 600; z-index: 2; color: var(--gold-2); }
 
   /* ---------- จอกลาง (แท็บเล็ต/โน้ตบุ๊กเล็ก) */
   @media (max-width: 1180px) {
@@ -210,7 +212,7 @@
   html.portrait .chat { top: auto; left: var(--gap); right: var(--gap); width: auto; bottom: 30px; height: 30vh; transition: height .25s ease; }
   html.portrait .chat.open { height: 72vh; }
   html.portrait .chat .head { cursor: pointer; padding-top: 16px; position: relative; }
-  html.portrait .chat .grab { display: block; position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; border-radius: 4px; background: rgba(23, 32, 51, .25); transform: translateX(-50%); }
+  html.portrait .chat .grab { display: block; position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; border-radius: 4px; background: rgba(226, 184, 74, .4); transform: translateX(-50%); }
   html.portrait .card { left: var(--gap) !important; right: var(--gap); top: auto !important; bottom: calc(30vh + 40px); width: auto; }
   html.portrait .bubble.hot { max-width: 40vw; }
   html.portrait .bubble.boss { max-width: 52vw; }
@@ -237,79 +239,79 @@
 </script>
 </head>
 <body>
-<div class="loading" id="loading">กำลังสร้างหมู่บ้านบอท… (ครั้งแรกต้องต่ออินเทอร์เน็ตเพื่อโหลด 3D)</div>
+<div class="loading" id="loading">Building the bot village… (first load needs internet for the 3D engine)</div>
 <div id="stage"></div>
 <div id="labels"></div>
 <header class="topbar">
   <div class="brand glass">
     <div class="logo" aria-hidden="true">🤖</div>
-    <div><h1>หมู่บ้านบอท</h1><p>บอทเทรด 20 ตัว · 2 เกาะ + ผู้จัดการพอร์ต AI · สด</p></div>
+    <div><h1>Bot Village</h1><p>20 trading bots · 2 islands + AI portfolio manager · live</p></div>
   </div>
-  <span class="demo">DEMO · เงินทดลอง</span>
+  <span class="demo">DEMO ACCOUNT</span>
   <span class="spacer"></span>
-  <div class="stats glass" role="group" aria-label="ภาพรวมพอร์ต">
+  <div class="stats glass" role="group" aria-label="Portfolio overview">
     <div class="stat"><span class="k"><span class="live-dot"></span>BTC/USD</span><span class="v num" id="btc">–</span></div>
     <div class="stat" id="eqStat"><span class="k">Equity</span><span class="v num" id="eq">–</span></div>
-    <div class="stat"><span class="k">วันนี้ · ทุกบอท</span><span class="v num" id="today">–</span></div>
-    <div class="stat"><span class="k">ถือไม้อยู่</span><span class="v num" id="holding">–</span></div>
-    <div class="stat" id="tfStat"><span class="k">บอททดสอบ</span><span class="v num" id="tfchip">–</span></div>
-    <div class="stat" id="clockStat"><span class="k">เวลาไทย</span><span class="v num" id="clock">–</span></div>
+    <div class="stat"><span class="k">Today · all bots</span><span class="v num" id="today">–</span></div>
+    <div class="stat"><span class="k">Holding</span><span class="v num" id="holding">–</span></div>
+    <div class="stat" id="tfStat"><span class="k">Test bots</span><span class="v num" id="tfchip">–</span></div>
+    <div class="stat" id="clockStat"><span class="k">Bangkok time</span><span class="v num" id="clock">–</span></div>
   </div>
 </header>
 <div class="subbar">
-<nav class="tools" aria-label="เครื่องมือ">
-  <button class="tool" id="infoBtn" type="button" aria-expanded="false" aria-controls="info"><span class="ico">ℹ️</span><span class="lbl">วิธีดู</span></button>
-  <span class="isl-switch" role="group" aria-label="เลือกเกาะ">
-    <button class="tool" id="isl1" type="button" aria-pressed="true" title="เกาะ BTC (m5_1–9)"><span class="ico">🏝</span><span>BTC</span></button>
-    <button class="tool" id="isl2" type="button" aria-pressed="false" title="เกาะทอง + NAS100 (m5_10–19)"><span class="ico">🏝</span><span>ทอง/NAS</span></button>
+<nav class="tools" aria-label="Tools">
+  <button class="tool" id="infoBtn" type="button" aria-expanded="false" aria-controls="info"><span class="ico">ℹ️</span><span class="lbl">Guide</span></button>
+  <span class="isl-switch" role="group" aria-label="Choose island">
+    <button class="tool" id="isl1" type="button" aria-pressed="true" title="BTC island (m5_1–9)"><span class="ico">🏝</span><span>BTC</span></button>
+    <button class="tool" id="isl2" type="button" aria-pressed="false" title="Gold + NAS100 island (m5_10–19)"><span class="ico">🏝</span><span>Gold/NAS</span></button>
   </span>
-  <button class="tool" id="perfBtn" type="button" aria-haspopup="dialog"><span class="ico">📈</span><span class="lbl">ผลงาน</span></button>
-  <button class="tool" id="spinBtn" type="button" aria-pressed="false"><span class="ico">🎥</span><span class="lbl">กล้องหยุด</span></button>
-  <a class="tool private" href="/"><span class="ico">📊</span><span class="lbl">แดชบอร์ด</span></a>
-  <a class="tool private" href="/settings"><span class="ico">⚙️</span><span class="lbl">ตั้งค่า</span></a>
+  <button class="tool" id="perfBtn" type="button" aria-haspopup="dialog"><span class="ico">📈</span><span class="lbl">Performance</span></button>
+  <button class="tool" id="spinBtn" type="button" aria-pressed="false"><span class="ico">🎥</span><span class="lbl">Camera still</span></button>
+  <a class="tool private" href="/"><span class="ico">📊</span><span class="lbl">Dashboard</span></a>
+  <a class="tool private" href="/settings"><span class="ico">⚙️</span><span class="lbl">Settings</span></a>
 </nav>
 <div class="ticker glass" id="tradingchip" aria-live="polite">–</div>
 </div>
-<section class="info glass" id="info" aria-label="วิธีดูหมู่บ้านบอท">
-  <button class="x" id="infoX" type="button" aria-label="ปิด">×</button>
-  <h2>วิธีดูหมู่บ้านบอท</h2>
-  <div>หุ่นยนต์แต่ละตัวคือบอทเทรด 1 ตัว เดินไปตามโซนตามสิ่งที่กำลังทำ ภูเขาด้านหลังคือกราฟราคา BTC 3 ชม. ล่าสุด</div>
-  <h3>สีไฟบนหัวหุ่น</h3>
+<section class="info glass" id="info" aria-label="How to read the bot village">
+  <button class="x" id="infoX" type="button" aria-label="Close">×</button>
+  <h2>How to read the village</h2>
+  <div>Each robot is one trading bot and walks to the zone that matches what it is doing. The mountain behind is the last 3 hours of price.</div>
+  <h3>Head light colours</h3>
   <ul>
-    <li><i style="color:#4fb3ff;background:#4fb3ff"></i>เฝ้าราคา — เดินเล่นที่ลาน</li>
-    <li><i style="color:#ffcf33;background:#ffcf33"></i>เล็งเป้า — ใกล้เข้าไม้ ยืนที่จุดเตรียมเข้า</li>
-    <li><i style="color:#22c46a;background:#22c46a"></i>ถือไม้ กำไร — อยู่ในโซนเทรด</li>
-    <li><i style="color:#ff5a50;background:#ff5a50"></i>ถือไม้ ขาดทุน — อยู่ในโซนเทรด</li>
-    <li><i style="color:#aab2c0;background:#aab2c0"></i>พัก / นอกเวลา / ผู้จัดการสั่งพัก — อยู่บ้านพัก</li>
+    <li><i style="color:#4fb3ff;background:#4fb3ff"></i>Watching price — strolling in the plaza</li>
+    <li><i style="color:#ffcf33;background:#ffcf33"></i>Aiming — close to an entry, waiting at the ready spot</li>
+    <li><i style="color:#22c46a;background:#22c46a"></i>In a trade, in profit — on the trade stage</li>
+    <li><i style="color:#ff5a50;background:#ff5a50"></i>In a trade, at a loss — on the trade stage</li>
+    <li><i style="color:#aab2c0;background:#aab2c0"></i>Resting / outside trading hours — at the house</li>
   </ul>
-  <h3>ออเดอร์เดินทางยังไง</h3>
-  <div class="flow">📦 ออเดอร์ → 🛡️ กันส่งซ้ำ → ⚖️ ด่านความเสี่ยง → 📏 ขนาดไม้ → 🏦 MT5</div>
-  <h3>ผู้จัดการพอร์ต (หุ่นสีม่วง)</h3>
-  <div>อ่านตลาดทุกนาที ทำนายว่าบอทไหนไม่ควรเข้าไม้ (บอทยังเทรดตามปกติ) แล้วตรวจคำทำนายกับไม้จริง · เรียนรู้จุดอ่อนของแต่ละกลยุทธ์ และให้งานวิจัยทุกคืนทดสอบตัวกรองก่อนใส่ให้บอท · ★ main (บนเกาะทอง) ทำงานอิสระ ผู้จัดการไม่แตะ</div>
-  <h3>ใช้งาน</h3>
-  <div>ลากเพื่อหมุนกล้อง · ล้อเมาส์/สองนิ้วเพื่อซูม · แตะหุ่นยนต์เพื่อดูรายละเอียด</div>
-  <div class="note">บัญชี DEMO เงินทดลอง เพื่อการเรียนรู้เท่านั้น — ไม่ใช่คำแนะนำการลงทุน ผลในอดีตไม่รับประกันอนาคต</div>
+  <h3>How an order travels</h3>
+  <div class="flow">📦 Order → 🛡️ No duplicates → ⚖️ Risk check → 📏 Lot size → 🏦 MT5</div>
+  <h3>Portfolio manager (purple robot)</h3>
+  <div>Claude reads the market, closes trades that go wrong, sizes each bot's lots and swaps out strategies that have proven to lose. Every call is scored against real trades. It jumps over to whichever bot it is acting on. ★ main lives on the floating gold island.</div>
+  <h3>Controls</h3>
+  <div>Drag to orbit · scroll / pinch to zoom · hover a robot for its name · tap a robot for details</div>
+  <div class="note">Demo account for research only — not investment advice. Past results do not guarantee future results.</div>
 </section>
 <div class="backdrop" id="perfBg"></div>
-<section class="perf glass" id="perf" role="dialog" aria-modal="true" aria-label="ผลงานบอทและผู้จัดการพอร์ต">
-  <button class="x" id="perfX" type="button" aria-label="ปิด">×</button>
-  <h2>📈 ผลงาน</h2>
-  <div class="sub">บัญชี DEMO · ตัวเลขจากไม้ที่ปิดแล้วจริงใน MT5 · อัปเดตทุก 30 วิ ขณะเปิดหน้าต่างนี้</div>
-  <div id="perfBody">กำลังโหลด…</div>
+<section class="perf glass" id="perf" role="dialog" aria-modal="true" aria-label="Bot and manager performance">
+  <button class="x" id="perfX" type="button" aria-label="Close">×</button>
+  <h2>📈 Performance</h2>
+  <div class="sub">Demo account · from closed MT5 trades · refreshes every 30 s while open</div>
+  <div id="perfBody">Loading…</div>
 </section>
 <div class="feed" id="feed" aria-live="polite"></div>
-<aside class="chat glass notranslate" translate="no" aria-label="แชทผู้จัดการพอร์ต">
+<aside class="chat glass notranslate" translate="no" aria-label="Portfolio manager chat">
   <div class="head" id="chatHead">
     <span class="grab" aria-hidden="true"></span>
-    <div><div class="t">🧠 ผู้จัดการพอร์ต</div><div class="s">สั่งงานบอทแบบเรียลไทม์</div></div>
+    <div><div class="t">🧠 Portfolio manager</div><div class="s">live decisions · written in Thai</div></div>
     <span class="brain" id="brain">–</span>
-    <button class="fold" id="chatFold" type="button" aria-expanded="true" aria-label="หุบ/ขยายแชทผู้จัดการ" title="หุบ/ขยาย">▾</button>
+    <button class="fold" id="chatFold" type="button" aria-expanded="true" aria-label="Collapse / expand manager chat" title="Collapse / expand">▾</button>
   </div>
   <div class="pz" id="pz"></div>
-  <div class="list" id="chat" role="log"><div class="empty">รอผู้จัดการเริ่มงาน…</div></div>
+  <div class="list" id="chat" role="log"><div class="empty">Waiting for the manager…</div></div>
 </aside>
-<footer class="disclaimer">🤖 บอทเทรดอัตโนมัติ · บัญชี DEMO เงินทดลอง · ไม่ใช่คำแนะนำการลงทุน</footer>
-<div class="card glass" id="card" role="dialog" aria-label="รายละเอียดบอท"><button class="x" id="cardx" type="button" aria-label="ปิด">×</button><div id="cardbody"></div></div>
+<footer class="disclaimer">🤖 Automated trading bots · demo account · not investment advice</footer>
+<div class="card glass" id="card" role="dialog" aria-label="Bot details"><button class="x" id="cardx" type="button" aria-label="Close">×</button><div id="cardbody"></div></div>
 
 <script type="module">
 import * as THREE from "three";
@@ -322,9 +324,9 @@ const TZ = "Asia/Bangkok";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const money = (v) => (v >= 0 ? "+" : "−") + "$" + Math.abs(v || 0).toFixed(2);
 const FAM = {
-  levels: [0xff9f43, "นักล่าแนวรับ"], momo: [0xee5a9b, "นักวิ่งเช้า"], pullback: [0x34b8c4, "รอย่อ"], bb: [0x9b7bff, "สวนขอบ"],
-  donchian: [0x3d8bfd, "ทะลุกรอบ"], orb: [0xff8fa3, "เปิดตลาด"], ema: [0x2ecc71, "เส้นตัด"], rsi2: [0xf4cf2b, "สวนสุดโต่ง"],
-  volx: [0x9aa5b1, "รอตลาดเงียบ"], main: [0xf2b632, "บอทหลัก · ทอง M5"], boss: [0x7b5cff, "ผู้จัดการพอร์ต"],
+  levels: [0xff9f43, "Level hunter"], momo: [0xee5a9b, "Morning momentum"], pullback: [0x34b8c4, "Pullback"], bb: [0x9b7bff, "Band fade"],
+  donchian: [0x3d8bfd, "Channel breakout"], orb: [0xff8fa3, "Opening range"], ema: [0x2ecc71, "EMA cross"], rsi2: [0xf4cf2b, "RSI-2 extreme"],
+  volx: [0x9aa5b1, "Quiet breakout"], main: [0xf2b632, "Main bot · Gold M5"], boss: [0x7b5cff, "Portfolio manager"],
 };
 const LIGHT = { off: 0x5b6270, rest: 0xaab2c0, watch: 0x4fb3ff, aim: 0xffcf33, target: 0xffb020, win: 0x22c46a, lose: 0xff5a50 };
 
@@ -374,9 +376,9 @@ controls.addEventListener("end", () => { idleSince = performance.now(); });
 function setSpin(on) {
   spin = on; if (!on) controls.autoRotate = false;
   try { localStorage.setItem("village.spin", on ? "1" : "0"); } catch {}
-  $("spinBtn").querySelector(".lbl").textContent = on ? "กล้องหมุน" : "กล้องหยุด";
+  $("spinBtn").querySelector(".lbl").textContent = on ? "Camera orbit" : "Camera still";
   $("spinBtn").setAttribute("aria-pressed", on ? "true" : "false");
-  $("spinBtn").title = on ? "กดเพื่อหยุดกล้อง" : "กดเพื่อให้กล้องส่ายช้าๆ เองตอนไม่มีคนจับ";
+  $("spinBtn").title = on ? "Stop the camera" : "Let the camera sway slowly when idle";
 }
 $("spinBtn").onclick = () => setSpin(!spin);
 setSpin(spin);
@@ -511,7 +513,7 @@ function makeGround(dx, isl) {
     b.position.set(rng(k + 13) * 26, .1, rng(k + 17) * 13); if (Math.abs(b.position.z - 4) < 2.5 && Math.abs(b.position.x) < 15) continue;
     b.position.x += dx; world.add(shadowy(b));
   }
-  const lbl = tag(isl === 1 ? "🏝 เกาะ BTC" : "🏝 เกาะทอง + NAS100", "tag3d big island"); lbl.position.set(dx - 22, 2.2, 12); world.add(lbl);
+  const lbl = tag(isl === 1 ? "🏝 BTC island" : "🏝 Gold + NAS100 island", "tag3d big island"); lbl.position.set(dx - 22, 2.2, 12); world.add(lbl);
 }
 makeGround(0, 1); makeGround(ISLAND2_X, 2);
 // เมฆ
@@ -524,7 +526,7 @@ for (let k = 0; k < 7; k++) {
 
 // ------------------------------------------------------------------ ภูเขาราคา BTC
 const MT = { x0: -26, x1: 24, z: -14, base: 0, hmin: 2, hmax: 8.5, label: "BTC" };
-const MT2 = { ...MT, x0: -26 + ISLAND2_X, x1: 24 + ISLAND2_X, label: "ทอง" };
+const MT2 = { ...MT, x0: -26 + ISLAND2_X, x1: 24 + ISLAND2_X, label: "Gold" };
 function buildMountain(bars, M = MT) {
   if (bars.length < 2) return;
   if (M.mountain) { scene.remove(M.mountain); M.mountain.traverse(o => o.geometry?.dispose()); }
@@ -559,7 +561,7 @@ function buildMountain(bars, M = MT) {
   const dec = M === MT ? 0 : 2;
   M.flag.position.copy(last); M.flag.userData.cloth.material.color.set(up ? 0x22c46a : 0xff5a50);
   M.priceTag.element.textContent = M.label + " " + bars[bars.length - 1].toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
-  const kHi = bars.indexOf(hi); M.hiTag.position.set(X(kHi), H(hi) + 1.2, M.z); M.hiTag.element.textContent = "สูงสุด " + hi.toLocaleString("en-US", { maximumFractionDigits: dec });
+  const kHi = bars.indexOf(hi); M.hiTag.position.set(X(kHi), H(hi) + 1.2, M.z); M.hiTag.element.textContent = "High " + hi.toLocaleString("en-US", { maximumFractionDigits: dec });
 }
 
 // ------------------------------------------------------------------ สะพานสายพาน + ด่าน + หอ MT5
@@ -575,8 +577,8 @@ const beltTex = new THREE.CanvasTexture(beltCanvas); beltTex.wrapS = THREE.Repea
     const p = new THREE.Mesh(new THREE.CylinderGeometry(.22, .3, BR.y, 10), METAL); p.position.set(BR.x0 + (BR.x1 - BR.x0) * f, BR.y / 2, BR.z); scene.add(shadowy(p));
   }
 }
-const GATES = [[-6.5, "🛡️", "กันส่งซ้ำ", "OrderGuard: สัญญาณเดิมห้ามส่งซ้ำ"], [.5, "⚖️", "ด่านความเสี่ยง", "RiskManager: เพดาน/เป้า/ข่าว"],
-               [7.5, "📏", "ขนาดไม้", "ไม้ตายตัว 0.17 BTC · เช็ก margin"]];
+const GATES = [[-6.5, "🛡️", "No duplicates", "OrderGuard: the same signal is never sent twice"], [.5, "⚖️", "Risk check", "RiskManager: limits / targets / news"],
+               [7.5, "📏", "Lot size", "Standard lot × manager multiplier · margin check"]];
 const gates = GATES.map(([x, icon, name, tip]) => {
   const g = new THREE.Group(), m = mat(0xfffdf6, { emissive: 0xfff3a6, emissiveIntensity: 0 });
   for (const sx of [-1.1, 1.1]) { const leg = new THREE.Mesh(new RoundedBoxGeometry(.35, 2.4, 1.9, 2, .1), m); leg.position.set(sx, 1.2, 0); g.add(leg); }
@@ -596,7 +598,7 @@ const tower = new THREE.Group();
   const ant = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1.6, 6), INK); ant.position.y = 12.4; tower.add(ant);
   const beacon = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff5a50, emissive: 0xff3b30, emissiveIntensity: 2 }));
   beacon.position.y = 13.2; tower.add(beacon); tower.userData.beacon = beacon;
-  const t = tag(STREAM ? "🏦" : "🏦 MT5 โบรก", "tag3d big" + (STREAM ? " icon" : "")); t.position.set(0, 14.4, 0); tower.add(t);
+  const t = tag(STREAM ? "🏦" : "🏦 MT5 broker", "tag3d big" + (STREAM ? " icon" : "")); t.position.set(0, 14.4, 0); tower.add(t);
   tower.position.set(BR.x1 + 2.6, 0, BR.z); scene.add(shadowy(tower));
 }
 
@@ -660,7 +662,7 @@ function makeRobot(name, fam) {
 }
 
 // ผู้จัดการพอร์ต: หุ่นสีม่วงยืนบนแท่นระหว่างลานกับโซนเทรด · ป้ายคำพูด = ข้อความล่าสุดในแชท
-const boss = makeRobot("ผู้จัดการ", "boss");
+const boss = makeRobot("Manager", "boss");
 {
   const pod = new THREE.Group();
   const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 1.1, 32), mat(0x3a2f6b, { roughness: .35, metalness: .3 })); base.position.y = .55; pod.add(base);
@@ -673,7 +675,7 @@ const boss = makeRobot("ผู้จัดการ", "boss");
   boss.position.set(3.4, 1.1, .3); boss.scale.setScalar(.95); boss.rotation.y = .35; scene.add(boss);
   const u = boss.userData; u.plate.visible = false; u.bubble.element.className = "bubble boss"; u.bubble.position.y = 4.6;
   u.hat.material.color.set(0x1d2433); u.hat.material.emissive.set(0x000000); u.hat.visible = true;      // หมวกผู้จัดการ
-  setBubble(u.bubble, STREAM ? "🧠" : "🧠 ผู้จัดการพอร์ต");
+  setBubble(u.bubble, STREAM ? "🧠" : "🧠 Portfolio manager");
 }
 let bossJump = 0, bossTalk = 0, bossTrip = null;
 const BOSS_HOME = new THREE.Vector3(3.4, 1.1, .3);
@@ -756,13 +758,13 @@ function makeZones(Z, dx) {
       b.position.set(Math.sin(k * Math.PI / 4) * (r - .8) / 2, .33, Math.cos(k * Math.PI / 4) * (r - .8) / 2); b.rotation.y = k * Math.PI / 4; tradeZone.add(b);
     }
     tradeZone.position.set(cx, 0, cz); tradeZone.userData = { edgeM, inner }; scene.add(tradeZone);
-    sign("⚡ โซนเทรด", cx + r + .4, cz - 1.6, 2.8);
+    sign("⚡ Trade stage", cx + r + .4, cz - 1.6, 2.8);
   }
   {
     const { cx, cz } = Z.gate;
     const pad = new THREE.Mesh(new THREE.CircleGeometry(1.8, 40), new THREE.MeshStandardMaterial({ color: 0xffcf33, emissive: 0xffcf33, emissiveIntensity: .25, transparent: true, opacity: .55 }));
     pad.rotation.x = -Math.PI / 2; pad.position.set(cx, .03, cz); scene.add(pad);
-    sign("🎯 เตรียมเข้า", cx - 2.3, cz + .9, 1.6);
+    sign("🎯 Ready", cx - 2.3, cz + .9, 1.6);
   }
   {
     const { cx, cz } = Z.house, h = new THREE.Group();
@@ -772,9 +774,9 @@ function makeZones(Z, dx) {
     for (const wx of [-1.05, 1.05]) { const w = new THREE.Mesh(new THREE.BoxGeometry(.6, .55, .08), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffc94a, emissiveIntensity: .5 })); w.position.set(wx, 1.35, 1.31); h.add(w); }
     const chim = new THREE.Mesh(new THREE.BoxGeometry(.4, .9, .4), mat(0x9a6b45)); chim.position.set(.9, 3.3, -.4); h.add(chim);
     h.position.set(cx, 0, cz - 1.6); scene.add(shadowy(h));
-    sign("💤 บ้านพัก", cx - 2.4, cz + .6, 2);
+    sign("💤 Rest house", cx - 2.4, cz + .6, 2);
   }
-  sign("👀 ลานเฝ้าราคา", -12.5 + dx, 11, 1.6);
+  sign("👀 Watch plaza", -12.5 + dx, 11, 1.6);
   return tradeZone;
 }
 const tradeZones = { 1: makeZones(ZONES_OF[1], 0), 2: makeZones(ZONES_OF[2], ISLAND2_X) };
@@ -832,7 +834,7 @@ let D = null, robots = [], parcels = [], coins = [], seenOpen = null, seenTrades
 async function refresh() {
   try { const d = await (await fetch("/api", { cache: "no-store" })).json(); if (d.error) throw new Error(d.error);
         document.documentElement.classList.toggle("public", !!d.public); D = d; sync(d); }
-  catch { if (Date.now() - lastErr > 60000) { lastErr = Date.now(); toast("⚠️ ต่อ monitor ไม่ได้ — กำลังลองใหม่"); } }
+  catch { if (Date.now() - lastErr > 60000) { lastErr = Date.now(); toast("⚠️ Can't reach the server — retrying"); } }
 }
 async function refreshBars() {
   try {
@@ -845,7 +847,7 @@ async function refreshBars() {
     if (r.bid) {
       const b = r.bars || [], ref = b.length > 61 ? b[b.length - 61][4] : null, chg = ref ? (r.bid - ref) / ref * 100 : null;
       $("btc").innerHTML = r.bid.toLocaleString("en-US", { maximumFractionDigits: 0 }) +
-        (chg == null ? "" : ` <small class="${chg >= 0 ? "up" : "down"}" title="เทียบ 1 ชม. ก่อน">${chg >= 0 ? "▲" : "▼"}${Math.abs(chg).toFixed(2)}%</small>`);
+        (chg == null ? "" : ` <small class="${chg >= 0 ? "up" : "down"}" title="vs. 1 hour ago">${chg >= 0 ? "▲" : "▼"}${Math.abs(chg).toFixed(2)}%</small>`);
     }
   } catch {}
 }
@@ -876,7 +878,7 @@ function sync(d) {
       obj.position.copy(old.position); obj.rotation.y = old.rotation.y; scene.add(obj);
       scene.remove(old); old.traverse(o => o.element?.remove());
       Object.assign(r, { obj, fam, spin: 1.6, jump: 1 });
-      toast(`🔄 ${r.name} เปลี่ยนสายเป็น ${(FAM[fam] || FAM.volx)[1]}`);
+      toast(`🔄 ${r.name} switched to ${(FAM[fam] || FAM.volx)[1]}`);
     }
     const hb = d.bots?.[r.name] || {}, st = Object.values(hb.strategies || {})[0] || {}, pb = d.per_bot?.[r.name] || {};
     const pos = (d.open || []).filter(o => o.bot === r.name);
@@ -892,22 +894,22 @@ function sync(d) {
   if (seenOpen) for (const o of d.open || []) if (!seenOpen.has(o.ticket)) {
     const r = robots.find(x => x.name === o.bot); if (!r) continue;
     r.jump = 1; parcels.push(makeParcel(r, o.side));
-    toast(`📦 ${o.bot} ส่งออเดอร์ ${o.side} ${o.volume} ${o.symbol === "BTCUSD" ? "BTC" : "lot"} @ ${o.open_price.toLocaleString()}`);
+    toast(`📦 ${o.bot} sent ${o.side} ${o.volume} ${o.symbol === "BTCUSD" ? "BTC" : "lot"} @ ${o.open_price.toLocaleString()}`);
   }
   seenOpen = openNow;
   const tr = d.trades || [];
   if (seenTrades) for (const t of tr) if (!seenTrades.has(t.ticket)) {
     const r = robots.find(x => x.name === t.bot); if (!r) continue;
     if (t.profit > 0) { for (let k = 0; k < 14; k++) coins.push(makeCoin(r, -k * .05)); r.jump = 1; } else r.rain = 7;
-    toast(`${t.profit > 0 ? "🎉" : "🌧️"} ${t.bot} ปิดไม้ ${money(t.profit)}`);
+    toast(`${t.profit > 0 ? "🎉" : "🌧️"} ${t.bot} closed ${money(t.profit)}`);
   }
   seenTrades = new Set(tr.map(t => t.ticket));
   const tfs = [...new Set(robots.filter(r => r.name !== "main").map(r => r.hb?.tf).filter(Boolean))];
   $("tfchip").textContent = tfs.join("/") || "–";
   const busy = robots.filter(r => r.mode === "trade");
-  $("tradingchip").innerHTML = busy.length ? `🚩 กำลังถือไม้: ` + busy.map(r => `${esc(r.name)} <span class="${r.float >= 0 ? "up" : "down"}">${money(r.float)}</span>`).join(" · ")
-    : "😴 ยังไม่มีบอทถือไม้ — รอสัญญาณ";
-  $("holding").textContent = `${busy.length} / ${robots.length} ตัว`;
+  $("tradingchip").innerHTML = busy.length ? `🚩 Holding: ` + busy.map(r => `${esc(r.name)} <span class="${r.float >= 0 ? "up" : "down"}">${money(r.float)}</span>`).join(" · ")
+    : "😴 No open trades — waiting for signals";
+  $("holding").textContent = `${busy.length} / ${robots.length} bots`;
   const acc = d.account || {};
   $("eq").textContent = "$" + (acc.equity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const today = Object.values(d.per_bot || {}).reduce((a, s) => a + (s.today || 0) + (s.floating || 0), 0);
@@ -920,10 +922,10 @@ function labelRobot(r) {
   const name = r.name === "main" ? "★ main" : r.name;
   const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main" || (!STREAM && r.mode === "off") || !!MGR.pauses[r.name];
   const pz = MGR.pauses[r.name], left = pz ? Math.max(1, Math.round((pz.until * 1000 - Date.now()) / 60000)) : 0;
-  const what = r.disabled ? "⏹ ปิดโดยผู้ใช้" : pz ? `⏸ พัก ${left} น.` : r.mode === "off" ? "ออฟไลน์ 💤" : r.mode === "target" ? `🎯 ถึงเป้า ${money(today)} พักแล้ว` :
+  const what = r.disabled ? "⏹ Turned off" : pz ? `⏸ Paused ${left} min` : r.mode === "off" ? "Offline 💤" : r.mode === "target" ? `🎯 Target hit ${money(today)} · resting` :
     r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
   const short = r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${money(r.float)}` : r.mode === "aim" ? "🎯"
-    : r.mode === "target" ? `🎯 ${money(today)}` : pz ? "⏸ พัก" : "";
+    : r.mode === "target" ? `🎯 ${money(today)}` : pz ? "⏸ Paused" : "";
   const sc = scaleOf(r.name), scTxt = sc !== 1 ? ` <span class="sc ${sc > 1 ? "up" : "down"}">×${sc}</span>` : "";
   setBubble(u.bubble, STREAM ? `<b>${esc(name)}</b>${scTxt} ${esc(short)}` : `<b>${esc(name)}</b>${scTxt} · ${esc(what)}`);
   u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : pz ? "rest" : r.mode === "off" ? "off" : "");
@@ -937,18 +939,18 @@ function labelRobot(r) {
 // ปุ่มสั่งบอททีละตัว: กดครั้งแรก = ขอยืนยัน (4 วิ) · กดซ้ำ = ทำจริง
 async function botAction(btn, bot, action) {
   if (btn.dataset.armed !== "1") {
-    btn.dataset.armed = "1"; btn.dataset.label = btn.textContent; btn.textContent = "กดอีกครั้งเพื่อยืนยัน"; btn.classList.add("armed");
+    btn.dataset.armed = "1"; btn.dataset.label = btn.textContent; btn.textContent = "Tap again to confirm"; btn.classList.add("armed");
     setTimeout(() => { if (btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = btn.dataset.label; btn.classList.remove("armed"); } }, 4000);
     return;
   }
-  btn.dataset.armed = ""; btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "กำลังทำ…";
+  btn.dataset.armed = ""; btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "Working…";
   try {
     const r = await (await fetch("/api/bot", { method: "POST", headers: { "Content-Type": "application/json", "X-Bot-Settings": "1" },
                                             body: JSON.stringify({ bot, action }) })).json();
     if (!r.ok) throw new Error(r.error);
     const closed = (r.closed || []), bad = closed.filter(c => !c.ok);
-    ctlNote(`${r.message}${closed.length ? ` · ปิด ${closed.length - bad.length}/${closed.length} ไม้` : ""}${bad.length ? " ⚠️ " + bad.map(c => c.message).join(", ") : ""}`, !bad.length);
-  } catch (e) { ctlNote("ทำไม่สำเร็จ: " + e.message, false); }
+    ctlNote(`${r.message}${closed.length ? ` · closed ${closed.length - bad.length}/${closed.length}` : ""}${bad.length ? " ⚠️ " + bad.map(c => c.message).join(", ") : ""}`, !bad.length);
+  } catch (e) { ctlNote("Failed: " + e.message, false); }
   delete btn.dataset.busy; btn.disabled = false; btn.textContent = btn.dataset.label; btn.classList.remove("armed");
 }
 function ctlNote(text, ok) { const n = $("ctlNote"); if (n) n.innerHTML = `<span class="${ok ? "up" : "down"}">${esc(text)}</span>`; toast((ok ? "✅ " : "⚠️ ") + text); refresh(); }
@@ -961,26 +963,26 @@ function toast(text) {
 const CHAT_MAX = 10;                       // แสดงเฉพาะข้อความล่าสุด
 const toLatest = () => requestAnimationFrame(() => { const l = $("chat"); l.scrollTop = l.scrollHeight; });
 const KIND = { analysis: "🧠", action: "⚡", alert: "⚠️", info: "ℹ️", journal: "📓", trade: "💰" };
-const SRC = { claude: "🤖 Claude Sonnet", claude_smart: "🤖 Claude Opus", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", rules: "📏 กฎ" };
-const hhmm = (iso) => new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+const SRC = { claude: "🤖 Claude Sonnet", claude_smart: "🤖 Claude Opus", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", rules: "📏 Rules", guard: "🛡 Guard" };
+const hhmm = (iso) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const minsLeft = (p) => Math.max(1, Math.round((p.until * 1000 - Date.now()) / 60000));
 async function refreshManager() {
   let d; try { d = await (await fetch("/api/manager", { cache: "no-store" })).json(); } catch { return; }
   MGR.pauses = d.pauses || {}; MGR.data = d;
   const msgs = (d.messages || []).slice(-CHAT_MAX), last = msgs[msgs.length - 1];
   const pz = Object.entries(MGR.pauses).sort();
-  const calls = d.shadow?.open || [], who = { rules: "กฎ", gemini: "Gemini Lite", gemini_smart: "Gemini 3.8", claude: "Claude", claude_smart: "Claude" };
-  $("pz").textContent = pz.length ? "⏸ สั่งพักอยู่: " + pz.map(([b, p]) => `${b} (อีก ${minsLeft(p)} น.)`).join(" · ")
-    : calls.length ? "📝 ทำนายว่าไม่ควรเข้า: " + calls.map(c => `${c.bot} (${who[c.src] || c.src} · อีก ${minsLeft({ until: c.end })} น.)`).join(" · ") : "";
+  const calls = d.shadow?.open || [], who = { rules: "Rules", gemini: "Gemini Lite", gemini_smart: "Gemini 3.8", claude: "Claude Sonnet", claude_smart: "Claude Opus" };
+  $("pz").textContent = pz.length ? "⏸ Paused: " + pz.map(([b, p]) => `${b} (${minsLeft(p)} min left)`).join(" · ")
+    : calls.length ? "📝 Don't-enter calls: " + calls.map(c => `${c.bot} (${who[c.src] || c.src} · ${minsLeft({ until: c.end })} min left)`).join(" · ") : "";
   const srcs = new Set(msgs.slice(-40).map(m => m.src).filter(Boolean));
   const ai = [[...srcs].some(x => x.startsWith("claude")) && "🤖 Claude", [...srcs].some(x => x.startsWith("gemini")) && "✨ Gemini"].filter(Boolean);
-  $("brain").textContent = ai.length ? ai.join(" + ") + " + 📏 กฎ" : "📏 สมองตามกฎ";
+  $("brain").textContent = ai.length ? ai.join(" + ") + " + 📏 Rules" : "📏 Rules only";
   robots.forEach(labelRobot);
   const key = last ? last.t + last.text : null;
   if (key === MGR.last) return;
   const list = $("chat"), stick = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-  list.innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${esc(m.kind)}"><div class="meta"><span>${KIND[m.kind] || "•"} ${hhmm(m.t)} น.</span>${m.src ? `<span class="src">${SRC[m.src] || esc(m.src)}</span>` : ""}</div>${esc(m.text)}</div>`).join("")
-    : '<div class="empty">ยังไม่มีข้อความจากผู้จัดการ</div>';
+  list.innerHTML = msgs.length ? msgs.map(m => `<div class="msg ${esc(m.kind)}"><div class="meta"><span>${KIND[m.kind] || "•"} ${hhmm(m.t)}</span>${m.src ? `<span class="src">${SRC[m.src] || esc(m.src)}</span>` : ""}</div><span lang="th">${esc(m.text)}</span></div>`).join("")
+    : '<div class="empty">No messages from the manager yet</div>';
   if (stick || MGR.first || document.querySelector(".chat.collapsed")) toLatest();
   if (last) {
     const short = last.text.length > 90 ? last.text.slice(0, 88) + "…" : last.text;
@@ -996,83 +998,83 @@ async function refreshManager() {
 }
 
 // ------------------------------------------------------------------ หน้าต่างผลงาน
-const REG = { trend: "เทรนด์", range: "ออกข้าง", mixed: "ไม่ชัดทาง" };
+const REG = { trend: "Trend", range: "Range", mixed: "Mixed" };
 function curveSvg(pts) {
-  if (!pts || pts.length < 2) return '<div class="note">ยังไม่มีไม้ที่ปิด</div>';
+  if (!pts || pts.length < 2) return '<div class="note">No closed trades yet</div>';
   const ys = pts.map(p => p[1]), lo = Math.min(0, ...ys), hi = Math.max(0, ...ys), W = 600, H = 150, pad = 6;
   const x = i => pad + i / (pts.length - 1) * (W - 2 * pad), y = v => H - pad - (v - lo) / ((hi - lo) || 1) * (H - 2 * pad);
   const line = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
   const last = ys[ys.length - 1], col = last >= 0 ? "#12a150" : "#e5484d";
-  return `<svg class="curve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="กำไรสะสม ${money(last)}">
+  return `<svg class="curve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Cumulative P/L ${money(last)}">
     <line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="#c9cfdb" stroke-dasharray="4 4"/>
     <path d="${line}L${x(pts.length - 1)},${y(0)}L${x(0)},${y(0)}Z" fill="${col}" opacity=".12"/>
     <path d="${line}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
-    <div class="note">กำไร/ขาดทุนสะสมจากไม้ที่ปิด (ทุกบอท) ตอนนี้ <b class="${last >= 0 ? "up" : "down"}">${money(last)}</b></div>`;
+    <div class="note">Cumulative P/L from closed trades (all bots): <b class="${last >= 0 ? "up" : "down"}">${money(last)}</b></div>`;
 }
 function shadowHtml(sh) {
-  const sc = sh?.score || {}, who = { rules: "📏 กฎ", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", claude: "🤖 Claude", claude_smart: "🤖 Claude" };
+  const sc = sh?.score || {}, who = { rules: "📏 Rules", guard: "🛡 Guard", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", claude: "🤖 Claude Sonnet", claude_smart: "🤖 Claude Opus" };
   const rows = Object.entries(sc).map(([src, x]) => `<tr><td>${who[src] || esc(src)}</td><td class="r">${x.right}/${x.calls}
     <small class="k">(${Math.round(x.right / x.calls * 100)}%)</small></td><td class="r">${x.trades}</td>
-    <td class="r"><span class="cell ${x.missed <= 0 ? "pos" : "neg"}">${x.missed <= 0 ? "ประหยัด " + money(-x.missed).slice(1) : "พลาด " + money(x.missed).slice(1)}</span></td></tr>`).join("");
-  const rec = (sh?.recent || []).slice(-6).reverse().map(e => `<tr><td>${e.paper ? "📝" : "⏸"} ${esc(e.bot)}</td><td>${who[e.src] || esc(e.src)}</td><td class="r">${Math.round((e.end - e.start) / 60)} น.</td>
-    <td class="r">${e.trades}</td><td class="r ${e.missed <= 0 ? "up" : "down"}">${e.trades ? (e.missed < 0 ? "ถูก " : "ผิด ") + money(e.missed) : "ไม่มีไม้"}</td></tr>`).join("");
-  if (!rows && !rec) return '<div class="note">ยังไม่มีผล — ผู้จัดการทำนายว่าบอทไหนไม่ควรเข้าไม้ (บอทยังเทรดตามปกติ) แล้วระบบตรวจกับไม้จริงทุกชั่วโมง</div>';
-  return `<div class="grid"><div><table><tr><th>ผู้ทำนาย</th><th class="r">ถูก</th><th class="r">ไม้</th><th class="r">ถ้าเชื่อ</th></tr>${rows}</table>
-    <div class="note">ผู้จัดการทำนายว่า "บอทนี้ไม่ควรเข้าไม้ช่วงนี้" แต่ไม่ได้พักจริง → ตรวจกับไม้จริง: ไม้ขาดทุน = ทายถูก (ถ้าเชื่อจะประหยัด) · ไม้กำไร = ทายผิด</div></div>
-    <div><table><tr><th>ล่าสุด</th><th>ผู้สั่ง</th><th class="r">พัก</th><th class="r">ไม้</th><th class="r">ถ้าไม่พัก</th></tr>${rec}</table></div></div>`;
+    <td class="r"><span class="cell ${x.missed <= 0 ? "pos" : "neg"}">${x.missed <= 0 ? "saved " + money(-x.missed).slice(1) : "missed " + money(x.missed).slice(1)}</span></td></tr>`).join("");
+  const rec = (sh?.recent || []).slice(-6).reverse().map(e => `<tr><td>${e.paper ? "📝" : "⏸"} ${esc(e.bot)}</td><td>${who[e.src] || esc(e.src)}</td><td class="r">${Math.round((e.end - e.start) / 60)} min</td>
+    <td class="r">${e.trades}</td><td class="r ${e.missed <= 0 ? "up" : "down"}">${e.trades ? (e.missed < 0 ? "right " : "wrong ") + money(e.missed) : "no trades"}</td></tr>`).join("");
+  if (!rows && !rec) return '<div class="note">No results yet — the manager calls which bots should not enter (bots keep trading) and every call is checked against real trades hourly.</div>';
+  return `<div class="grid"><div><table><tr><th>Caller</th><th class="r">Right</th><th class="r">Trades</th><th class="r">If followed</th></tr>${rows}</table>
+    <div class="note">A call says "this bot should not enter now", but the bot keeps trading → checked against real trades: losing trades = right call (would have saved) · winning trades = wrong call</div></div>
+    <div><table><tr><th>Latest</th><th>By</th><th class="r">Window</th><th class="r">Trades</th><th class="r">Result</th></tr>${rec}</table></div></div>`;
 }
-const GT = { trend: "เทรนด์", range: "ออกข้าง", mixed: "ไม่ชัดทาง", asia: "เอเชีย", europe: "ยุโรป", us: "อเมริกา", with: "ตามเทรนด์", against: "สวนเทรนด์", flat: "ไม่มีเทรนด์" };
+const GT = { trend: "trend", range: "range", mixed: "mixed", asia: "Asia", europe: "Europe", us: "US", with: "with trend", against: "against trend", flat: "no trend" };
 function lessonsHtml(ls) {
   if (!ls || !ls.length) return "";
-  return `<div class="note" style="margin-top:10px"><b>จุดอ่อนที่เห็นจากไม้จริง</b> (งานวิจัยทุกคืนจะทดสอบตัวกรองจากจุดนี้):<br>` + ls.map(x => {
+  return `<div class="note" style="margin-top:10px"><b>Weak spots seen in real trades</b> (weekly research tests filters for these):<br>` + ls.map(x => {
     const [k, v] = x.when.split(":");
-    return `• ${esc((FAM[x.family] || [0, x.family])[1])} ตอน${esc(GT[v] || v)} — ${x.n} ไม้ เฉลี่ย <b class="down">${money(x.avg)}</b>`; }).join("<br>") + "</div>";
+    return `• ${esc((FAM[x.family] || [0, x.family])[1])} in ${esc(GT[v] || v)} — ${x.n} trades, avg <b class="down">${money(x.avg)}</b>`; }).join("<br>") + "</div>";
 }
 function gateText(p) {
   const skip = [...(p?.skip_regimes || []), ...(p?.skip_sessions || [])];
   if (!skip.length) return "";
-  return (p.gate_mode === "observe" ? "👀 สังเกต: " : "🚧 ใช้จริง: ") + "ไม่เข้าตอน" + skip.map(x => GT[x] || x).join("/");
+  return (p.gate_mode === "observe" ? "👀 Watching: " : "🚧 Active: ") + "skip " + skip.map(x => GT[x] || x).join("/");
 }
 function reportHtml(r) {
-  if (!r || !r.generated) return '<div class="note">รายงานแรกจะสร้างหลังเที่ยงคืนเวลาไทย (ต้องมีไม้ที่ปิดหลังเริ่มเก็บข้อมูล)</div>';
+  if (!r || !r.generated) return '<div class="note">The first report is generated after Bangkok midnight</div>';
   const o = r.overall || {};
-  return `<div class="j"><b>ไม้จริง ${r.trades} ไม้${o.n ? ` · ${money(o.avg)}/ไม้ (ช่วง 95% ${o.ci ? money(o.ci[0]) + " ถึง " + money(o.ci[1]) : "–"}) · ${esc(o.sig || "")}` : ""}</b>
-    ${(r.conclusions || []).map(c => "• " + esc(c)).join("<br>")}<br><a href="/report" target="_blank" rel="noopener">เปิดรายงานฉบับเต็ม →</a>
-    <span class="private"> · <a href="/api/dataset.csv" download="research_dataset.csv">ดาวน์โหลดข้อมูลดิบ (CSV)</a></span></div>`;
+  return `<div class="j"><b>${r.trades} live trades${o.n ? ` · ${money(o.avg)}/trade (95%: ${o.ci ? money(o.ci[0]) + " to " + money(o.ci[1]) : "–"})` : ""}</b>
+    <span lang="th">${(r.conclusions || []).map(c => "• " + esc(c)).join("<br>")}</span><br><a href="/report" target="_blank" rel="noopener">Open the full report →</a>
+    <span class="private"> · <a href="/api/dataset.csv" download="research_dataset.csv">Download raw data (CSV)</a></span></div>`;
 }
 function exploreHtml(e) {
-  if (!e || !e.finished) return '<div class="note">รอบแรก: วันอาทิตย์ 6 โมงเช้าเวลาไทย</div>';
+  if (!e || !e.finished) return '<div class="note">First run: Sunday 06:00 Bangkok time</div>';
   const found = e.found || [], top = e.top || [];
-  const row = z => `${esc(z.tf)} ${esc((FAM[z.family] || [0, z.family])[1])}: walk-forward <b class="${z.wf.usd_day >= 0 ? "up" : "down"}">${money(z.wf.usd_day)}/วัน</b> (${z.wf.n} ไม้) · 2 เดือนล่าสุด ${money(z.holdout.usd_day)}/วัน`;
-  return `<div class="j">${found.length ? "🎯 <b>เจอตัวที่ผ่านเกณฑ์</b> (ยังไม่ใส่ให้บอทเอง):<br>" + found.map(row).join("<br>")
-    : "ยังไม่พบตัวที่ผ่านเกณฑ์ (walk-forward บวก + 2 เดือนล่าสุดบวก + ชนะกลุ่มสุ่ม) · ใกล้สุด:<br>" + top.slice(0, 3).map(row).join("<br>")}</div>`;
+  const row = z => `${esc(z.tf)} ${esc((FAM[z.family] || [0, z.family])[1])}: walk-forward <b class="${z.wf.usd_day >= 0 ? "up" : "down"}">${money(z.wf.usd_day)}/day</b> (${z.wf.n} trades) · last 2 months ${money(z.holdout.usd_day)}/day`;
+  return `<div class="j">${found.length ? "🎯 <b>Candidates that pass</b> (not assigned automatically):<br>" + found.map(row).join("<br>")
+    : "Nothing passes yet (walk-forward > 0 + last 2 months > 0 + beats random) · closest:<br>" + top.slice(0, 3).map(row).join("<br>")}</div>`;
 }
 function renderPerf() {
   if (!$("perf").classList.contains("open")) return;
   const m = MGR.data || {}, pb = D?.per_bot || {}, res = D?.research || {};
   const rows = Object.entries(pb).sort((a, z) => (z[1].total || 0) - (a[1].total || 0));
   const sc = n => { const a = (m.alloc || {})[n]; return a && a.scale != null && a.scale !== 1 ? ` <span class="k" title="${esc(a.reason || "")}">×${a.scale}</span>` : ""; };
-  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b>${sc(n)}</td><td>${esc(n === "main" ? "ทอง M5" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
+  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b>${sc(n)}</td><td>${esc(n === "main" ? "Gold M5" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
     <td class="r ${(s.today || 0) + (s.floating || 0) >= 0 ? "up" : "down"}">${money((s.today || 0) + (s.floating || 0))}</td>
     <td class="r ${(s.total || 0) >= 0 ? "up" : "down"}">${money(s.total || 0)}</td><td class="r">${s.trades || 0}</td><td class="r">${s.win_rate == null ? "–" : s.win_rate + "%"}</td>
-    <td class="r">${MGR.pauses[n] ? "⏸ พัก" : esc(gateText(res[n]?.params))}</td></tr>`).join("");
+    <td class="r">${MGR.pauses[n] ? "⏸ Paused" : esc(gateText(res[n]?.params))}</td></tr>`).join("");
   const learned = m.learned || {}, fams = Object.keys(learned).sort();
-  const learn = fams.length ? `<table><tr><th>สาย</th>${Object.values(REG).map(r => `<th class="r">${r}</th>`).join("")}</tr>` + fams.map(f =>
+  const learn = fams.length ? `<table><tr><th>Strategy</th>${Object.values(REG).map(r => `<th class="r">${r}</th>`).join("")}</tr>` + fams.map(f =>
     `<tr><td>${esc((FAM[f] || [0, f])[1])} <span class="k">(${esc(f)})</span></td>` + Object.keys(REG).map(rg => { const c = learned[f][rg];
-      return `<td class="r">${c ? `<span class="cell ${c.avg >= 0 ? "pos" : "neg"}" title="ชนะ ${c.win_rate}%">${money(c.avg)} <small>(${c.n})</small></span>` : '<span class="cell na">–</span>'}</td>`; }).join("") + "</tr>").join("") + "</table>"
-    : '<div class="note">ยังไม่มีไม้ที่ปิดหลังเริ่มเก็บข้อมูล — ผู้จัดการจะเริ่มเห็นรูปแบบเมื่อสะสมไม้ได้</div>';
+      return `<td class="r">${c ? `<span class="cell ${c.avg >= 0 ? "pos" : "neg"}" title="${c.win_rate}% wins">${money(c.avg)} <small>(${c.n})</small></span>` : '<span class="cell na">–</span>'}</td>`; }).join("") + "</tr>").join("") + "</table>"
+    : '<div class="note">No closed trades yet — patterns appear as trades accumulate</div>';
   const jr = (m.journal || []).slice().reverse().map(j => `<div class="j"><b>📓 ${esc(j.day)} · <span class="${j.pnl >= 0 ? "up" : "down"}">${money(j.pnl)}</span></b>${esc(j.text)}${j.ai ? `<div class="ai">${j.src === "gemini" ? "✨" : "🤖"} ${esc(j.ai)}</div>` : ""}</div>`).join("")
-    || '<div class="note">บันทึกแรกจะขึ้นหลังเที่ยงคืนเวลาไทย</div>';
+    || '<div class="note">The first journal appears after Bangkok midnight</div>';
   const r = m.research || {};
-  const rs = r.running ? "🔬 กำลังวิจัยอยู่ตอนนี้…" : r.summary ? `${esc(r.summary)} <span class="k">(${hhmm(new Date(r.finished * 1000).toISOString())} น.)</span>` : r.error ? `ครั้งล่าสุดไม่สำเร็จ: ${esc(r.error)}` : "รอบถัดไป: ตี 4 เวลาไทย";
-  $("perfBody").innerHTML = `<div class="grid"><div><h3>กำไรสะสม</h3>${curveSvg(D?.pnl_curve)}</div>
-    <div><h3>ผู้จัดการเรียนรู้อะไรแล้ว</h3>${learn}${lessonsHtml(m.lessons)}<div class="note">$/ไม้เฉลี่ยของแต่ละสายในตลาดแต่ละแบบ (จำนวนไม้) · ครบ 8 ไม้ขึ้นไป ผู้จัดการใช้ตัดสินพัก/ให้กลับแทนสมมติฐาน</div></div></div>
-    <h3>คำทำนายของผู้จัดการถูกไหม (30 วัน)</h3>${shadowHtml(m.shadow)}
-    <h3>อันดับบอท</h3><table><tr><th>บอท</th><th>สาย</th><th class="r">วันนี้</th><th class="r">รวม</th><th class="r">ไม้</th><th class="r">ชนะ</th><th class="r">ตัวกรองที่เรียนรู้</th></tr>${board}</table>
-    <h3>รายงานวิจัยจากไม้จริง</h3>${reportHtml(m.report)}
-    <h3>ล่า edge ใหม่ (BTC M15/H1 · ทุกวันอาทิตย์)</h3>${exploreHtml(m.explore)}
-    <h3>งานวิจัยทุกคืน (ตี 4)</h3><div class="j">${rs}</div>
-    <h3>บันทึกท้ายวันของผู้จัดการ</h3>${jr}`;
+  const rs = r.running ? "🔬 Research is running now…" : r.summary ? `<span lang="th">${esc(r.summary)}</span> <span class="k">(${hhmm(new Date(r.finished * 1000).toISOString())})</span>` : r.error ? `Last run failed: ${esc(r.error)}` : "Next run: Sunday 04:00 Bangkok time";
+  $("perfBody").innerHTML = `<div class="grid"><div><h3>Cumulative P/L</h3>${curveSvg(D?.pnl_curve)}</div>
+    <div><h3>What the manager has learned</h3>${learn}${lessonsHtml(m.lessons)}<div class="note">Avg $/trade per strategy and market regime (trade count), at the standard lot</div></div></div>
+    <h3>Are the manager's calls right? (30 days)</h3>${shadowHtml(m.shadow)}
+    <h3>Bot ranking</h3><table><tr><th>Bot</th><th>Strategy</th><th class="r">Today</th><th class="r">Total</th><th class="r">Trades</th><th class="r">Wins</th><th class="r">Learned filter</th></tr>${board}</table>
+    <h3>Research from live trades</h3>${reportHtml(m.report)}
+    <h3>Edge hunt (M15/H1 · every Sunday)</h3>${exploreHtml(m.explore)}
+    <h3>Weekly research (Sunday 04:00)</h3><div class="j">${rs}</div>
+    <h3>Manager's daily journal</h3>${jr}`;
 }
 function setPerf(open) {
   $("perf").classList.toggle("open", open); $("perfBg").classList.toggle("open", open);
@@ -1145,17 +1147,17 @@ function showCard(name, cx, cy) {
   const r = robots.find(x => x.name === name); if (!r) return;
   const st = r.st || {}, pb = r.pb || {}, res = r.res, pos = r.pos || [], today = (pb.today || 0) + (pb.floating || 0);
   $("cardbody").innerHTML = `<h4>${name === "main" ? "★ main" : esc(name)} — ${esc((FAM[r.fam] || FAM.volx)[1])}</h4>
-    <div><span class="k">ตลาด</span> ${esc(st.symbol || "–")} · <span class="k">สถานะ</span> ${esc(st.state || "–")}</div>
-    <div><span class="k">กำลังดู</span> ${esc(st.detail || "–")}</div>
-    <div><span class="k">ความใกล้เข้าไม้</span> ${Math.round((st.proximity || 0) * 100)}% ${st.side ? "· ฝั่ง " + esc(st.side) : ""}</div>
-    ${pos.map(o => `<div><b>ถือ ${o.side}</b> ${o.volume} @ ${o.open_price.toLocaleString()} → ${o.price.toLocaleString()} · <b class="${o.profit >= 0 ? "up" : "down"}">${money(o.profit)}</b></div>`).join("")}
-    <div><span class="k">วันนี้</span> <b class="${today >= 0 ? "up" : "down"}">${money(today)}</b> · <span class="k">รวม</span> ${money(pb.total || 0)} · ${pb.trades || 0} ไม้ ${pb.win_rate == null ? "" : "· ชนะ " + pb.win_rate + "%"}</div>
-    ${res ? `<div><span class="k">งานวิจัยคาด</span> ${money(res.wf_usd_day)}/วัน · <span class="k">วิธีออก</span> ${esc(res.plan)}</div>
+    <div><span class="k">Market</span> ${esc(st.symbol || "–")} · <span class="k">Status</span> <span lang="th">${esc(st.state || "–")}</span></div>
+    <div><span class="k">Watching</span> <span lang="th">${esc(st.detail || "–")}</span></div>
+    <div><span class="k">Closeness to entry</span> ${Math.round((st.proximity || 0) * 100)}% ${st.side ? "· side " + esc(st.side) : ""}</div>
+    ${pos.map(o => `<div><b>Holding ${o.side}</b> ${o.volume} @ ${o.open_price.toLocaleString()} → ${o.price.toLocaleString()} · <b class="${o.profit >= 0 ? "up" : "down"}">${money(o.profit)}</b></div>`).join("")}
+    <div><span class="k">Today</span> <b class="${today >= 0 ? "up" : "down"}">${money(today)}</b> · <span class="k">Total</span> ${money(pb.total || 0)} · ${pb.trades || 0} trades ${pb.win_rate == null ? "" : "· " + pb.win_rate + "% wins"}</div>
+    ${res ? `<div><span class="k">Backtest</span> ${money(res.wf_usd_day)}/day · <span class="k">Exit</span> ${esc(res.plan)}${scaleOf(name) !== 1 ? ` · <span class="k">Lot</span> ×${scaleOf(name)}` : ""}</div>
     <div class="k" style="font-size:.85em">${esc(JSON.stringify(res.params))}</div>` : ""}
-    ${r.hb?.target_hit ? "<div>🎯 ถึงเป้า +$120 วันนี้แล้ว — พักถึงวันใหม่</div>" : ""}
-    ${D?.public ? "" : name === "main" ? '<div class="k" style="margin-top:.6em">main สั่งจากหน้านี้ไม่ได้ (ทดสอบไปข้างหน้า ไม่แตะ)</div>' : (D?.disabled || []).includes(name)
-      ? `<div class="ctl"><button data-act="enable">▶ เปิดบอท</button></div>`
-      : `<div class="ctl"><button data-act="disable">⏹ ปิดบอท</button><button data-act="close" ${pos.length ? "" : "disabled"}>✋ ปิดไม้ตอนนี้${pos.length ? " (" + pos.length + ")" : ""}</button></div>`}
+    ${r.hb?.target_hit ? "<div>🎯 Hit today's +$120 target — resting until tomorrow</div>" : ""}
+    ${D?.public ? "" : name === "main" ? '<div class="k" style="margin-top:.6em">main can\'t be controlled from this page</div>' : (D?.disabled || []).includes(name)
+      ? `<div class="ctl"><button data-act="enable">▶ Turn on</button></div>`
+      : `<div class="ctl"><button data-act="disable">⏹ Turn off</button><button data-act="close" ${pos.length ? "" : "disabled"}>✋ Close trades now${pos.length ? " (" + pos.length + ")" : ""}</button></div>`}
     <div id="ctlNote"></div>`;
   const c = $("card"); c.style.display = "block";
   if (cx != null) { c.style.left = Math.min(cx + 16, innerWidth - c.offsetWidth - 16) + "px"; c.style.top = Math.max(16, Math.min(cy - c.offsetHeight / 2, innerHeight - c.offsetHeight - 16)) + "px"; }
@@ -1253,7 +1255,7 @@ function frame(now = performance.now()) {
     g.userData.m.emissiveIntensity += ((near ? .9 : 0) - g.userData.m.emissiveIntensity) * .2; g.userData.t.element.classList.toggle("glow", near); });
   renderer.render(scene, camera); labels.render(scene, camera);
 }
-setInterval(() => { $("clock").textContent = new Intl.DateTimeFormat("th-TH", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date()) + " น."; }, 1000);
+setInterval(() => { $("clock").textContent = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date()); }, 1000);
 window.__village = { robots: () => robots, parcels, coins, makeParcel, makeCoin, toast, labelRobot, visitBot,
                      push: (p) => parcels.push(p), coin: (c) => coins.push(c) };   // ใช้ทดสอบแอนิเมชันจาก console
 $("loading").remove();
@@ -1268,7 +1270,7 @@ requestAnimationFrame(frame);
 </script>
 <script>
   // three.js โหลดไม่ได้ (ออฟไลน์) → บอกตรงๆ แทนจอว่าง
-  setTimeout(() => { const l = document.getElementById("loading"); if (l) l.textContent = "โหลดเครื่องยนต์ 3D ไม่ได้ — ต้องต่ออินเทอร์เน็ตครั้งแรก (ไฟล์จาก cdn.jsdelivr.net) แล้วกดรีเฟรช"; }, 12000);
+  setTimeout(() => { const l = document.getElementById("loading"); if (l) l.textContent = "Couldn't load the 3D engine — the first visit needs internet (cdn.jsdelivr.net). Please refresh."; }, 12000);
 </script>
 </body>
 </html>

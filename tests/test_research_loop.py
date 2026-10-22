@@ -124,7 +124,7 @@ def test_live_report_stats_and_conclusions(monkeypatch, tmp_path: Path) -> None:
     assert any("ต่างจากที่งานวิจัยคาด" in c for c in r["conclusions"])        # จริง ~-4 vs คาด +1
     assert r["gates"][0]["would_block"]["n"] == 20
     md = (tmp_path / "r.md").read_text(encoding="utf-8")
-    assert "## ข้อสรุป" in md and "เอเชีย" in md
+    assert "## Conclusions" in md and "Asia" in md
     assert LR.wilson(60, 100)[0] > 49 and LR.telegram_summary(r).startswith("📑")
 
 

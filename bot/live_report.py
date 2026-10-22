@@ -125,29 +125,44 @@ def _fmt(s: dict) -> str:
     return f"{s['n']} ไม้ · {s['avg']:+.2f}$/ไม้{ci} · ชนะ {s['win']}% · รวม {s['total']:+.2f}$"
 
 
+EN = {"trend": "Trend", "range": "Range", "mixed": "Mixed", "asia": "Asia", "europe": "Europe", "us": "US",
+      "with": "With trend", "against": "Against trend", "flat": "No trend"}
+WHO_EN = {"rules": "Rules", "guard": "Guard", "gemini": "Gemini Lite", "gemini_smart": "Gemini 3.8", "claude": "Claude Sonnet",
+          "claude_smart": "Claude Opus"}
+
+
+def _fmt_en(s: dict) -> str:
+    if not s.get("n"):
+        return "–"
+    ci = f" [{s['ci'][0]:+.2f}, {s['ci'][1]:+.2f}]" if s.get("ci") else ""
+    return f"{s['n']} trades · {s['avg']:+.2f}$/trade{ci} · {s['win']}% wins · total {s['total']:+.2f}$"
+
+
 def markdown(r: dict) -> str:
-    L = [f"# รายงานวิจัยจากไม้จริง (บัญชี DEMO)", "",
-         f"สร้างเมื่อ {r['generated']} UTC · ไม้ทั้งหมด {r['trades']}" + (f" · ช่วง {r['period'][0]} ถึง {r['period'][1]}" if r.get("period") else ""),
-         "", f"_ตัวเลข $/ไม้ ทุกส่วนคิดเป็น {r.get('unit', 'lot มาตรฐาน')} · เงินจริงรวม {r.get('real_usd_total', 0):+.2f}$_",
-         "", "## ข้อสรุป", *[f"- {x}" for x in r["conclusions"]], "", "## ภาพรวม", f"- {_fmt(r['overall'])}", "",
-         "## แยกตามสายกลยุทธ์ (ผลจริง vs งานวิจัยคาด)"]
+    """หน้า /report (ภาษาอังกฤษ) · ข้อสรุปยังเป็นภาษาไทย เพราะใช้ร่วมกับ Telegram"""
+    L = ["# Research report from live trades (DEMO account)", "",
+         f"Generated {r['generated']} UTC · {r['trades']} trades" + (f" · {r['period'][0]} to {r['period'][1]}" if r.get("period") else ""),
+         "", "_Every $/trade figure is at the standard research lot (gold 0.04 · NAS100 0.73 · BTC 0.17) · "
+         f"real money total {r.get('real_usd_total', 0):+.2f}$_",
+         "", "## Conclusions (written in Thai)", *[f"- {x}" for x in r["conclusions"]], "", "## Overall", f"- {_fmt_en(r['overall'])}", "",
+         "## By strategy (live vs. backtest expectation)"]
     for f, s in r["by_family"].items():
         e = s.get("research_usd_trade")
-        L.append(f"- **{f}**: {_fmt(s)}" + (f" · งานวิจัยคาด {e:+.2f}$/ไม้" if e is not None else ""))
-    for dim, title in (("regime", "สภาพตลาดตอนเปิดไม้"), ("session", "ช่วงเวลา (UTC)"), ("trend", "ทิศเทียบเทรนด์ 2 ชม.")):
-        L += ["", f"## แยกตาม{title}", *[f"- {TH.get(k, k)}: {_fmt(s)}" for k, s in r[f"by_{dim}"].items()]]
-    L += ["", "## ตัวกรองโหมดสังเกต (A/B บนไม้จริง)"]
-    L += [f"- {g['bot']} `{g['gate']}`: ไม้ที่จะบล็อก {_fmt(g['would_block'])} · ไม้อื่น {_fmt(g['kept'])}" for g in r["gates"]] or ["- ยังไม่มี"]
-    L += ["", "## การสั่งปิดไม้ของผู้จัดการ (เทียบกับปล่อยจนชน SL/TP หรือครบ 24 ชม.)"]
-    L += [f"- {close_score.WHO.get(src, src)}: {x['n']} ครั้ง · ดีกว่าปล่อย {x['helped']} · แย่กว่า {x['hurt']} · รวม {x['saved']:+.2f}$"
-          for src, x in r.get("closes", {}).items()] or ["- ยังไม่มี"]
-    L += ["", "## ขนาดไม้ที่ผู้จัดการตั้ง"]
-    L += [f"- {b}: ×{a['scale']:g} ({a.get('by')}) — {a.get('reason')}" for b, a in sorted(r.get("alloc", {}).items())
-          if a.get("scale") not in (None, 1.0)] or ["- ทุกตัวขนาดมาตรฐาน"]
-    L += ["", "## คำทำนายของผู้จัดการ"]
-    L += [f"- {src}: ถูก {p['right']}/{p['calls']}" + (f" ({p['accuracy']}%, 95% {p['ci'][0]}–{p['ci'][1]}%)" if p["ci"] else "")
-          + f" · ถ้าเชื่อทั้งหมด {-p['missed']:+.2f}$" for src, p in r["predictions"].items()] or ["- ยังไม่มี"]
-    L += ["", "_ช่วง [ล่าง, บน] = ช่วงความเชื่อมั่น 95% ของ $/ไม้ — ถ้าคร่อม 0 แปลว่ายังสรุปไม่ได้ว่าได้หรือเสียจริง_"]
+        L.append(f"- **{f}**: {_fmt_en(s)}" + (f" · backtest expected {e:+.2f}$/trade" if e is not None else ""))
+    for dim, title in (("regime", "market regime at entry"), ("session", "session (UTC)"), ("trend", "direction vs. 2-hour trend")):
+        L += ["", f"## By {title}", *[f"- {EN.get(k, k)}: {_fmt_en(s)}" for k, s in r[f"by_{dim}"].items()]]
+    L += ["", "## Observe-mode filters (A/B on live trades)"]
+    L += [f"- {g['bot']} `{g['gate']}`: would block {_fmt_en(g['would_block'])} · kept {_fmt_en(g['kept'])}" for g in r["gates"]] or ["- None yet"]
+    L += ["", "## Manager closes (vs. holding to SL/TP or 24 h)"]
+    L += [f"- {WHO_EN.get(src, src)}: {x['n']} closes · {x['helped']} better · {x['hurt']} worse · total {x['saved']:+.2f}$"
+          for src, x in r.get("closes", {}).items()] or ["- None yet"]
+    L += ["", "## Lot sizes set by the manager"]
+    L += [f"- {b}: ×{a['scale']:g} ({WHO_EN.get(a.get('by'), a.get('by'))})" for b, a in sorted(r.get("alloc", {}).items())
+          if a.get("scale") not in (None, 1.0)] or ["- All bots at the standard lot"]
+    L += ["", "## Manager calls: this bot should not enter now"]
+    L += [f"- {WHO_EN.get(src, src)}: {p['right']}/{p['calls']} right" + (f" ({p['accuracy']}%, 95% {p['ci'][0]}–{p['ci'][1]}%)" if p["ci"] else "")
+          + f" · if all followed {-p['missed']:+.2f}$" for src, p in r["predictions"].items()] or ["- None yet"]
+    L += ["", "_[low, high] = 95% confidence interval of $/trade — if it crosses 0 we can't yet tell whether it wins or loses_"]
     return "\n".join(L) + "\n"
 
 
