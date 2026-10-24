@@ -871,3 +871,23 @@ def test_guard_trails_5_dollars_once_profit_reached_30() -> None:
     col.positions = [P(1, 30, 26.9)]                                       # หดเกิน $5 จากจุดสูงสุด → ปิด
     m.guard()
     assert col.closed == ["m5_10"]
+
+
+def test_watchdog_ignores_one_off_connection_blips(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("watchdog3", Path(__file__).resolve().parent.parent / "deploy" / "watchdog.py")
+    W = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(W)
+    monkeypatch.setattr(W, "MEMO", tmp_path / "memo.json")
+    sent = []
+    monkeypatch.setattr(W, "tg", lambda method, fields, file=None: sent.append(fields["text"]))
+    monkeypatch.setattr(W, "sh", lambda *c, timeout=0: "")
+    probs = {"mt5": "MT5 ไม่ได้ต่อกับโบรก"}
+    monkeypatch.setattr(W, "check", lambda: dict(probs))
+    W.run_check()                                                     # หลุดรอบเดียว → เงียบ
+    probs.clear(); W.run_check()                                      # กลับมาเอง → ไม่ต้องบอกว่ากลับมาปกติ
+    assert sent == []
+    probs["mt5"] = "MT5 ไม่ได้ต่อกับโบรก"
+    W.run_check(); W.run_check()                                      # หลุดต่อเนื่อง 2 รอบ → แจ้ง
+    probs.clear(); W.run_check()
+    assert len(sent) == 2 and "MT5" in sent[0] and "กลับมาปกติ" in sent[1]

@@ -36,6 +36,8 @@ API = "http://127.0.0.1:8765/api"
 QUIET_MIN = 15            # ผู้จัดการ/บอทเงียบกี่นาทีถึงซ่อม
 MT5_DOWN_MIN = 20
 COOLDOWN_MIN = 60         # ซ่อมสิ่งเดิมซ้ำได้ไม่ถี่กว่านี้
+# ปัญหาการเชื่อมต่อที่หายเองได้ในไม่กี่วินาที (โบรกตัดสั้นๆ ช่วงปิดปรับปรุงวันเสาร์ ฯลฯ) → แจ้งเมื่อยังเจอซ้ำในรอบถัดไป (≈ 5 นาที)
+CONFIRM_TWICE = {"mt5", "api", "algo", "bots", "manager"}
 
 
 def env() -> dict[str, str]:
@@ -211,14 +213,16 @@ def run_check() -> None:
     probs = check()
     did = heal(probs, memo)
     known = set(memo.get("active", {}))
-    new = {k: v for k, v in probs.items() if k not in known}
+    seen_before = set(memo.get("seen", []))
+    new = {k: v for k, v in probs.items() if k not in known and (k not in CONFIRM_TWICE or k in seen_before)}
     gone = {k: v for k, v in memo.get("active", {}).items() if k not in probs}
     if new or did:
         lines = [f"• {v}" for v in new.values()] + [f"🔧 {x}" for x in did]
         tg("sendMessage", {"text": "🚨 ระบบเทรดมีปัญหา\n" + "\n".join(lines)})
     if gone:
         tg("sendMessage", {"text": "✅ กลับมาปกติ: " + " · ".join(gone.values())})
-    memo["active"] = probs
+    memo["active"] = {k: v for k, v in probs.items() if k in known or k in new}   # เฉพาะที่แจ้งไปแล้ว → "กลับมาปกติ" ตรงกับที่แจ้ง
+    memo["seen"] = sorted(probs)
     memo["checked"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     MEMO.parent.mkdir(parents=True, exist_ok=True)
     MEMO.write_text(json.dumps(memo, ensure_ascii=False, indent=1), encoding="utf-8")
