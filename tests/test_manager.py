@@ -891,3 +891,21 @@ def test_watchdog_ignores_one_off_connection_blips(monkeypatch, tmp_path: Path) 
     W.run_check(); W.run_check()                                      # หลุดต่อเนื่อง 2 รอบ → แจ้ง
     probs.clear(); W.run_check()
     assert len(sent) == 2 and "MT5" in sent[0] and "กลับมาปกติ" in sent[1]
+
+
+def test_weekly_research_runs_on_sunday_even_after_a_recent_nightly_run(monkeypatch) -> None:  # noqa: ANN001
+    from datetime import datetime, timezone
+    from bot import research_weekly as RW
+    sun_4am_bkk = datetime(2026, 10, 31, 21, 10, tzinfo=timezone.utc).timestamp()     # อาทิตย์ 1 พ.ย. 04:10 เวลาไทย
+    monkeypatch.setattr(M, "RESEARCH_EVERY_DAYS", 7.0)
+    monkeypatch.setattr(RW, "load_status", lambda: {"finished": sun_4am_bkk - 3 * 86400, "running": False})
+    m = M.Manager.__new__(M.Manager)
+    m.research_proc, spawned = None, []
+    monkeypatch.setattr(m, "_spawn", lambda args, name: spawned.append(args))
+    m.maybe_research(NS(t=sun_4am_bkk))
+    assert spawned == [["research"]]
+    spawned.clear()
+    monkeypatch.setattr(RW, "load_status", lambda: {"finished": sun_4am_bkk - 600, "running": False})
+    m.maybe_research(NS(t=sun_4am_bkk + 900))                                        # รันไปแล้ววันนี้ → ไม่ซ้ำ
+    m.maybe_research(NS(t=sun_4am_bkk - 86400))                                       # เสาร์ → ไม่รัน
+    assert spawned == []

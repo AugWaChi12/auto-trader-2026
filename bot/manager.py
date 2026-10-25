@@ -792,13 +792,14 @@ class Manager:
         lessons = self.learner.lessons(limit=3)
         if lessons:
             text += " · จุดอ่อนที่เห็น: " + "; ".join(f"{x['family']} ตอน {x['when']} ({x['n']} ไม้ เฉลี่ย {x['avg']:+.2f}$)" for x in lessons)
-        ai = ""
+        ai, jsrc = "", "rules"
         from .manager_ai import count_call, quota_left
         smart = quota_left(key="smart") > 0                      # บันทึกท้ายวันใช้รุ่นฉลาดถ้ายังมีโควตา
         claude = getattr(self.llm, "claude", None) if quota_left(key="claude") > 0 else None
         if self.llm is not None and (claude or smart or quota_left() > 0):
             count_call("claude" if claude else "smart" if smart else "main")
             writer = (lambda prompt, smart=False: claude.write(prompt)) if claude else self.llm.write
+            jsrc = "claude_smart" if claude else f"{self.llm.src}_smart" if smart else self.llm.src   # ใครเขียนจริง
             try:
                 ai = writer(smart=smart, prompt=
                     "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2–4 ประโยค ภาษาไทย: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
@@ -810,9 +811,9 @@ class Manager:
                 log.warning("journal ai: %s", e)
         JOURNAL_PATH.parent.mkdir(parents=True, exist_ok=True)
         with JOURNAL_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({"day": day, "pnl": pnl, "text": text, "ai": ai, "src": self.llm.src if (ai and self.llm) else "rules",
+            f.write(json.dumps({"day": day, "pnl": pnl, "text": text, "ai": ai, "src": jsrc if ai else "rules",
                                 "bots": {n: b["today"] for n, b in tests.items()}, "equity": s.equity}, ensure_ascii=False) + "\n")
-        say("journal", f"📓 {text}" + (f"\n{ai}" if ai else ""), src=self.llm.src if (ai and self.llm) else "rules")
+        say("journal", f"📓 {text}" + (f"\n{ai}" if ai else ""), src=jsrc if ai else "rules")
 
     def allocate(self) -> None:
         """รอบบริหารรายวัน: สลับสายที่พิสูจน์แล้วว่าเสีย (≤ 1 ตัว/วัน) → ตั้งขนาดไม้ทุกบอทจากหลักฐานไม้จริง"""
@@ -862,7 +863,9 @@ class Manager:
                 self._spawn(["research", "--explore"], f"explore_{n:%Y%m%d}")
                 return
         weekly_only = RESEARCH_EVERY_DAYS >= 7 and n.weekday() != 6
-        if (st.get("running") or s.t - last < RESEARCH_EVERY_DAYS * 86400 - 3 * 3600) or weekly_only or n.hour != RESEARCH_HOUR_BKK:
+        # รายสัปดาห์: วันอาทิตย์เป็นตัวกำหนดความถี่อยู่แล้ว → แค่กันรันซ้ำวันเดียวกัน (เดิมนับ 7 วันจากรอบก่อน → อาทิตย์แรกถูกข้าม)
+        gap_days = 1 if RESEARCH_EVERY_DAYS >= 7 else RESEARCH_EVERY_DAYS
+        if (st.get("running") or s.t - last < gap_days * 86400 - 3 * 3600) or weekly_only or n.hour != RESEARCH_HOUR_BKK:
             return
         self._spawn(["research"], f"research_{n:%Y%m%d}")
 
