@@ -33,7 +33,7 @@ TIMEFRAME = "M15"
 INITIAL_BALANCE = 1_000.0   # เท่ากับบัญชี demo FxPro
 
 # โบรก XAUUSD ส่วนใหญ่ใช้ GMT+2/+3 ตาม DST อเมริกา — คำสั่ง download จะตรวจให้ว่าตรงไหม
-SERVER_TIME_MODE = "ny_close"
+SERVER_TIME_MODE = "eet"          # FxPro: GMT+2/+3 ตาม DST ยุโรป (วัดจาก tick จริง 2026-10-27 — ny_close ผิด 1 ชม. ช่วงปลาย ต.ค./มี.ค.)
 
 # ---------------------------------------------------------------------------- สเปคสัญญา
 # point / contract_size / volume_* จะถูกทับด้วยค่าจริงจาก MT5 ตอน download

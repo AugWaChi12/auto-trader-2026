@@ -909,3 +909,19 @@ def test_weekly_research_runs_on_sunday_even_after_a_recent_nightly_run(monkeypa
     m.maybe_research(NS(t=sun_4am_bkk + 900))                                        # รันไปแล้ววันนี้ → ไม่ซ้ำ
     m.maybe_research(NS(t=sun_4am_bkk - 86400))                                       # เสาร์ → ไม่รัน
     assert spawned == []
+
+
+def test_watchdog_flags_clock_skew_and_reads_old_named_logs(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    import importlib.util
+    from datetime import datetime, timedelta, timezone
+    spec = importlib.util.spec_from_file_location("watchdog4", Path(__file__).resolve().parent.parent / "deploy" / "watchdog.py")
+    W = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(W)
+    monkeypatch.setattr(W, "ROOT", tmp_path)
+    (tmp_path / "logs").mkdir()
+    now = datetime.now(timezone.utc)
+    # ไฟล์ชื่อวันที่เปิด (3 วันก่อน) แต่ยังเขียนอยู่วันนี้ → ต้องนับ
+    (tmp_path / "logs" / f"m5_11_{now - timedelta(days=3):%Y%m%d}.log").write_text("\n".join(
+        f"{now - timedelta(minutes=m):%Y-%m-%d %H:%M:%S},000 INFO    live: signal m5_11:x not sent: stale_data " for m in (1, 6, 11)), encoding="utf-8")
+    bad = W.failed_orders(30)
+    assert len(bad) == 3 and bad[0][0] == "m5_11"

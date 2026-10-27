@@ -98,15 +98,16 @@ def age_min(p: Path) -> float | None:
         return None
 
 
-FAIL_MARK = "not sent: rejected:"
-FAIL_REASONS = ("connection", "unknown")   # ความผิดปกติของระบบ — ไม่นับ invalid_stops / market_closed ฯลฯ ที่เป็นเรื่องปกติของตลาด
+FAIL_MARK = "not sent: "
+FAIL_REASONS = ("rejected:connection", "rejected:unknown", "stale_data")   # stale_data ทั้งระบบ = นาฬิกาโบรกเพี้ยน (บทเรียน 27 ต.ค. 2026)   # ความผิดปกติของระบบ — ไม่นับ invalid_stops / market_closed ฯลฯ ที่เป็นเรื่องปกติของตลาด
 
 
 def failed_orders(minutes: int) -> list[tuple[str, str]]:
     """ออเดอร์ที่บอทส่งแล้วระบบล้มเหลว (ไม่ใช่ถูกตลาดปฏิเสธตามปกติ) ใน N นาทีล่าสุด — บทเรียน 18 ต.ค. 2026: ล้ม 53 ครั้งเงียบๆ ทั้งวัน"""
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
     out = []
-    for f in (ROOT / "logs").glob(f"*_{cutoff:%Y%m%d}.log"):
+    # ไฟล์ log ของบอทชื่อตามวันที่เปิด แล้วเขียนต่อข้ามวัน → ดูทุกไฟล์ที่แก้ล่าสุด (เดิมดูแค่ชื่อวันนี้ → ตาบอดหลังบอทรีสตาร์ท)
+    for f in [p for p in (ROOT / "logs").glob("*.log") if p.stat().st_mtime >= cutoff.timestamp()]:
         try:
             for ln in f.read_text(encoding="utf-8", errors="replace").splitlines()[-3000:]:
                 i = ln.find(FAIL_MARK)
@@ -142,6 +143,10 @@ def check() -> dict[str, str]:
             term = d.get("terminal") or {}
             if not term.get("connected"):
                 probs["mt5"] = "MT5 ไม่ได้ต่อกับโบรก"
+            sk = term.get("clock_skew_min")
+            if sk is not None and abs(sk) >= 30:
+                probs["clock"] = (f"เวลาโบรกต่างจากที่บอทคำนวณ {sk:+d} นาที — แท่งราคาจะดูเก่าและสัญญาณถูกทิ้ง (stale_data) "
+                                  "ตรวจ SERVER_TIME_MODE ใน bot/config.py")
             elif not term.get("algo"):
                 probs["algo"] = "ปุ่ม Algo Trading ใน MT5 ปิดอยู่ — บอทส่งออเดอร์ไม่ได้"
             disabled = set(d.get("disabled") or [])

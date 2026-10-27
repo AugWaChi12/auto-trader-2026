@@ -9,8 +9,12 @@ timeutil.py — แปลงเวลา server ของโบรก ↔ UTC �
 สังเกต: เปลี่ยน offset ตามวัน DST ของ "อเมริกา" ไม่ใช่ยุโรป
 ถ้าใช้ offset คงที่ จะมี 2–3 สัปดาห์ต่อปีที่กรอบเวลาเลื่อนไป 1 ชั่วโมง
 
+2026-10-27: วัดจาก tick จริงของ FxPro → เปลี่ยน DST ตาม "ยุโรป" (25 ต.ค.) ไม่ใช่อเมริกา (1 พ.ย.)
+    โหมด ny_close ทำให้ทุกแท่งดูเก่าไป 1 ชม. ช่วงระหว่างสองวันนั้น → ทุกสัญญาณถูกทิ้งเป็น stale_data (บอทไม่เทรด 2 วัน)
+
 โหมดที่รองรับ:
-    "ny_close"  — server = America/New_York + 7h  (ค่าเริ่มต้น)
+    "eet"       — server = Europe/Athens (GMT+2 หน้าหนาว / GMT+3 ตาม DST ยุโรป) ← FxPro
+    "ny_close"  — server = America/New_York + 7h
     "fixed:+3"  — offset คงที่ (ชั่วโมง)
 ตัวดาวน์โหลดจะตรวจ offset จริงของโบรกตอนนี้แล้วเตือนถ้าไม่ตรงกับโหมดที่เลือก
 """
@@ -21,10 +25,16 @@ from zoneinfo import ZoneInfo
 
 UTC = timezone.utc
 NEW_YORK = ZoneInfo("America/New_York")
+EET = ZoneInfo("Europe/Athens")
 
 
 def server_offset(server_naive: datetime, mode: str) -> timedelta:
     """offset ของเวลา server เทียบกับ UTC ณ เวลานั้น (server - UTC)"""
+    if mode == "eet":
+        # เวลา server คือเวลา Athens → หา offset ของเวลานั้น (ช่วงหมุนนาฬิกา ±1 ชม. ใช้ fold ปกติของ zoneinfo)
+        off = server_naive.replace(tzinfo=EET).utcoffset()
+        assert off is not None
+        return off
     if mode == "ny_close":
         ny_naive = server_naive - timedelta(hours=7)
         ny_offset = ny_naive.replace(tzinfo=NEW_YORK).utcoffset()

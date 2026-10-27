@@ -254,3 +254,14 @@ def test_settings_validate_rejects_bad_values_and_fills_defaults() -> None:
     for bad in ({"tf": "H4"}, {"btc_lot": 5}, {"daily_target": -1}, {"hack": 1}, ["tf"]):
         with pytest.raises(ValueError):
             settings.validate(bad)
+
+
+def test_server_time_eet_follows_european_dst() -> None:
+    from datetime import timedelta as TD
+    from bot.core.timeutil import server_offset
+    # FxPro (วัดจาก tick จริง 2026-10-27): GMT+3 ถึง 25 ต.ค. → GMT+2 ตั้งแต่ DST ยุโรปจบ (อเมริกาเปลี่ยน 1 พ.ย.)
+    assert server_offset(datetime(2026, 10, 20, 12, 0), "eet") == TD(hours=3)
+    assert server_offset(datetime(2026, 10, 27, 19, 9), "eet") == TD(hours=2)     # ny_close จะได้ 3 → ผิด 1 ชม.
+    assert server_offset(datetime(2026, 10, 27, 19, 9), "ny_close") == TD(hours=3)
+    assert server_offset(datetime(2026, 1, 15, 12, 0), "eet") == TD(hours=2)
+    assert server_to_utc(datetime(2026, 10, 27, 19, 9), "eet") == datetime(2026, 10, 27, 17, 9, tzinfo=UTC)

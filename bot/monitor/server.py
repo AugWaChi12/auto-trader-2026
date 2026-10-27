@@ -270,6 +270,22 @@ class Collector:
                 "today_trades": len(today), "today_wins": sum(1 for t in today if t["profit"] > 0), "best": max((t["profit"] for t in real), default=None),
                 "worst": min((t["profit"] for t in real), default=None)}
 
+    def _clock_skew_min(self) -> int | None:
+        """เวลาโบรกที่บอทคำนวณ (SERVER_TIME_MODE) ต่างจากจริงกี่นาที — วัดจาก tick BTC (เทรด 24/7)
+        ต่างเกิน ~30 นาที = แท่งจะดูเก่า/ใหม่ผิด → สัญญาณถูกทิ้งเป็น stale_data ทั้งระบบ · tick เก่าเกิน 10 นาที = วัดไม่ได้ (None)"""
+        from ..core.timeutil import server_offset
+        try:
+            tick = self.mt5.symbol_info_tick(self._name("BTCUSD"))
+            srv = datetime.fromtimestamp(int(tick.time), UTC).replace(tzinfo=None)
+        except Exception:  # noqa: BLE001
+            return None
+        actual = srv - datetime.now(UTC).replace(tzinfo=None)               # offset จริง (+ อายุ tick)
+        diff = (actual - server_offset(srv, C.SERVER_TIME_MODE)).total_seconds() / 60
+        hours = round(diff / 60)
+        if abs(diff - hours * 60) > 10:                                     # tick เก่า → วัดไม่ได้แม่น
+            return None
+        return hours * 60
+
     def _collect(self) -> dict:
         mt5 = self.mt5
         acc, term = mt5.account_info(), mt5.terminal_info()
@@ -284,6 +300,7 @@ class Collector:
             bal += d.profit + d.commission + d.swap + d.fee
             curve.append([_utc(d.time), round(bal, 2)])
         quotes = {}
+        skew = self._clock_skew_min()
         for sym in {s.get("symbol") for hb in hbs.values() for s in (hb.get("strategies") or {}).values()} - {None}:
             tick = mt5.symbol_info_tick(self._name(sym))
             if tick:
@@ -312,7 +329,7 @@ class Collector:
                         "margin": acc.margin, "free_margin": acc.margin_free, "currency": acc.currency,
                         "demo": acc.trade_mode == mt5.ACCOUNT_TRADE_MODE_DEMO,
                         "floating": round(acc.equity - acc.balance, 2)},
-            "terminal": {"connected": bool(term and term.connected), "algo": bool(term and term.trade_allowed)},
+            "terminal": {"connected": bool(term and term.connected), "algo": bool(term and term.trade_allowed), "clock_skew_min": skew},
             "open": open_pos, "trades": trades[:50], "stats": self._stats(trades), "quotes": quotes,
             "equity_curve": curve[-500:], "pnl_curve": self._pnl_curve(trades), "log": self._log_tail(),
         }
