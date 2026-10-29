@@ -68,6 +68,9 @@ LOCK_KEEP = 0.5
 #   (30 → ปิดที่ 25 · 40 → ปิดที่ 35) · ต่ำกว่า TRAIL_START ใช้กฎหดเหลือครึ่งเหมือนเดิม
 TRAIL_START = float(os.environ.get("MANAGER_TRAIL_START") or 30)
 TRAIL_GAP = float(os.environ.get("MANAGER_TRAIL_GAP") or 5)
+# ผู้ใช้สั่ง 2026-10-29: เพดานขาดทุนต่อไม้ $40 (ทดสอบกับไม้จริง 176 ไม้: −$15 แย่ลง · −$40 ดีขึ้นเล็กน้อย ตัดไม้ที่จะพลิกกำไรแค่ 3 ไม้)
+#   ① เลื่อน SL ที่โบรกให้เสียไม่เกินนี้ (ทำงานแม้ผู้จัดการล่ม) ② ตัวเฝ้าไม้ปิดเองถ้าราคาข้ามไปแล้ว · 0 = ปิดกฎนี้
+MAX_LOSS_USD = float(os.environ.get("MANAGER_MAX_LOSS_USD") or 40)
 
 
 def profit_floor(peak: float) -> float | None:
@@ -631,8 +634,11 @@ class Manager:
                 peaks[t] = max(peaks.get(t, v), v)
             floating = round(sum(pnl.values()), 2)
             why = None
+            worst = min(pnl.values())
             if TAKE_PROFIT_USD > 0 and floating >= TAKE_PROFIT_USD:
                 why = f"{bot} กำไรลอย {floating:+.2f}$ ถึงเป้า +{TAKE_PROFIT_USD:.0f}$ — ปิดเก็บกำไร"
+            elif MAX_LOSS_USD > 0 and worst <= -MAX_LOSS_USD:
+                why = f"{bot} ขาดทุนลอย {worst:+.2f}$ ถึงเพดาน −{MAX_LOSS_USD:.0f}$ ต่อไม้ — ตัดขาดทุน"
             else:
                 for p in ps:
                     pk = peaks[p.ticket]
@@ -649,6 +655,7 @@ class Manager:
                     bot=bot, act="close", src="rules", notify=False)
                 continue
             for p in ps:
+                self._cap_loss(bot, p)
                 self._lock_profit(bot, p, peaks[p.ticket])
 
     def report_closed(self, raw: list) -> None:
@@ -708,6 +715,26 @@ class Manager:
         return {"pnl": round(sum((s.get("today") or 0) for s in pb.values()), 2),
                 "wins": sum(s.get("today_wins") or 0 for s in pb.values()),
                 "losses": sum((s.get("today_trades") or 0) - (s.get("today_wins") or 0) for s in pb.values())}
+
+    def _cap_loss(self, bot: str, p: Any) -> None:
+        """SL ที่โบรกห่างเกินเพดานขาดทุน (เสียได้มากกว่า MAX_LOSS_USD) → เลื่อนเข้ามาให้เสียไม่เกินเพดาน
+        ระยะขั้นต่ำของโบรกไม่ยอม (ราคาเข้าใกล้เพดานแล้ว) → ไม่แตะ ให้ตัวเฝ้าไม้ปิดเองเมื่อถึงเพดาน"""
+        if MAX_LOSS_USD <= 0:
+            return
+        contract, min_dist, digits = self.col.symbol_meta(p.symbol)
+        per_price = p.volume * contract
+        if per_price <= 0:
+            return
+        buy = p.type == 0
+        cap = p.price_open - MAX_LOSS_USD / per_price if buy else p.price_open + MAX_LOSS_USD / per_price
+        if p.sl and ((buy and p.sl >= cap) or (not buy and p.sl <= cap)):
+            return                                                         # SL เดิมเสียไม่เกินเพดานอยู่แล้ว
+        now = p.price_current
+        if (buy and cap > now - min_dist * 1.1) or (not buy and cap < now + min_dist * 1.1):
+            return                                                         # ใกล้ราคาเกินที่โบรกยอม
+        sl = round(cap, digits)
+        if self.col.modify_sl(p.ticket, sl):
+            say("info", f"🛑 จำกัดขาดทุน {bot} #{p.ticket}: SL → {sl} (เสียไม่เกิน −{MAX_LOSS_USD:.0f}$)", bot=bot, act="cap", src="rules")
 
     def _lock_profit(self, bot: str, p: Any, peak: float) -> None:
         if peak < LOCK_START:

@@ -925,3 +925,14 @@ def test_watchdog_flags_clock_skew_and_reads_old_named_logs(monkeypatch, tmp_pat
         f"{now - timedelta(minutes=m):%Y-%m-%d %H:%M:%S},000 INFO    live: signal m5_11:x not sent: stale_data " for m in (1, 6, 11)), encoding="utf-8")
     bad = W.failed_orders(30)
     assert len(bad) == 3 and bad[0][0] == "m5_11"
+
+
+def test_guard_caps_loss_at_40_per_trade() -> None:
+    # SL ที่โบรกเสียได้ $60 (4100→4085 × 0.04 lot) → เลื่อนเข้ามาเสียไม่เกิน $40 (4090)
+    col = GuardCol([P(1, 30, -5.0, open_=4100.0, cur=4098.0, sl=4085.0)])
+    m = M.Manager(col)
+    m.guard()
+    assert col.modified == [(1, 4090.0)] and col.closed == []
+    col.positions = [P(1, 30, -41.0, open_=4100.0, cur=4089.7, sl=0.0)]    # ราคาข้ามเพดานไปแล้ว → ปิดเลย
+    m.guard()
+    assert col.closed == ["m5_10"]
