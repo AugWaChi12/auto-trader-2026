@@ -927,8 +927,8 @@ def test_watchdog_flags_clock_skew_and_reads_old_named_logs(monkeypatch, tmp_pat
     assert len(bad) == 3 and bad[0][0] == "m5_11"
 
 
-def test_guard_caps_loss_at_40_per_trade() -> None:
-    # SL ที่โบรกเสียได้ $60 (4100→4085 × 0.04 lot) → เลื่อนเข้ามาเสียไม่เกิน $40 (4090)
+def test_guard_caps_loss_per_trade(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr(M, "MAX_LOSS_USD", 40.0)
     col = GuardCol([P(1, 30, -5.0, open_=4100.0, cur=4098.0, sl=4085.0)])
     m = M.Manager(col)
     m.guard()

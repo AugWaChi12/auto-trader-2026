@@ -70,7 +70,7 @@ TRAIL_START = float(os.environ.get("MANAGER_TRAIL_START") or 30)
 TRAIL_GAP = float(os.environ.get("MANAGER_TRAIL_GAP") or 5)
 # ผู้ใช้สั่ง 2026-10-29: เพดานขาดทุนต่อไม้ $40 (ทดสอบกับไม้จริง 176 ไม้: −$15 แย่ลง · −$40 ดีขึ้นเล็กน้อย ตัดไม้ที่จะพลิกกำไรแค่ 3 ไม้)
 #   ① เลื่อน SL ที่โบรกให้เสียไม่เกินนี้ (ทำงานแม้ผู้จัดการล่ม) ② ตัวเฝ้าไม้ปิดเองถ้าราคาข้ามไปแล้ว · 0 = ปิดกฎนี้
-MAX_LOSS_USD = float(os.environ.get("MANAGER_MAX_LOSS_USD") or 40)
+MAX_LOSS_USD = float(os.environ.get("MANAGER_MAX_LOSS_USD") or 60)   # 2026-10-29: 40 → 60 (วันตลาดสะบัด −40 ตัดไม้ที่เด้งกลับ 8/10)
 
 
 def profit_floor(peak: float) -> float | None:
