@@ -766,10 +766,11 @@ class Manager:
         from .core.types import Bar
         mt5 = self.col.mt5
         rates = None
-        for n in sorted({count, min(count, 50_000), min(count, 30_000)}, reverse=True):
-            rates = mt5.copy_rates_from_pos(self.col._name(symbol), getattr(mt5, f"TIMEFRAME_{tf}"), 1, n)
-            if rates is not None and len(rates):
-                break
+        with self.col._lock:                       # การเชื่อมต่อ MT5 ใช้ร่วมกับเธรดตัวเฝ้าไม้ → ทีละคำขอ
+            for n in sorted({count, min(count, 50_000), min(count, 30_000)}, reverse=True):
+                rates = mt5.copy_rates_from_pos(self.col._name(symbol), getattr(mt5, f"TIMEFRAME_{tf}"), 1, n)
+                if rates is not None and len(rates):
+                    break
         if rates is None:
             raise ConnectionError(f"copy_rates_from_pos {symbol} {tf}: {mt5.last_error()}")
         pt = C.DEFAULT_SPECS[symbol].point
@@ -944,6 +945,8 @@ class Manager:
         if notifier().token and os.environ.get("MANAGER_TELEGRAM_CHAT", "1") != "0":
             from .telegram_chat import TelegramChat
             TelegramChat(self).start()           # เจ้าของถามทาง Telegram → ตอบจากข้อมูลจริง (เธรดเบื้องหลัง)
+        import threading
+        threading.Thread(target=self.guard_loop, name="guard", daemon=True).start()
         n = 0
         while True:
             try:
@@ -959,10 +962,15 @@ class Manager:
             n += 1
             if n % 60 == 0:
                 trim_log()
-            for _ in range(max(TICK_SEC // GUARD_SEC - 1, 0)):   # ระหว่างรอบใหญ่ 60 วิ → เฝ้าไม้ทุก 10 วิ
-                time.sleep(GUARD_SEC)
-                try:
-                    self.guard()
-                except Exception:  # noqa: BLE001
-                    log.exception("guard failed")
             time.sleep(TICK_SEC)
+
+    def guard_loop(self) -> None:
+        """ตัวเฝ้าไม้ทุก GUARD_SEC วินาที แยกเธรดจากรอบใหญ่ — สมอง AI ค้าง/ช้าก็ยังคุมกำไร-ขาดทุนต่อได้
+        (บทเรียน 2026-11-02: คำขอ Gemini ค้าง → เธรดเดียวกันหยุดเฝ้าไม้ 6 ชม.)"""
+        while True:
+            time.sleep(GUARD_SEC)
+            try:
+                (C.STATE_DIR / "guard_heartbeat").write_text(str(time.time()))
+                self.guard()
+            except Exception:  # noqa: BLE001
+                log.exception("guard failed")

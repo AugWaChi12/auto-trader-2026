@@ -183,8 +183,9 @@ def heal(probs: dict[str, str], memo: dict) -> list[str]:
     did, now = [], time.time()
     first = memo.setdefault("since", {})
 
-    def allowed(key: str, after_min: float) -> bool:
-        if now - first.get(key, now) < after_min * 60:
+    def allowed(key: str, after_min: float, since: str | None = None) -> bool:
+        # since = ปัญหาที่ใช้นับเวลา (เดิมนับจาก key ของการซ่อมเอง ซึ่งไม่เคยมีใน since → ไม่เคยซ่อมได้)
+        if now - first.get(since or key, now) < after_min * 60:
             return False
         if now - memo.setdefault("healed", {}).get(key, 0) < COOLDOWN_MIN * 60:
             return False
@@ -201,9 +202,18 @@ def heal(probs: dict[str, str], memo: dict) -> list[str]:
             svc = CONTAINERS[key[5:]]
             sh("docker", "compose", "--env-file", ".env", "up", "-d", svc, timeout=300)
             did.append(f"เปิด container {svc} ใหม่")
-    if ("manager" in probs or "bots" in probs) and "mt5" not in probs and "api" not in probs and allowed("bots-restart", QUIET_MIN):
+    ok_conn = "mt5" not in probs and "api" not in probs
+    if "bots" in probs and ok_conn and allowed("bots-restart", QUIET_MIN, "bots"):
         sh("docker", "restart", "trader-bots", timeout=120)
         did.append("รีสตาร์ท container บอท")
+    elif "manager" in probs and ok_conn and allowed("manager-restart", QUIET_MIN, "manager"):
+        # ผู้จัดการค้างอย่างเดียว → หยุดเฉพาะโปรเซสผู้จัดการ (supervisor เปิดใหม่เอง) บอทเทรดไม่สะดุด
+        # container ไม่มี pkill → หา pid ของโปรเซสผู้จัดการจาก docker top แล้วสั่งหยุดจากเครื่องหลัก (watchdog รันเป็น root)
+        pids = [ln.split()[0] for ln in sh("docker", "top", "trader-bots", "-eo", "pid,args", timeout=30).splitlines()
+                if "bot manager" in ln and ln.split()[0].isdigit()]
+        for pid in pids:
+            sh("kill", pid, timeout=10)
+        did.append("รีสตาร์ทผู้จัดการพอร์ต (บอทเทรดทำงานต่อ)" if pids else "หาโปรเซสผู้จัดการไม่เจอ")
     if "mt5" in probs and allowed("mt5", MT5_DOWN_MIN):
         sh("docker", "restart", "trader-mt5", timeout=180)
         did.append("รีสตาร์ท MT5 (ล็อกอินเดิมจะกลับมาเอง)")

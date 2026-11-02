@@ -936,3 +936,36 @@ def test_guard_caps_loss_per_trade(monkeypatch) -> None:  # noqa: ANN001
     col.positions = [P(1, 30, -41.0, open_=4100.0, cur=4089.7, sl=0.0)]    # ราคาข้ามเพดานไปแล้ว → ปิดเลย
     m.guard()
     assert col.closed == ["m5_10"]
+
+
+def test_watchdog_restarts_only_the_stuck_manager_after_15_minutes(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("watchdog5", Path(__file__).resolve().parent.parent / "deploy" / "watchdog.py")
+    W = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(W)
+    cmds = []
+
+    def sh(*c, timeout=0):  # noqa: ANN001, ANN202
+        cmds.append(c)
+        return "PID ARGS\n4242 /usr/local/bin/python -m bot manager\n4243 /usr/local/bin/python -m bot live m5_1\n" if c[:2] == ("docker", "top") else ""
+    monkeypatch.setattr(W, "sh", sh)
+    memo, t0 = {}, 1_000_000.0
+    monkeypatch.setattr(W.time, "time", lambda: t0)
+    assert W.heal({"manager": "เงียบ"}, memo) == []                              # เพิ่งเริ่มเงียบ → รอก่อน
+    monkeypatch.setattr(W.time, "time", lambda: t0 + 16 * 60)
+    did = W.heal({"manager": "เงียบ"}, memo)
+    assert did == ["รีสตาร์ทผู้จัดการพอร์ต (บอทเทรดทำงานต่อ)"] and ("kill", "4242") in cmds
+    assert not any(c[:2] == ("docker", "restart") for c in cmds)                # บอทเทรดไม่ถูกรีสตาร์ท
+
+
+def test_guard_runs_in_its_own_thread_even_if_tick_hangs(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    import threading
+    m = M.Manager.__new__(M.Manager)
+    calls = []
+    m.guard = lambda: calls.append(1)
+    monkeypatch.setattr(M, "GUARD_SEC", 0.01)
+    monkeypatch.setattr(M.C, "STATE_DIR", tmp_path)
+    threading.Thread(target=m.guard_loop, daemon=True).start()
+    import time as _t
+    _t.sleep(0.2)
+    assert len(calls) >= 3 and (tmp_path / "guard_heartbeat").exists()

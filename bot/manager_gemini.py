@@ -37,7 +37,9 @@ class GeminiBrain(AIBrain):
 
     def __init__(self) -> None:
         super().__init__()
-        self.client = genai.Client()        # อ่าน GEMINI_API_KEY / GOOGLE_API_KEY จาก environment เอง
+        # อ่าน GEMINI_API_KEY / GOOGLE_API_KEY จาก environment เอง · timeout 90 วิ: 2026-11-02 คำขอไป Google ค้างไม่มีวันจบ
+        # → ผู้จัดการ (และตัวเฝ้าไม้) หยุดไป 6 ชม. ค่าเริ่มต้นของ client ไม่มี timeout
+        self.client = genai.Client(http_options=types.HttpOptions(timeout=90_000))
         self.config = types.GenerateContentConfig(
             system_instruction=SYSTEM,
             tools=[types.Tool(function_declarations=[
