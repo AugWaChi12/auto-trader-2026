@@ -8,6 +8,7 @@ import pytest
 from bot.core.timeutil import UTC
 from bot.core.types import Bar, EnterSignal, Side
 from bot.strategy.base import SessionWindow
+from bot.strategy.narrow_range import NarrowRange, NarrowRangeConfig, TrendDay, TrendDayConfig
 from bot.strategy.session_momentum import MomentumConfig, SessionMomentum
 from bot.strategy.trend_pullback import HigherTimeframeClose, PullbackConfig, TrendPullback
 
@@ -81,3 +82,51 @@ def test_pullback_buys_touch_of_ema_in_uptrend() -> None:
     sigs = run(s, [Bar(t, close, c + 0.1, ema_after - 0.5, c)])   # ย่อหลุด EMA แล้วปิดเขียวเหนือ EMA
     assert len(sigs) == 1 and sigs[0].side is Side.BUY
     assert sigs[0].tp is not None and sigs[0].tp - c == pytest.approx(2.0 * (c - sigs[0].sl))
+
+
+def _day_bars(d: date, end_price: float, swing: float) -> list[Bar]:
+    """00:00 → 14:30 ราคาเดินเส้นตรงจาก 2000 ไป end_price · swing = ความกว้างของแต่ละแท่ง"""
+    t = datetime(d.year, d.month, d.day, tzinfo=UTC)
+    bars = []
+    for i in range(59):
+        c = 2000 + (end_price - 2000) * (i + 1) / 58
+        o = 2000 + (end_price - 2000) * i / 58
+        bars.append(Bar(t, o, max(o, c) + swing, min(o, c) - swing, c))
+        t += M15
+    return bars
+
+
+def _run_trend_day(side_price: float) -> list:
+    s = TrendDay(TrendDayConfig(tag="t", symbol="XAUUSD", adr_lookback=3), "M15")
+    d = date(2026, 3, 2)
+    for _ in range(4):
+        for b in _day_bars(d, 2000.5, 1.0):
+            s.last_bar = b
+            s.on_bar(b, _NoPositions())
+        d += timedelta(days=1)
+    out = []
+    for b in _day_bars(d, side_price, 1.0):
+        s.last_bar = b
+        out += [x for x in s.on_bar(b, _NoPositions()) if isinstance(x, EnterSignal)]
+    return out
+
+
+def test_trend_day_follows_a_wide_day_and_ignores_a_normal_one() -> None:
+    down = _run_trend_day(1950.0)
+    assert down and down[0].side == Side.SELL and down[0].sl > 1950 and down[0].tp is None
+    assert _run_trend_day(2000.5) == []
+
+
+def test_narrow_range_breaks_yesterday_only_after_the_narrowest_day() -> None:
+    s = NarrowRange(NarrowRangeConfig(tag="n", symbol="XAUUSD", nr_n=4), "M15")
+    d = date(2026, 3, 2)
+    for swing in (5.0, 5.0, 5.0, 1.0):
+        for b in _day_bars(d, 2000.0, swing):
+            s.last_bar = b
+            s.on_bar(b, _NoPositions())
+        d += timedelta(days=1)
+    t = datetime(d.year, d.month, d.day, 8, tzinfo=UTC)
+    inside, above = Bar(t, 2000, 2000.5, 1999.5, 2000), Bar(t + M15, 2000, 2010, 2000, 2009)
+    assert s.on_bar(inside, _NoPositions()) == []
+    sig = s.on_bar(above, _NoPositions())
+    assert sig[0].side == Side.BUY and sig[0].sl == 2000.0

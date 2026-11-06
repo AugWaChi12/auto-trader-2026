@@ -285,7 +285,7 @@ const hhmm = iso => new Intl.DateTimeFormat(LOC, { timeZone: TZ, hour: "2-digit"
 const dmy = iso => new Intl.DateTimeFormat(LOC, { timeZone: TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const dshort = t => new Intl.DateTimeFormat(LOC, { timeZone: TZ, day: "numeric", month: "short" }).format(new Date(t));
 const FAM = { levels: "Level hunter", momo: "Morning momentum", pullback: "Pullback", bb: "Band fade", donchian: "Channel breakout", orb: "Opening range",
-              ema: "EMA cross", rsi2: "RSI-2 extreme", volx: "Quiet breakout", "momo+ema": "momo + EMA" };
+              ema: "EMA cross", rsi2: "RSI-2 extreme", volx: "Quiet breakout", tday: "Trend day", "momo+ema": "momo + EMA" };
 const SYM = { BTCUSD: "₿ BTC", XAUUSD: "🥇 Gold", NAS100: "📊 NAS100" };
 const WHO = { rules: "📏 Rules", guard: "🛡 Guard", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", claude: "🤖 Claude Sonnet", claude_smart: "🤖 Claude Opus",
               claude_paper: "🧪 Sonnet (paper)", claude_smart_paper: "🧪 Opus (paper)", gemini_paper: "🧪 Gemini (paper)", gemini_smart_paper: "🧪 Gemini 3.8 (paper)" };

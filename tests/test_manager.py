@@ -969,3 +969,16 @@ def test_guard_runs_in_its_own_thread_even_if_tick_hangs(monkeypatch, tmp_path: 
     import time as _t
     _t.sleep(0.2)
     assert len(calls) >= 3 and (tmp_path / "guard_heartbeat").exists()
+
+
+def test_hold_to_plan_bot_keeps_tp_and_cap_but_skips_giveback(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr(M, "hold_to_plan", lambda: {"m5_10"})
+    col = GuardCol([P(1, 30, 40.0)])
+    m = M.Manager(col)
+    m.guard()
+    col.positions = [P(1, 30, 12.0)]                                       # เคย +40 เหลือ +12 → บอทอื่นจะถูกปิด
+    m.guard()
+    assert col.closed == [] and not col.modified
+    col.positions = [P(1, 30, 55.0)]
+    m.guard()
+    assert col.closed == ["m5_10"]

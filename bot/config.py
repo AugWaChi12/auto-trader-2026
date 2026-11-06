@@ -49,6 +49,13 @@ DEFAULT_SPECS: dict[str, SymbolSpec] = {
     "BTCUSD": SymbolSpec(name="BTCUSD", point=0.01, contract_size=1, volume_min=0.01, volume_step=0.01,
                          min_spread=5.0, slippage=5.0, commission_per_lot=10.0, margin_rate=0.005,
                          swap_long_rate=-0.30, swap_short_rate=-0.10, min_stop=200.0),
+    # ค่าเงิน (วิจัย 2026-11-06): swap เป็นจุด → ใส่เป็นอัตราต่อปีเอง ฝั่งที่ได้รับนับ 0 · USDJPY กำไรเป็นเยน: วิจัยแปลง contract_size ใน spec เป็น USD
+    "EURUSD": SymbolSpec(name="EURUSD", point=1e-5, contract_size=100000, volume_min=0.01, volume_step=0.01, min_spread=0.00003,
+                         slippage=0.00002, commission_per_lot=7.0, margin_rate=0.005, swap_long_rate=-0.028),
+    "GBPUSD": SymbolSpec(name="GBPUSD", point=1e-5, contract_size=100000, volume_min=0.01, volume_step=0.01, min_spread=0.00007,
+                         slippage=0.00002, commission_per_lot=7.0, margin_rate=0.005, swap_long_rate=-0.011, swap_short_rate=-0.009),
+    "USDJPY": SymbolSpec(name="USDJPY", point=0.001, contract_size=100000, volume_min=0.01, volume_step=0.01, min_spread=0.004,
+                         slippage=0.003, commission_per_lot=7.0, margin_rate=0.005, swap_short_rate=-0.066),
     # รอบ 4 (รายวัน) — สเปรดตั้งกว้างกว่าที่เห็นตอนตลาดปกติ เพื่อเผื่อช่วงข่าว/เปิดตลาด · swap ดึงจาก MT5 ตอน download
     "XAGUSD": SymbolSpec(name="XAGUSD", point=0.001, contract_size=5000, min_spread=0.03, slippage=0.005,
                          commission_per_lot=7.0, margin_rate=0.01),

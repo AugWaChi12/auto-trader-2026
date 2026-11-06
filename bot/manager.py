@@ -76,6 +76,11 @@ AI_CLOSE = os.environ.get("MANAGER_AI_CLOSE") == "1"
 MAX_LOSS_USD = float(os.environ.get("MANAGER_MAX_LOSS_USD") or 60)   # 2026-10-29: 40 → 60 (วันตลาดสะบัด −40 ตัดไม้ที่เด้งกลับ 8/10)
 
 
+def hold_to_plan() -> set[str]:
+    """บอทที่งานวิจัยพิสูจน์ว่าต้องถือตามแผน: ไม่ใช้ปิดเมื่อกำไรหด / ตัดไม้ค้าง (ยังมี TP +$50 และเพดานขาดทุนเหมือนเดิม)"""
+    return {b["bot"] for b in C.load_m5_bots() if b.get("hold_to_plan")}
+
+
 def profit_floor(peak: float) -> float | None:
     """กำไรต่ำสุดที่ยอมให้ไม้หดลงไป ก่อนปิด/ก่อนล็อก SL (None = ยังไม่คุ้มครอง)"""
     if peak >= TRAIL_START:
@@ -88,7 +93,7 @@ VOL_SPIKE = 3.0               # ช่วง 15 นาทีล่าสุด�
 VOL_PAUSE_MIN = 30
 
 # อ่านสภาพตลาด (BTC M5 ย้อนหลัง 2 ชม.) แล้วพักบอทที่สายกลยุทธ์ไม่เข้ากับตลาดตอนนี้
-TREND_FAMILIES = {"ema", "donchian", "momo", "orb", "pullback", "fvg"}   # ได้เปรียบตอนตลาดวิ่งเป็นทาง
+TREND_FAMILIES = {"ema", "donchian", "momo", "orb", "pullback", "fvg", "tday"}   # ได้เปรียบตอนตลาดวิ่งเป็นทาง
 RANGE_FAMILIES = {"bb", "rsi2", "levels", "vwap", "div"}                  # ได้เปรียบตอนตลาดเด้งไปมาในกรอบ
 ER_TREND, ER_RANGE = 0.40, 0.20     # efficiency ratio: ระยะที่ราคาไปได้จริง ÷ ระยะที่วิ่งทั้งหมด
 REGIME_CONFIRM = 3                  # ต้องเห็นสภาพเดิมติดกันกี่นาทีถึงจะเชื่อ (กันสั่งกลับไปกลับมา)
@@ -374,6 +379,8 @@ class RuleBrain:
                 self.peaks[tk] = max(self.peaks.get(tk, pnl), pnl)
                 peak = self.peaks[tk]
                 held_h = (s.t - datetime.fromisoformat(o["open_time"]).timestamp()) / 3600
+                if n in hold_to_plan():
+                    continue
                 if peak >= GIVEBACK_PEAK and pnl <= peak * 0.5:
                     acts.append(Action("close", n, reason=f"{n} กำไรเคยถึง +{peak:.2f}$ เหลือ {pnl:+.2f}$ — ปิดเก็บก่อนหดหมด"))
                     break                                    # สั่งปิดทั้งบอทแล้ว ไม่ต้องสั่งซ้ำทีละชิ้น
@@ -641,6 +648,7 @@ class Manager:
             if bot:
                 by_bot.setdefault(bot, []).append(p)
         peaks = self.brain.peaks
+        hold = hold_to_plan()
         live = {p.ticket for ps in by_bot.values() for p in ps}
         for k in [k for k in peaks if k not in live]:
             del peaks[k]
@@ -656,7 +664,7 @@ class Manager:
             elif MAX_LOSS_USD > 0 and worst <= -MAX_LOSS_USD:
                 why = f"{bot} ขาดทุนลอย {worst:+.2f}$ ถึงเพดาน −{MAX_LOSS_USD:.0f}$ ต่อไม้ — ตัดขาดทุน"
             else:
-                for p in ps:
+                for p in [] if bot in hold else ps:
                     pk = peaks[p.ticket]
                     fl = profit_floor(pk)
                     if fl is not None and pnl[p.ticket] <= fl:
@@ -672,7 +680,8 @@ class Manager:
                 continue
             for p in ps:
                 self._cap_loss(bot, p)
-                self._lock_profit(bot, p, peaks[p.ticket])
+                if bot not in hold:
+                    self._lock_profit(bot, p, peaks[p.ticket])
 
     def report_closed(self, raw: list) -> None:
         """ไม้ที่หายไปจากรายการเปิด → ดึงผลจริงจาก MT5 → แจ้ง Telegram ทันที (รวมทุกชิ้นของบอทเดียวกันเป็นข้อความเดียว)"""

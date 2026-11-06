@@ -47,7 +47,7 @@ DATA = ROOT / "data" / "mt5"
 OUT = ROOT / "research" / "out"
 ASSIGN = ROOT / "bot" / "m5_bots.json"
 # ทุกตลาดแกว่งเป็นเงินเท่ากันต่อ 1 ATR ของ M5 (≈ $17): ทอง 4.2 × 100 × 0.04 · NAS 23 × 0.73 · BTC 97 × 0.17
-LOTS = {"XAUUSD": 0.04, "NAS100": 0.73, "BTCUSD": 0.17}
+LOTS = {"XAUUSD": 0.04, "NAS100": 0.73, "BTCUSD": 0.17, "EURUSD": 0.52, "GBPUSD": 0.41, "USDJPY": 0.51, "WTI": 0.10}
 TARGET = 120.0
 N_BOTS = 9
 BOT_MARKETS = {"BTCUSD"}        # ตลาดที่บอททดสอบเล่น (ตามคำขอผู้ใช้ 2026-10-17) — วิจัยทุกตลาดเหมือนเดิม
@@ -84,6 +84,9 @@ FAMILIES: dict[str, tuple] = {
     "vwap": (_grid(band_atr=[1.5, 2.0, 2.5, 3.0], sl_atr=[1.0, 1.5, 2.0], tp_r=[None, 1.5, 2.5], max_hold=[12, 36]), True),
     "fvg": (_grid(min_gap_atr=[0.2, 0.35, 0.5], expire_bars=[6, 12, 24], sl_atr=[1.0, 1.5, 2.0], tp_r=[1.5, 2.0, 3.0]), True),
     "div": (_grid(lookback=[14, 24, 36], rsi_ext=[30.0, 35.0, 40.0], sl_atr=[1.0, 1.5, 2.0], tp_r=[1.5, 2.0, 3.0]), True),
+    "nr": (_grid(nr_n=[4, 7], sl_mode=["mid", "opposite"], tp_r=[None, 1.0, 2.0, 3.0]), True),
+    "tday": (_grid(entry_time=["13:00", "14:00", "15:00"], min_range_adr=[1.0, 1.3, 1.6], sl_adr=[0.3, 0.5, 0.8],
+                   tp_r=[None, 2.0]), True),
 }
 SYMBOLS = ["XAUUSD", "NAS100", "BTCUSD"]
 
@@ -153,7 +156,7 @@ def score(t: np.ndarray, p: np.ndarray, a: pd.Timestamp, b: pd.Timestamp) -> flo
         return -np.inf
     mid = a + (b - a) / 2
     h1, h2 = _slice(t, p, a, mid), _slice(t, p, mid, b)
-    if len(h1) < 10 or len(h2) < 10:
+    if min(len(h1), len(h2)) < min(10, MIN_TRAIN_TRADES // 3):
         return -np.inf
     return float(min(h1.mean(), h2.mean()))
 
@@ -191,7 +194,7 @@ def _arg(name: str, default: str | None = None) -> str | None:
 
 def main(argv: list[str] | None = None) -> list[dict] | None:
     """argv: --assign · --symbols BTCUSD,... · --workers N · --assign-to path · --retune (คงสายเดิมของแต่ละบอท)"""
-    global SYMBOLS, TF
+    global SYMBOLS, TF, TRAIN_M, MIN_TRAIN_TRADES
     if argv is not None:
         sys.argv = [sys.argv[0], *argv]
     if hasattr(sys.stdout, "reconfigure"):
@@ -200,13 +203,15 @@ def main(argv: list[str] | None = None) -> list[dict] | None:
     if _arg("--symbols"):
         SYMBOLS = _arg("--symbols").split(",")
     workers = int(_arg("--workers", "24"))
+    TRAIN_M = int(_arg("--train-m", str(TRAIN_M)))          # สายที่เข้าไม้ไม่บ่อย: ใช้ช่วงเลือกยาวขึ้น
+    MIN_TRAIN_TRADES = int(_arg("--min-trades", str(MIN_TRAIN_TRADES)))
     if _arg("--tf"):
         TF = os.environ["LAB_TF"] = _arg("--tf")
         _market.cache_clear()
     OUT.mkdir(parents=True, exist_ok=True)
     active_fams = ({b["family"] for b in C.load_m5_bots() if b.get("family") in FAMILIES}
                    if "--retune" in sys.argv and "--explore" not in sys.argv else set(FAMILIES))
-    fams = [f for f in FAMILIES if f in active_fams]
+    fams = [f for f in FAMILIES if f in active_fams and (not _arg("--families") or f in _arg("--families").split(","))]
     jobs = [(f, s, pi, plan, "rule") for f in fams for s in SYMBOLS for pi in range(len(FAMILIES[f][0]))
             for plan in PLANS]
     print(f"backtests: {len(jobs)} ({TF}, lots {LOTS}, เป้า +${TARGET:.0f}/วัน)", flush=True)

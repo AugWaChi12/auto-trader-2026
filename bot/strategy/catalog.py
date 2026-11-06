@@ -12,6 +12,7 @@ from .daily_trend import DailyTrend, DailyTrendConfig
 from .level_sweep import LevelSweep, LevelSweepConfig
 from .microstructure import (FairValueGap, FairValueGapConfig, RsiDivergence, RsiDivergenceConfig, VwapReversion,
                              VwapReversionConfig)
+from .narrow_range import NarrowRange, NarrowRangeConfig, TrendDay, TrendDayConfig
 from .scalp import (BollingerFade, BollingerFadeConfig, EmaCross, EmaCrossConfig, RsiReversion, RsiReversionConfig,
                     ScalpWindow)
 from .session_breakout import BreakoutConfig, SessionBreakout
@@ -39,6 +40,8 @@ FAMILIES: dict[str, tuple] = {
     "vwap": (VwapReversionConfig, VwapReversion, True),
     "fvg": (FairValueGapConfig, FairValueGap, True),
     "div": (RsiDivergenceConfig, RsiDivergence, True),
+    "nr": (NarrowRangeConfig, NarrowRange, True),
+    "tday": (TrendDayConfig, TrendDay, True),
 }
 LABELS = {
     "rsi2": "RSI(2) สวนสุดโต่ง", "ema": "EMA ตัดกัน", "bb": "Bollinger สวนขอบ", "donchian": "Donchian ทะลุกรอบ",
@@ -56,7 +59,7 @@ def build(family: str, symbol: str, params: dict, plan: ManagementPlan | None, t
     gold = symbol != "NAS100"          # ทอง / BTC ใช้กรอบเวลา UTC · NAS ใช้เวลานิวยอร์ก
     if family in ("rsi2", "ema", "bb", "vwap", "fvg", "div"):
         kw.update(window=ALL_DAY, side_mode=mode)
-    elif family in ("donchian", "volx"):
+    elif family in ("donchian", "volx", "nr", "tday"):
         kw.update(side_mode=mode)
     elif family == "levels":
         kw.update(side_mode=mode, tz="UTC" if gold else "America/New_York")
