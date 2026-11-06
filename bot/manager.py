@@ -74,6 +74,10 @@ TRAIL_GAP = float(os.environ.get("MANAGER_TRAIL_GAP") or 5)
 # ผลจริง 2026-11-06: ไม้ที่ AI สั่งปิดแย่กว่าปล่อยไว้ −$285 (30 ครั้ง) ส่วนตัวเฝ้าไม้ดีกว่าปล่อย +$930
 #   → AI ไม่ปิดไม้จริง แต่ยังจดว่า "อยากปิด" แล้วให้คะแนนเหมือนเดิม (MANAGER_AI_CLOSE=1 = ให้ปิดจริง)
 AI_CLOSE = os.environ.get("MANAGER_AI_CLOSE") == "1"
+# 2026-11-06: ไม้จริงตั้งแต่ 21 ต.ค. lot มาตรฐานได้ +$571 แต่เงินจริงได้ −$233 (t=−2.88) การปรับ lot ระหว่างวันทำให้เสีย
+#   → AI ไม่ปรับ lot จริง แต่จดไว้ให้ตรวจ (MANAGER_AI_SCALE=1 คืนสิทธิ์)
+AI_SCALE = os.environ.get("MANAGER_AI_SCALE") == "1"
+SCALE_PAPER_PATH = C.STATE_DIR / "manager_scale_paper.jsonl"
 MAX_LOSS_USD = float(os.environ.get("MANAGER_MAX_LOSS_USD") or 60)   # 2026-10-29: 40 → 60 (วันตลาดสะบัด −40 ตัดไม้ที่เด้งกลับ 8/10)
 
 
@@ -552,6 +556,11 @@ class Manager:
                 save_pauses(pauses)
                 shadow.record_pause(a.bot, p, s.t)
                 say("action", f"▶ ให้ {a.bot} กลับมาทำงาน — {a.reason}", bot=a.bot, act="resume", src=a.src)
+        elif a.kind == "scale" and a.src != "rules" and not AI_SCALE:
+            with SCALE_PAPER_PATH.open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"t": s.t, "bot": a.bot, "scale": a.value, "src": a.src, "why": a.reason}, ensure_ascii=False) + "\n")
+            self.last_scale[a.bot] = s.t
+            say("analysis", f"📝 {a.bot} อยากปรับไม้เป็น ×{a.value:g} (ทดลอง ไม่ปรับจริง) — {a.reason}", bot=a.bot, src=a.src)
         elif a.kind == "scale":
             from . import allocator
             old = allocator.scale_of(a.bot)

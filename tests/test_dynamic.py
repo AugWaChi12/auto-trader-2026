@@ -38,10 +38,10 @@ def test_std_profit_converts_to_research_lot() -> None:
 
 def test_rule_scale_follows_t_stat() -> None:
     assert A.rule_scale({"n": 5, "t": -5}) == 1.0                 # ไม้น้อย → มาตรฐาน
-    assert A.rule_scale({"n": 30, "t": 2.5}) == 2.0
-    assert A.rule_scale({"n": 30, "t": 1.2}) == 1.5
-    assert A.rule_scale({"n": 30, "t": -1.2}) == 0.5
-    assert A.rule_scale({"n": 30, "t": -3}) == 0.25
+    assert A.rule_scale({"n": 30, "t": 2.5}) == 1.5
+    assert A.rule_scale({"n": 30, "t": 1.2}) == 1.0
+    assert A.rule_scale({"n": 30, "t": -1.2}) == 1.0
+    assert A.rule_scale({"n": 30, "t": -3}) == 0.5
     assert A.rule_scale({"n": 30, "t": 0.1}) == 1.0
 
 
@@ -51,7 +51,7 @@ def test_rebalance_scales_winners_up_losers_down_and_ignores_other_families() ->
     old_family = _rows("m5_3", "donchian", [-9] * 20)             # สายเก่าของบอทที่ถูกสลับแล้ว → ไม่นับ
     ch = A.rebalance(win + lose + old_family, [{"bot": "m5_1", "family": "orb"}, {"bot": "m5_2", "family": "bb"},
                                                {"bot": "m5_3", "family": "pullback"}])
-    assert A.scale_of("m5_1") == 2.0 and A.scale_of("m5_2") == 0.25 and A.scale_of("m5_3") == 1.0
+    assert A.scale_of("m5_1") == 1.5 and A.scale_of("m5_2") == 0.5 and A.scale_of("m5_3") == 1.0
     assert {c["bot"] for c in ch} == {"m5_1", "m5_2"}
     assert A.scale_of("main") == 1.0
 
@@ -171,6 +171,7 @@ def test_ai_set_lot_scale_becomes_action_and_manager_applies_it(monkeypatch) -> 
     assert [(a.kind, a.bot, a.value) for a in acts] == [("scale", "m5_8", 1.5), ("scale", "main", 2.0)]   # main ดูแลเหมือนกัน
     said = []
     monkeypatch.setattr(M, "say", lambda kind, text, **k: said.append(text))
+    monkeypatch.setattr(M, "AI_SCALE", True)
     m = M.Manager.__new__(M.Manager)
     m.recent, m.last_scale = [], {}
     s = NS(t=time.time(), bots={"m5_8": {"open": []}})
@@ -278,3 +279,17 @@ def test_explorer_edge_needs_strong_t_and_bot_with_open_trade_stays(monkeypatch,
     doc = {"bots": [{"bot": "m5_8", "symbol": "BTCUSD", "family": "rsi2", "params": {}, "plan": "native", "wf_usd_day": -9, "holdout_usd_day": -3}]}
     C.M5_BOTS_TUNED.write_text(json.dumps(doc), encoding="utf-8")
     assert A.rotate(_rows("m5_8", "rsi2", [-5, -9, -4, -8, -6, -7, -5, -9, -3, -8, -6, -9, -5, -7, -4, -8, -6, -9, -5, -8])) is None
+
+
+def test_ai_scale_is_paper_by_default(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    from types import SimpleNamespace as NS
+
+    from bot import manager as M
+    said = []
+    monkeypatch.setattr(M, "say", lambda kind, text, **k: said.append(text))
+    monkeypatch.setattr(M, "SCALE_PAPER_PATH", tmp_path / "s.jsonl")
+    m = M.Manager.__new__(M.Manager)
+    m.recent, m.last_scale = [], {}
+    m.execute(M.Action("scale", "m5_9", reason="x", src="claude_smart", value=0.5), NS(t=time.time(), bots={"m5_9": {"open": []}}), {})
+    assert A.scale_of("m5_9") == 1.0 and "ทดลอง" in said[-1]
+    assert json.loads((tmp_path / "s.jsonl").read_text(encoding="utf-8"))["scale"] == 0.5
