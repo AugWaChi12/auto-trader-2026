@@ -993,3 +993,14 @@ def test_telegram_action_keeps_only_the_first_reason() -> None:
 def test_once_today_survives_restart(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
     monkeypatch.setattr(M.C, "STATE_DIR", tmp_path)
     assert M.once_today("x") is True and M.once_today("x") is False and M.once_today("y") is True
+
+
+def test_loss_cap_counts_a_split_trade_as_one(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setattr(M, "MAX_LOSS_USD", 60.0)
+    col = GuardCol([P(1, 30, -5.0, open_=4100.0, cur=4099.0, sl=4050.0, vol=0.02), P(2, 30, -5.0, open_=4100.0, cur=4099.0, sl=4050.0, vol=0.02)])
+    m = M.Manager(col)
+    m.guard()
+    assert col.modified == [(1, 4085.0), (2, 4085.0)]                      # 2 ชิ้น ชิ้นละ −$30 รวม −$60
+    col.positions = [P(1, 30, -31.0, open_=4100.0, cur=4084.0, sl=0.0, vol=0.02), P(2, 30, -31.0, open_=4100.0, cur=4084.0, sl=0.0, vol=0.02)]
+    m.guard()
+    assert col.closed == ["m5_10"]

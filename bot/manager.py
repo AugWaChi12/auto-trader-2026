@@ -696,11 +696,11 @@ class Manager:
                 peaks[t] = max(peaks.get(t, v), v)
             floating = round(sum(pnl.values()), 2)
             why = None
-            worst = min(pnl.values())
+            lots = sum(p.volume for p in ps) or 1.0
             if TAKE_PROFIT_USD > 0 and floating >= TAKE_PROFIT_USD:
                 why = f"{bot} กำไรลอย {floating:+.2f}$ ถึงเป้า +{TAKE_PROFIT_USD:.0f}$ — ปิดเก็บกำไร"
-            elif MAX_LOSS_USD > 0 and worst <= -MAX_LOSS_USD:
-                why = f"{bot} ขาดทุนลอย {worst:+.2f}$ ถึงเพดาน −{MAX_LOSS_USD:.0f}$ ต่อไม้ — ตัดขาดทุน"
+            elif MAX_LOSS_USD > 0 and floating <= -MAX_LOSS_USD:
+                why = f"{bot} ขาดทุนลอย {floating:+.2f}$ ถึงเพดาน −{MAX_LOSS_USD:.0f}$ ต่อไม้ — ตัดขาดทุน"
             else:
                 for p in [] if bot in hold else ps:
                     pk = peaks[p.ticket]
@@ -717,7 +717,7 @@ class Manager:
                     bot=bot, act="close", src="rules", notify=False)
                 continue
             for p in ps:
-                self._cap_loss(bot, p)
+                self._cap_loss(bot, p, MAX_LOSS_USD * p.volume / lots)      # ไม้ที่แตกหลายชิ้น แบ่งเพดานตาม lot รวมแล้วไม่เกินเพดาน
                 if bot not in hold:
                     self._lock_profit(bot, p, peaks[p.ticket])
 
@@ -779,7 +779,7 @@ class Manager:
                 "wins": sum(s.get("today_wins") or 0 for s in pb.values()),
                 "losses": sum((s.get("today_trades") or 0) - (s.get("today_wins") or 0) for s in pb.values())}
 
-    def _cap_loss(self, bot: str, p: Any) -> None:
+    def _cap_loss(self, bot: str, p: Any, limit: float | None = None) -> None:
         """SL ที่โบรกห่างเกินเพดานขาดทุน (เสียได้มากกว่า MAX_LOSS_USD) → เลื่อนเข้ามาให้เสียไม่เกินเพดาน
         ระยะขั้นต่ำของโบรกไม่ยอม (ราคาเข้าใกล้เพดานแล้ว) → ไม่แตะ ให้ตัวเฝ้าไม้ปิดเองเมื่อถึงเพดาน"""
         if MAX_LOSS_USD <= 0:
@@ -789,7 +789,8 @@ class Manager:
         if per_price <= 0:
             return
         buy = p.type == 0
-        cap = p.price_open - MAX_LOSS_USD / per_price if buy else p.price_open + MAX_LOSS_USD / per_price
+        limit = MAX_LOSS_USD if limit is None else limit
+        cap = p.price_open - limit / per_price if buy else p.price_open + limit / per_price
         if p.sl and ((buy and p.sl >= cap) or (not buy and p.sl <= cap)):
             return                                                         # SL เดิมเสียไม่เกินเพดานอยู่แล้ว
         now = p.price_current
@@ -797,7 +798,7 @@ class Manager:
             return                                                         # ใกล้ราคาเกินที่โบรกยอม
         sl = round(cap, digits)
         if self.col.modify_sl(p.ticket, sl):
-            say("info", f"🛑 จำกัดขาดทุน {bot} #{p.ticket}: SL → {sl} (เสียไม่เกิน −{MAX_LOSS_USD:.0f}$)", bot=bot, act="cap", src="rules")
+            say("info", f"🛑 จำกัดขาดทุน {bot} #{p.ticket}: SL → {sl} (เสียไม่เกิน −{limit:.0f}$)", bot=bot, act="cap", src="rules")
 
     def _lock_profit(self, bot: str, p: Any, peak: float) -> None:
         if peak < LOCK_START:
