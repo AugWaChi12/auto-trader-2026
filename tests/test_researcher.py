@@ -26,3 +26,9 @@ def test_scan_finds_a_steady_weak_spot_in_both_halves() -> None:
 def test_scan_ignores_a_cell_that_flips_between_halves() -> None:
     r = R.scan(_rows(lambda i, europe: ((-10.0 - i % 3) if i < 40 else (10.0 + i % 3)) if europe else (i % 3 - 1.0)))
     assert not any(c["cell"] == "session=europe" for c in r["weak"] + r["strong"])
+
+
+def test_summary_reads_plain_thai() -> None:
+    assert R.plain("family=ema · hours=04-08UTC") == "EMA ตัดกัน 11–15 น."
+    text = R.summary_text({"weak": [{"cell": "family=ema · session=europe", "n": 42, "sum": -348.0}], "strong": []})
+    assert "EMA ตัดกัน ช่วงยุโรป: 42 ไม้ -348$" in text and "t=" not in text

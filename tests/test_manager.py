@@ -982,3 +982,14 @@ def test_hold_to_plan_bot_keeps_tp_and_cap_but_skips_giveback(monkeypatch) -> No
     col.positions = [P(1, 30, 55.0)]
     m.guard()
     assert col.closed == ["m5_10"]
+
+
+def test_telegram_action_keeps_only_the_first_reason() -> None:
+    text = "⚖️ ปรับขนาดไม้ m5_5 ×1 → ×0.5 — เสียบ่อยช่วงนี้ · ทั้งหมด −577.81 จาก 21 ไม้ (มั่นใจ 60%)"
+    assert M.tg_short(text) == "⚖️ ปรับขนาดไม้ m5_5 ×1 → ×0.5 — เสียบ่อยช่วงนี้"
+    assert M.tg_short("ไม่มีเหตุผล") == "ไม่มีเหตุผล"
+
+
+def test_once_today_survives_restart(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    monkeypatch.setattr(M.C, "STATE_DIR", tmp_path)
+    assert M.once_today("x") is True and M.once_today("x") is False and M.once_today("y") is True

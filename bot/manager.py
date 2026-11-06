@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -130,8 +131,31 @@ def notifier():  # noqa: ANN201
     return _notifier
 
 
-def say(kind: str, text: str, notify: bool | None = None, **data: Any) -> dict:
-    """kind: analysis 🧠 · action ⚡ · alert ⚠️ · info ℹ️ · journal 📓 · notify=False = ไม่ส่ง Telegram"""
+def tg_short(text: str) -> str:
+    """ข้อความคำสั่งสำหรับ Telegram: เหลือหัวเรื่อง + เหตุผลท่อนแรก (ตัวเลขเต็มอยู่ในหน้าเว็บ)"""
+    head, sep, why = text.partition(" — ")
+    if not sep:
+        return text
+    why = re.sub(r"\s*\(มั่นใจ \d+%\)", "", why.split(" · ")[0]).strip()
+    return f"{head} — {why[:90]}"
+
+
+def once_today(key: str) -> bool:
+    """True ครั้งแรกของวัน (เวลาไทย) · จำข้ามการรีสตาร์ท จะได้ไม่ทำงานรายวัน/ส่งข้อความซ้ำทุกครั้งที่ deploy"""
+    path = C.STATE_DIR / "daily_once.json"
+    try:
+        seen = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        seen = {}
+    if seen.get(key) == bkk_day():
+        return False
+    from .live.fileio import atomic_write
+    atomic_write(path, json.dumps({**seen, key: bkk_day()}))
+    return True
+
+
+def say(kind: str, text: str, notify: bool | None = None, tg: str | None = None, **data: Any) -> dict:
+    """kind: analysis 🧠 · action ⚡ · alert ⚠️ · info ℹ️ · journal 📓 · notify=False = ไม่ส่ง Telegram · tg = ข้อความสั้นสำหรับ Telegram"""
     msg = {"t": datetime.now(timezone.utc).isoformat(timespec="seconds"), "kind": kind, "text": text, **data}
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as f:
@@ -139,7 +163,7 @@ def say(kind: str, text: str, notify: bool | None = None, **data: Any) -> dict:
     log.info("[%s] %s", kind, text)
     if kind in NOTIFY_KINDS and notify is not False:
         icon = {"action": "⚡", "alert": "⚠️", "journal": "📓"}[kind]
-        notifier().send(f"{icon} {text}")
+        notifier().send(f"{icon} {tg or (tg_short(text) if kind == 'action' else text)}")
     return msg
 
 
@@ -461,7 +485,6 @@ class RuleBrain:
 class Manager:
     last_news = 0.0
     last_agent = 0.0
-    news_day = ""
 
     def __init__(self, col: Any = None) -> None:
         if col is None:
@@ -582,7 +605,8 @@ class Manager:
             if self.last_snap is not None:
                 self.journal(self.day, self.last_snap)
             self.day = bkk_day()
-            self.allocate()
+            if once_today("allocate"):
+                self.allocate()
             self.report(weekly=datetime.fromisoformat(self.day).weekday() == 0)   # ขึ้นวันจันทร์ = ครบสัปดาห์
         self.last_snap = s
         self.maybe_research(s)
@@ -860,7 +884,7 @@ class Manager:
             jsrc = "claude_smart" if claude else f"{self.llm.src}_smart" if smart else self.llm.src   # ใครเขียนจริง
             try:
                 ai = writer(smart=smart, prompt=
-                    "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2–4 ประโยค ภาษาไทย: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
+                    "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2 ประโยคสั้นๆ ภาษาบ้านๆ เหมือนเล่าให้เพื่อนฟัง ไม่ใช้ศัพท์เทคนิค: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
                     "และพรุ่งนี้จะปรับวิธีคิดอย่างไร (ตอบเป็นข้อความธรรมดา ไม่ต้องเรียกฟังก์ชัน)\n\n"
                     + json.dumps({"summary": text, "bots": {n: {"strategy": b.get("family"), "today_usd": b["today"]} for n, b in tests.items()},
                                   "learned": self.learner.summary(), "lessons": lessons, "prediction_score_today": sb,
@@ -871,7 +895,9 @@ class Manager:
         with JOURNAL_PATH.open("a", encoding="utf-8") as f:
             f.write(json.dumps({"day": day, "pnl": pnl, "text": text, "ai": ai, "src": jsrc if ai else "rules",
                                 "bots": {n: b["today"] for n, b in tests.items()}, "equity": s.equity}, ensure_ascii=False) + "\n")
-        say("journal", f"📓 {text}" + (f"\n{ai}" if ai else ""), src=jsrc if ai else "rules")
+        short = (f"สรุป {day}: {pnl:+.2f}$ · ดีสุด {ranked[0][0]} · แย่สุด {ranked[-1][0]} · พอร์ต ${s.equity:,.0f}"
+                 if ranked else f"สรุป {day}: ไม่มีข้อมูลบอท")
+        say("journal", f"📓 {text}" + (f"\n{ai}" if ai else ""), tg=f"📓 {short}" + (f"\n{ai}" if ai else ""), src=jsrc if ai else "rules")
 
     def allocate(self) -> None:
         """รอบบริหารรายวัน: สลับสายที่พิสูจน์แล้วว่าเสีย (≤ 1 ตัว/วัน) → ตั้งขนาดไม้ทุกบอทจากหลักฐานไม้จริง"""
@@ -920,8 +946,7 @@ class Manager:
                     log.info("news scout: %d new events", n)
             except Exception:  # noqa: BLE001 — ดึงปฏิทินไม่ได้ต้องไม่กระทบรอบบริหาร
                 log.exception("news refresh failed")
-        if self.news_day != bkk_day():
-            self.news_day = bkk_day()
+        if once_today("news"):
             text = news_scout.today_text()
             if text:
                 say("journal", text, src="news_scout")
@@ -1009,7 +1034,8 @@ class Manager:
             from . import dataset
             n_rows = self.learner.rebuild(dataset.load())
             log.info("learner: สร้างตารางใหม่เป็นหน่วย lot มาตรฐานจาก %d ไม้", n_rows)
-        self.allocate()                          # เริ่มงาน = ตั้งขนาดไม้จากหลักฐานล่าสุดทันที (ไม่ต้องรอข้ามวัน)
+        if once_today("allocate"):
+            self.allocate()                      # เริ่มงาน = ตั้งขนาดไม้จากหลักฐานล่าสุดทันที (ไม่ต้องรอข้ามวัน)
         if notifier().token and os.environ.get("MANAGER_TELEGRAM_CHAT", "1") != "0":
             from .telegram_chat import TelegramChat
             TelegramChat(self).start()           # เจ้าของถามทาง Telegram → ตอบจากข้อมูลจริง (เธรดเบื้องหลัง)

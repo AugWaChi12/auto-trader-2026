@@ -75,13 +75,33 @@ def run(rows: list[dict]) -> dict[str, Any]:
     return out
 
 
+WORDS = {"asia": "ช่วงเอเชีย", "europe": "ช่วงยุโรป", "us": "ช่วงอเมริกา", "range": "ตลาดออกข้าง", "trend": "ตลาดมีเทรนด์",
+         "mixed": "ตลาดไม่ชัดทาง", "with": "ตามเทรนด์", "against": "สวนเทรนด์", "flat": "ไม่มีเทรนด์", "XAUUSD": "ทอง",
+         "BTCUSD": "BTC", "NAS100": "NAS"}
+
+
+def plain(cell: str) -> str:
+    """family=ema · hours=04-08UTC → EMA ตัดกัน 11–15 น."""
+    from .strategy.catalog import LABELS
+    out = []
+    for part in cell.split(" · "):
+        kind, val = part.split("=", 1)
+        if kind == "family":
+            out.append(LABELS.get(val, val))
+        elif kind == "hours":
+            a = int(val[:2])
+            out.append(f"{(a + 7) % 24:02d}–{(a + 11) % 24:02d} น.")
+        else:
+            out.append(WORDS.get(val, val))
+    return " ".join(out)
+
+
 def summary_text(r: dict) -> str:
     def line(c: dict) -> str:
-        return f"{c['cell']}: {c['n']} ไม้ {c['sum']:+.0f}$ (t={c['t']:+.1f})"
-    head = f"🔬 Researcher: ไม้จริง {r['n']} ไม้ ลอง {r['tests']} ช่อง (อาจบังเอิญราว {r['by_chance']:g} ช่อง)"
-    weak = " · ".join(line(c) for c in r["weak"][:3]) or "ไม่พบจุดอ่อนชัด"
-    good = " · ".join(line(c) for c in r["strong"][:2]) or "ไม่พบจุดแข็งชัด"
-    return f"{head}\nจุดอ่อน: {weak}\nจุดแข็ง: {good}"
+        return f"{plain(c['cell'])}: {c['n']} ไม้ {c['sum']:+.0f}$"
+    bad = "\n".join(f"👎 {line(c)}" for c in r["weak"][:2]) or "👎 ยังไม่เจอจุดอ่อนชัด"
+    good = "\n".join(f"👍 {line(c)}" for c in r["strong"][:2]) or "👍 ยังไม่เจอจุดแข็งชัด"
+    return f"🔬 Researcher วันนี้ (ยังเป็นแค่ข้อสังเกต)\n{bad}\n{good}"
 
 
 def load() -> dict:

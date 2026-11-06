@@ -190,16 +190,7 @@ def telegram_summary(r: dict) -> str:
     if bots:
         L.append("🏆 ดีสุด: " + ", ".join(f"{b} {s['total']:+.0f}$" for b, s in bots[::-1][:3])
                  + " · 🐢 แย่สุด: " + ", ".join(f"{b} {s['total']:+.0f}$" for b, s in bots[:3]))
-    preds = [f"{shadow.WHO.get(s, s)} {p['right']}/{p['calls']}" for s, p in r.get("predictions", {}).items() if p.get("calls")]
-    if preds:
-        L.append("🔮 คำทำนายถูก: " + " · ".join(preds))
-    closes = [f"{close_score.WHO.get(s, s)} {x['saved']:+.0f}$ ({x['n']} ครั้ง)" for s, x in r.get("closes", {}).items()]
-    if closes:
-        L.append("✋ สั่งปิดไม้ดีกว่าปล่อย: " + " · ".join(closes))
-    sc = [f"{b} ×{a['scale']:g}" for b, a in sorted(r.get("alloc", {}).items()) if a.get("scale") not in (None, 1.0)]
-    if sc:
-        L.append("⚖️ ขนาดไม้: " + ", ".join(sc))
-    L += [f"• {x}" for x in r["conclusions"][:6]]
-    L.append("ฉบับเต็ม: หน้าเว็บ → รายงานวิจัย (/report)")
+    L += [f"• {x}" for x in r["conclusions"][:2]]
+    L.append("อ่านเต็มที่หน้าเว็บ /report")
     return "\n".join(L)
 

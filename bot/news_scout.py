@@ -74,9 +74,18 @@ def upcoming(hours: float = 24, now: datetime | None = None) -> list[dict[str, A
     return out
 
 
+def plain(event: str) -> str:
+    low = event.lower()
+    for key, word in (("non-farm", "ตัวเลขจ้างงาน (NFP)"), ("cpi", "เงินเฟ้อ (CPI)"), ("pce", "เงินเฟ้อ (PCE)"), ("fomc", "ประชุมเฟด"),
+                      ("federal funds", "ประชุมเฟด"), ("gdp", "GDP"), ("retail sales", "ยอดค้าปลีก"), ("ppi", "เงินเฟ้อผู้ผลิต (PPI)")):
+        if key in low:
+            return word
+    return event.split(" + ")[0]
+
+
 def today_text(now: datetime | None = None) -> str:
     ev = upcoming(24, now)
     if not ev:
         return ""
-    bkk = [f"{(datetime.fromisoformat(x['at_utc']) + timedelta(hours=7)):%H:%M} {x['event']}" for x in ev]
-    return f"📅 News Scout: ข่าวแรง 24 ชม.ข้างหน้า (เวลาไทย) — {' · '.join(bkk)} · บอทงดเข้าไม้ใหม่ ±{C.NEWS_BLACKOUT_MIN} นาที"
+    bkk = [f"{(datetime.fromisoformat(x['at_utc']) + timedelta(hours=7)):%H:%M} {plain(x['event'])}" for x in ev]
+    return f"📅 ข่าวแรงวันนี้: {' · '.join(bkk)}\nบอทหยุดเข้าไม้ใหม่ ±{C.NEWS_BLACKOUT_MIN} นาที"

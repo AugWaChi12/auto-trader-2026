@@ -27,7 +27,7 @@ def test_upcoming_and_today_text_use_bangkok_time(monkeypatch, tmp_path: Path) -
     N.refresh(FEED)
     now = datetime(2026, 11, 12, 6, tzinfo=timezone.utc)
     assert N.upcoming(24, now)[0]["in_hours"] == 7.5
-    assert "20:30 CPI" in N.today_text(now)
+    assert "20:30 เงินเฟ้อ (CPI)" in N.today_text(now)
     assert N.upcoming(24, now + timedelta(days=2)) == []
 
 
