@@ -889,6 +889,8 @@ class Manager:
             if ch:
                 say("action", "⚖️ ปรับขนาดไม้ประจำวัน: " + " · ".join(f"{x['bot']} ×{x['old']:g}→×{x['new']:g}" for x in ch)
                     + " (ตามผลจริงของสายปัจจุบัน หน่วย lot มาตรฐาน)", act="scale", src="rules")
+            from . import researcher
+            say("journal", researcher.summary_text(researcher.run(rows)), src="researcher")
         except Exception:  # noqa: BLE001
             log.exception("allocate failed")
 
