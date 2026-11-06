@@ -460,6 +460,7 @@ class RuleBrain:
 # ---------------------------------------------------------------- ผู้จัดการ
 class Manager:
     last_news = 0.0
+    last_agent = 0.0
     news_day = ""
 
     def __init__(self, col: Any = None) -> None:
@@ -924,6 +925,25 @@ class Manager:
             text = news_scout.today_text()
             if text:
                 say("journal", text, src="news_scout")
+        self.maybe_news_agent(s)
+
+    def price_now(self, symbol: str, now: float) -> float | None:
+        """ราคาปิดแท่ง M5 ล่าสุด · แท่งเก่าเกิน 30 นาที = ตลาดปิด"""
+        bars = self.fetch_bars(symbol, "M5", 3)
+        return bars[-1].close if bars and now - bars[-1].time.timestamp() < 1800 else None
+
+    def maybe_news_agent(self, s: Snapshot) -> None:
+        """News Agent (Gemini, paper): ทายทิศจากข่าวทุกชั่วโมง + ให้คะแนนคำทายเก่า"""
+        from . import news_agent
+        if s.t - self.last_agent < news_agent.EVERY_MIN * 60 or not os.environ.get("GEMINI_API_KEY"):
+            return
+        self.last_agent = s.t
+        try:
+            news_agent.evaluate(self.fetch_bars, s.t)
+            for c in news_agent.scan(lambda sym: self.price_now(sym, s.t), s.t):
+                say("info", news_agent.describe(c), src="news_agent")
+        except Exception:  # noqa: BLE001 — ทีมข่าวพังต้องไม่กระทบรอบบริหาร
+            log.exception("news agent failed")
 
     def maybe_research(self, s: Snapshot) -> None:
         """วิจัยประจำสัปดาห์: อาทิตย์ตี 4 เวลาไทย (ห่างรอบก่อน ≥ RESEARCH_EVERY_DAYS) → รัน python -m bot research เป็นโปรเซสแยก"""
