@@ -70,6 +70,9 @@ TRAIL_START = float(os.environ.get("MANAGER_TRAIL_START") or 30)
 TRAIL_GAP = float(os.environ.get("MANAGER_TRAIL_GAP") or 5)
 # ผู้ใช้สั่ง 2026-10-29: เพดานขาดทุนต่อไม้ $40 (ทดสอบกับไม้จริง 176 ไม้: −$15 แย่ลง · −$40 ดีขึ้นเล็กน้อย ตัดไม้ที่จะพลิกกำไรแค่ 3 ไม้)
 #   ① เลื่อน SL ที่โบรกให้เสียไม่เกินนี้ (ทำงานแม้ผู้จัดการล่ม) ② ตัวเฝ้าไม้ปิดเองถ้าราคาข้ามไปแล้ว · 0 = ปิดกฎนี้
+# ผลจริง 2026-11-06: ไม้ที่ AI สั่งปิดแย่กว่าปล่อยไว้ −$285 (30 ครั้ง) ส่วนตัวเฝ้าไม้ดีกว่าปล่อย +$930
+#   → AI ไม่ปิดไม้จริง แต่ยังจดว่า "อยากปิด" แล้วให้คะแนนเหมือนเดิม (MANAGER_AI_CLOSE=1 = ให้ปิดจริง)
+AI_CLOSE = os.environ.get("MANAGER_AI_CLOSE") == "1"
 MAX_LOSS_USD = float(os.environ.get("MANAGER_MAX_LOSS_USD") or 60)   # 2026-10-29: 40 → 60 (วันตลาดสะบัด −40 ตัดไม้ที่เด้งกลับ 8/10)
 
 
@@ -521,6 +524,8 @@ class Manager:
             new = allocator.set_scale(a.bot, a.value, a.reason, a.src)
             self.last_scale[a.bot] = s.t
             say("action", f"⚖️ ปรับขนาดไม้ {a.bot} ×{old:g} → ×{new:g} — {a.reason}", bot=a.bot, act="scale", src=a.src)
+        elif a.kind == "close" and a.src != "rules" and not AI_CLOSE:
+            self.paper_close(a, s)
         elif a.kind == "close":
             for o in s.bots[a.bot]["open"]:
                 self.close_ctx[o["ticket"]] = {"src": a.src, "why": a.reason, "sl": o.get("sl"), "tp": o.get("tp")}
@@ -530,6 +535,17 @@ class Manager:
                                      + " ปิด: " + a.reason)
             say("action", f"✋ สั่งปิดไม้ {a.bot} ({ok}/{len(res)}) — {a.reason}", bot=a.bot, act="close", src=a.src,
                 notify=False)                                   # Telegram ได้ข้อความผลจริงตอนปิดเสร็จแทน (trade_closed)
+
+    def paper_close(self, a: Action, s: Snapshot) -> None:
+        """AI อยากปิดไม้ → ไม่ปิดจริง จดราคาตอนนี้ไว้ให้ close_score ตรวจทีหลังว่าถ้าปิดจะดีกว่าไหม"""
+        from . import close_score
+        opens = s.bots[a.bot]["open"]
+        for o in opens:
+            close_score.record({"ticket": o["ticket"], "bot": a.bot, "symbol": o.get("symbol"), "side": o["side"], "volume": o["volume"],
+                                "close_price": o["price"], "profit": o["profit"]},
+                               {"src": f"{a.src}_paper", "why": a.reason, "sl": o.get("sl"), "tp": o.get("tp")})
+        say("info", f"🧪 อยากปิดไม้ {a.bot} ตอนลอย {sum(o['profit'] for o in opens):+.2f}$ — โหมดทดลอง ไม่ปิดจริง · {a.reason}",
+            bot=a.bot, act="paper_close", src=a.src)
 
     def brain_name(self) -> str:
         return f"{self.llm.name} + {self.brain.name}" if self.llm else self.brain.name

@@ -172,6 +172,7 @@ def rotate(rows: list[dict]) -> dict | None:
     c = cands[0]
     old = {k: b.get(k) for k in ("family", "params", "plan")}
     b.update(family=c["family"], params=c["params"], plan=c["plan"], wf_usd_day=c["wf_usd_day"])
+    b.pop("tf", None)                                  # ผู้สมัครมาจากงานวิจัย M5 → กลับไปใช้ timeframe รวม
     b["reassigned"] = {"at": datetime.now(timezone.utc).strftime("%Y%m%d%H%M"), "from": old, "by": "manager",
                        "why": f"ไม้จริง {ev['n']} ไม้ เฉลี่ย {ev['avg']:+.2f}$/ไม้ t={ev['t']:+.2f} · walk-forward {old.get('family')} ไม่บวก"}
     from .live.fileio import atomic_write

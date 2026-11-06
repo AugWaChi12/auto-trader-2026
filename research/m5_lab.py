@@ -379,7 +379,7 @@ def retune(meta: dict, slots: list[dict], path: Path) -> list[dict]:
     taken = [(m["family"], m["symbol"], core(m["params"])) for m in C.MAIN_M5.values()]
     bots = []
     for b in cur:
-        z = by.get((b["family"], b["symbol"]))
+        z = by.get((b["family"], b["symbol"])) if b.get("tf") in (None, TF) else None   # บอทคนละ timeframe: งานจูนรอบนี้ไม่แตะ
         mine = core(b["params"])
         is_free = lambda o: (b["family"], b["symbol"], core(o["params"])) not in taken  # noqa: E731
         pick = None
@@ -398,7 +398,7 @@ def retune(meta: dict, slots: list[dict], path: Path) -> list[dict]:
         bots.append({**b, "params": dict(pick["params"]), "plan": pick["plan"], "wf_usd_day": z["wf"]["usd_day"],
                      "wf_usd_trade": z["wf"].get("usd_trade"), "holdout_usd_day": z["holdout"]["usd_day"],
                      "random_usd_day": z["wf_random"]["usd_day"] if z.get("wf_random") else None})
-    gates = gate_search(bots, int(_arg("--workers", "24"))) if "--no-gates" not in sys.argv else {}
+    gates = gate_search([b for b in bots if b.get("tf") in (None, TF)], int(_arg("--workers", "24"))) if "--no-gates" not in sys.argv else {}
     changes = []
     for b, old in zip(bots, cur):
         g = gates.get(b["bot"])

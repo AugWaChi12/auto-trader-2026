@@ -22,7 +22,8 @@ HORIZON_H = 24
 SETTLE_MIN = 30
 GIVE_UP_SEC = 3 * 86400
 WHO = {"rules": "กฎ", "guard": "ตัวเฝ้าไม้", "gemini": "Gemini Lite", "gemini_smart": "Gemini 3.8", "claude": "Claude Sonnet",
-       "claude_smart": "Claude Opus"}
+       "claude_smart": "Claude Opus", "claude_paper": "Claude Sonnet (ทดลอง)", "claude_smart_paper": "Claude Opus (ทดลอง)",
+       "gemini_paper": "Gemini Lite (ทดลอง)", "gemini_smart_paper": "Gemini 3.8 (ทดลอง)"}
 
 
 def _load() -> list[dict]:

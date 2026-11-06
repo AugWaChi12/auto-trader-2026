@@ -128,7 +128,8 @@ def _fmt(s: dict) -> str:
 EN = {"trend": "Trend", "range": "Range", "mixed": "Mixed", "asia": "Asia", "europe": "Europe", "us": "US",
       "with": "With trend", "against": "Against trend", "flat": "No trend"}
 WHO_EN = {"rules": "Rules", "guard": "Guard", "gemini": "Gemini Lite", "gemini_smart": "Gemini 3.8", "claude": "Claude Sonnet",
-          "claude_smart": "Claude Opus"}
+          "claude_smart": "Claude Opus", "claude_paper": "Claude Sonnet (paper)", "claude_smart_paper": "Claude Opus (paper)",
+          "gemini_paper": "Gemini Lite (paper)", "gemini_smart_paper": "Gemini 3.8 (paper)"}
 
 
 def _fmt_en(s: dict) -> str:

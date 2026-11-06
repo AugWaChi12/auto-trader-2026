@@ -212,3 +212,35 @@ def test_quiet_periods_use_claude_sonnet_then_gemini_when_capped(monkeypatch, tm
     assert {a.src for a in brain.maybe_decide(s, {})} == {"claude"} and cl == [("sonnet", "low")]
     brain.last = 0
     assert {a.src for a in brain.maybe_decide(s, {})} == {"gemini"} and gem == [False]   # ครบเพดาน Sonnet → Gemini Lite
+
+
+def test_ai_close_is_paper_only_and_scored_while_rules_still_close(monkeypatch) -> None:  # noqa: ANN001
+    from bot import manager as M
+    said, closed = [], []
+    monkeypatch.setattr(M, "say", lambda kind, text, **k: said.append(text))
+    m = M.Manager.__new__(M.Manager)
+    m.recent, m.close_ctx, m.close_why = [], {}, {}
+    m.col = NS(close_bot_positions=lambda bot: closed.append(bot) or [{"ok": True}])
+    o = {"ticket": 7, "symbol": "XAUUSD", "side": "BUY", "volume": .04, "price": 4000.0, "profit": -12.0, "sl": 3990.0, "tp": None}
+    s = NS(t=time.time(), bots={"m5_8": {"open": [o]}})
+    m.execute(M.Action("close", "m5_8", reason="สวนเทรนด์", src="claude_smart"), s, {})
+    assert closed == [] and "ไม่ปิดจริง" in said[-1]                         # AI: ไม่ปิดจริง
+    row = json.loads(CS.PATH.read_text(encoding="utf-8").splitlines()[0])
+    assert row["src"] == "claude_smart_paper" and row["close_price"] == 4000.0 and row["sl"] == 3990.0
+    m.execute(M.Action("close", "m5_8", reason="ถือนาน", src="rules"), s, {})
+    assert closed == ["m5_8"]                                               # กฎยังปิดจริง
+
+
+def test_bot_can_have_its_own_timeframe_and_retune_leaves_it_alone(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "research"))
+    import m5_lab
+    cur = [{"bot": "m5_17", "family": "orb", "symbol": "XAUUSD", "tf": "H1", "lot": .04, "params": {"a": 9}, "plan": "trail"}]
+    monkeypatch.setattr(C, "load_m5_bots", lambda: cur)
+    monkeypatch.setattr(m5_lab, "keep_current", lambda b, z: False)
+    monkeypatch.setattr(sys, "argv", ["m5_lab", "--no-gates"])
+    slot = {"family": "orb", "symbol": "XAUUSD", "live": {"params": {"a": 1}, "plan": "native"}, "wf": {"usd_day": 1.0},
+            "holdout": {"usd_day": .5}, "wf_random": None}
+    out = tmp_path / "bots.json"
+    assert m5_lab.retune({}, [slot], out) == []                             # จูนจากผล M5 ไม่แตะบอท H1
+    assert json.loads(out.read_text(encoding="utf-8"))["bots"][0]["params"] == {"a": 9}

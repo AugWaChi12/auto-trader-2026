@@ -286,6 +286,13 @@ def load_m5_bots() -> list[dict]:
         return []
 
 
+# บอทที่ตั้ง timeframe ของตัวเอง (field "tf" ใน m5_bots.json) — ค่าอื่นใช้ timeframe รวมจากหน้า /settings
+BOT_WARMUP = {"M1": 99000, "M5": 30000, "M15": 10000, "M30": 8000, "H1": 5000}
+for _b in load_m5_bots():
+    if _b.get("tf") and _b["bot"] in LIVE_INSTANCES:
+        LIVE_INSTANCES[_b["bot"]].update(tf=_b["tf"], warmup=BOT_WARMUP.get(_b["tf"], 5000))
+
+
 def build_strategies(tags: list[str] | None = None, symbols: list[str] | None = None,
                      timeframe: str = TIMEFRAME) -> list[Strategy]:
     out: list[Strategy] = []

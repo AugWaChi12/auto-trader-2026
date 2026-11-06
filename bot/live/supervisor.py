@@ -78,7 +78,7 @@ class Supervisor:
         for b in new:
             c = self.children.get(b["bot"])
             o = old.get(b["bot"])
-            if c and c.proc is not None and (o is None or (o["params"], o["plan"], o["family"]) != (b["params"], b["plan"], b["family"])):
+            if c and c.proc is not None and (o is None or (o["params"], o["plan"], o["family"], o.get("tf")) != (b["params"], b["plan"], b["family"], b.get("tf"))):
                 self.stop(c, "งานวิจัยใหม่")              # รอบถัดไปเปิดใหม่ด้วยพารามิเตอร์ใหม่
 
     def enabled(self, name: str) -> bool:
