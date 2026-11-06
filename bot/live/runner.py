@@ -81,7 +81,7 @@ class LiveRunner:
             log.error("ปุ่ม Algo Trading ใน MT5 ปิดอยู่ → ส่งออเดอร์ไม่ได้ (retcode 10027) กดเปิดที่แถบเครื่องมือ MT5")
 
         now = datetime.now(UTC)
-        news = NewsCalendar.default(C.NEWS_CSV, (now.year - 1, now.year + 1), C.NEWS_BLACKOUT_MIN)
+        news = NewsCalendar.default(C.NEWS_CSV, (now.year - 1, now.year + 1), C.NEWS_BLACKOUT_MIN, C.NEWS_EVENTS_CSV)
         self.risk = RiskManager(C.RISK_PROFILES[self.profile], self.broker, news,
                                 real_equity=lambda: float(self.broker.mt5.account_info().equity),
                                 lot_scale=lambda: allocator.scale_of(self.instance))

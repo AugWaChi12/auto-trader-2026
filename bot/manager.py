@@ -459,6 +459,9 @@ class RuleBrain:
 
 # ---------------------------------------------------------------- ผู้จัดการ
 class Manager:
+    last_news = 0.0
+    news_day = ""
+
     def __init__(self, col: Any = None) -> None:
         if col is None:
             from .monitor.server import Collector
@@ -582,6 +585,7 @@ class Manager:
             self.report(weekly=datetime.fromisoformat(self.day).weekday() == 0)   # ขึ้นวันจันทร์ = ครบสัปดาห์
         self.last_snap = s
         self.maybe_research(s)
+        self.maybe_news(s)
         if s.t - self.last_shadow >= 3600:
             self.last_shadow = s.t
             try:
@@ -903,6 +907,23 @@ class Manager:
                 say("journal", live_report.telegram_summary(r))
         except Exception:  # noqa: BLE001
             log.exception("live report failed")
+
+    def maybe_news(self, s: Snapshot) -> None:
+        """News Scout: ดึงปฏิทินทุก REFRESH_H ชม. · บอกข่าวแรงวันละครั้งเมื่อมี"""
+        from . import news_scout
+        if s.t - self.last_news >= news_scout.REFRESH_H * 3600:
+            self.last_news = s.t
+            try:
+                n = news_scout.refresh()
+                if n:
+                    log.info("news scout: %d new events", n)
+            except Exception:  # noqa: BLE001 — ดึงปฏิทินไม่ได้ต้องไม่กระทบรอบบริหาร
+                log.exception("news refresh failed")
+        if self.news_day != bkk_day():
+            self.news_day = bkk_day()
+            text = news_scout.today_text()
+            if text:
+                say("journal", text, src="news_scout")
 
     def maybe_research(self, s: Snapshot) -> None:
         """วิจัยประจำสัปดาห์: อาทิตย์ตี 4 เวลาไทย (ห่างรอบก่อน ≥ RESEARCH_EVERY_DAYS) → รัน python -m bot research เป็นโปรเซสแยก"""

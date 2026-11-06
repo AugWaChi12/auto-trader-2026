@@ -41,17 +41,33 @@ def load_csv(path: Path) -> list[datetime]:
 
 
 class NewsCalendar:
-    def __init__(self, events: list[datetime], window: timedelta = timedelta(minutes=30)) -> None:
+    def __init__(self, events: list[datetime], window: timedelta = timedelta(minutes=30), live_csv: Path | None = None) -> None:
+        self._base = list(events)
         self._events = sorted(events)
         self.window = window
+        self._live_csv = live_csv
+        self._live_mtime = None
 
     @classmethod
-    def default(cls, csv_path: Path | None, years: tuple[int, int], window_min: int = 30) -> "NewsCalendar":
+    def default(cls, csv_path: Path | None, years: tuple[int, int], window_min: int = 30,
+                live_csv: Path | None = None) -> "NewsCalendar":
         events = nfp_times(*years)
         if csv_path and csv_path.exists():
             events += load_csv(csv_path)
-        return cls(events, timedelta(minutes=window_min))
+        return cls(events, timedelta(minutes=window_min), live_csv)
+
+    def _reload(self) -> None:
+        """ไฟล์ปฏิทินของ News Scout เปลี่ยน → รวมเข้าตาราง (อ่านไม่ได้ = ใช้ตารางเดิมต่อ)"""
+        try:
+            mtime = self._live_csv.stat().st_mtime
+            if mtime != self._live_mtime:
+                self._events = sorted(self._base + load_csv(self._live_csv))
+                self._live_mtime = mtime
+        except (OSError, ValueError, KeyError):
+            pass
 
     def in_blackout(self, t: datetime) -> bool:
+        if self._live_csv:
+            self._reload()
         i = bisect.bisect_left(self._events, t - self.window)
         return i < len(self._events) and self._events[i] <= t + self.window

@@ -28,6 +28,7 @@ from .strategy.sweep_reversal import SweepConfig, SweepReversal
 ROOT = Path(__file__).resolve().parent.parent
 _S = _settings.load()          # ค่าที่ผู้ใช้ตั้งจากหน้าเว็บ (บอททดสอบเท่านั้น)
 NEWS_CSV = ROOT / "config" / "news.csv"
+NEWS_EVENTS_CSV = ROOT / "state" / "news_events.csv"     # ปฏิทินที่ News Scout ดึงมา (บอทอ่านใหม่เมื่อไฟล์เปลี่ยน)
 
 TIMEFRAME = "M15"
 INITIAL_BALANCE = 1_000.0   # เท่ากับบัญชี demo FxPro

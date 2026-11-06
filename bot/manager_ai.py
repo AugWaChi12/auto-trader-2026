@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import config as C
+from . import news_scout, researcher
 from .manager_learn import Learner, load_summary
 from .shadow import scoreboard
 from .manager import REGIME_TH, Action, Snapshot, market_regime, range_ratio, read_log, say, suits, to_m5
@@ -116,6 +117,7 @@ SYSTEM = f"""คุณคือผู้จัดการพอร์ตเท�
   เฉพาะตัวที่เสียต่อเนื่องและสายไม่เหมาะกับตลาดตอนนี้ ไม่ลดเหมารวม แล้วอธิบายในข้อความ say
 - set_lot_scale = ปรับขนาดไม้ของบอท (0.25–2.0 เท่า) ตามหลักฐาน — field "lot_scale" ของบอทคือค่าปัจจุบัน (ไม่มี = 1)
 - ตัวเลข $/ไม้ ใน learned/lessons คิดเป็น lot มาตรฐานของงานวิจัยแล้ว (ทอง 0.04 · NAS100 0.73 · BTC 0.17)
+- "upcoming_news" = ข่าวแรง 24 ชม.ข้างหน้าจาก News Scout (บอทงดเข้าไม้ใหม่รอบข่าวอยู่แล้ว) · "researcher" = จุดอ่อน/จุดแข็งจาก Researcher เป็นสมมติฐาน ไม่ใช่กฎ ดู by_chance ก่อนเชื่อ
 - "lessons" = จุดอ่อนที่ชัดที่สุดจากไม้จริง (สาย × เงื่อนไข) · งานวิจัยทุกคืนจะทดสอบตัวกรองจากจุดอ่อนพวกนี้บนข้อมูลย้อนหลัง
   ถ้าผ่าน จะใส่ให้บอทเอง (bots.*.gate) — คุณไม่ต้องสั่ง แต่ช่วยอธิบายให้คนดูเข้าใจได้
 
@@ -213,6 +215,8 @@ def snapshot_json(s: Snapshot, pauses: dict[str, dict]) -> str:
         "prediction_scoreboard_30d": scoreboard(),
         "close_scoreboard_30d": close_score.scoreboard(),
         "lessons": Learner().lessons(),
+        "upcoming_news": news_scout.upcoming(24),
+        "researcher": {k: v for k, v in researcher.load().items() if k in ("tests", "by_chance", "weak", "strong")},
         "research_report_conclusions": _report_conclusions(),
         "recent_chat": [f'{m["t"][11:16]} {m["kind"]}: {m["text"]}' for m in read_log(8)],
     }, ensure_ascii=False, separators=(",", ":"), default=str)
