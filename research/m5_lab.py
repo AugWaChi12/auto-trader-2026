@@ -47,7 +47,7 @@ DATA = ROOT / "data" / "mt5"
 OUT = ROOT / "research" / "out"
 ASSIGN = ROOT / "bot" / "m5_bots.json"
 # ทุกตลาดแกว่งเป็นเงินเท่ากันต่อ 1 ATR ของ M5 (≈ $17): ทอง 4.2 × 100 × 0.04 · NAS 23 × 0.73 · BTC 97 × 0.17
-LOTS = {"XAUUSD": 0.04, "NAS100": 0.73, "BTCUSD": 0.17, "EURUSD": 0.52, "GBPUSD": 0.41, "USDJPY": 0.51, "WTI": 0.10}
+LOTS = {"XAUUSD": 0.04, "NAS100": 0.73, "BTCUSD": 0.17, "EURUSD": 0.52, "GBPUSD": 0.41, "USDJPY": 0.51, "WTI": 0.10, "XAGUSD": 0.03}
 TARGET = 120.0
 N_BOTS = 9
 BOT_MARKETS = {"BTCUSD"}        # ตลาดที่บอททดสอบเล่น (ตามคำขอผู้ใช้ 2026-10-17) — วิจัยทุกตลาดเหมือนเดิม

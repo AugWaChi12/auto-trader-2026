@@ -9,6 +9,8 @@ allocator.py — ผู้จัดการบริหารพอร์ตแ
   2) สลับสาย (state/m5_bots.json): สายปัจจุบันขาดทุนชัดในไม้จริง (≥ 20 ไม้, t ≤ −1.5) และงานวิจัย walk-forward ไม่บวก
      → เปลี่ยนเป็นสายที่หลักฐานดีที่สุดของตลาดเดียวกัน (ช่วงทดสอบซ่อนบวก) · วันละไม่เกิน 1 ตัว · ตัวเดิมต้องห่างจากรอบก่อน ≥ 7 วัน
      supervisor เห็นไฟล์เปลี่ยน → รีสตาร์ทบอทตัวนั้นด้วยสายใหม่ให้เอง
+     ไม่มีสายดีในตลาดเดิม → ใช้ตัวที่ล่า edge ประจำสัปดาห์เจอ (state/explorer.json) ย้ายตลาด/timeframe ได้ ถ้าบอทไม่มีไม้ค้าง
+     ไม้จริงขาดทุนแม้ t ไม่ถึงเกณฑ์ แต่งานวิจัยติดลบทั้ง walk-forward และช่วงซ่อน = สลับได้เช่นกัน
 """
 from __future__ import annotations
 
@@ -22,6 +24,8 @@ from . import config as C
 
 ALLOC_PATH = C.STATE_DIR / "manager_alloc.json"
 LAB_PATH = C.ROOT / "research" / "out" / "m5_lab.json"
+EXPLORE_PATH = C.STATE_DIR / "explorer.json"
+EXPLORE_MIN_T = 1.0            # ตัวจากการล่า edge ต้อง walk-forward t ถึงเท่านี้ถึงย้ายบอทไปใช้
 SCALE_MIN, SCALE_MAX = 0.25, 2.0
 SCALE_MIN_N = 15
 ROTATE_MIN_N = 20
@@ -143,6 +147,39 @@ def candidates(symbol: str, exclude_family: str, used: list[dict]) -> list[dict]
     return sorted(out, key=lambda c: (not c["new_family"], -c["score"]))
 
 
+def explorer_candidates(used: list[dict]) -> list[dict]:
+    """ตัวที่ผ่านเกณฑ์จากการล่า edge (ทุกตลาด/timeframe) ที่ยังไม่มีบอทใช้ชุดเดียวกัน เรียง t จากดีสุด"""
+    try:
+        rows = json.loads(EXPLORE_PATH.read_text(encoding="utf-8"))["rows"]
+    except (OSError, ValueError, KeyError):
+        return []
+    taken = [(b["family"], b["symbol"], b.get("tf", "M5")) for b in used]
+    out = []
+    for r in rows:
+        w, h = r["wf"], r["holdout"]
+        if not r.get("edge") or not r.get("live") or (w.get("t") or 0) < EXPLORE_MIN_T or r["symbol"] not in C.STD_LOTS:
+            continue
+        if (r["family"], r["symbol"], r["tf"]) in taken:
+            continue
+        out.append({"family": r["family"], "symbol": r["symbol"], "tf": r["tf"], "params": dict(r["live"]["params"]),
+                    "plan": r["live"]["plan"], "score": w["t"], "holdout_usd_day": h.get("usd_day"), "wf_usd_day": w.get("usd_day")})
+    return sorted(out, key=lambda c: -c["score"])
+
+
+def _idle(bot: str) -> bool:
+    """บอทไม่มีไม้เปิด (ย้ายตลาดได้ ไม่ทิ้งไม้ค้าง)"""
+    try:
+        return not json.loads((C.STATE_DIR / bot / "positions.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+
+
+def _proven_loser(b: dict, ev: dict) -> bool:
+    if ev["n"] < ROTATE_MIN_N or (b.get("wf_usd_day") or 0) > 0:
+        return False
+    return ev["t"] <= ROTATE_T or ((ev["avg"] or 0) < 0 and (b.get("holdout_usd_day") or 0) <= 0)
+
+
 def rotate(rows: list[dict]) -> dict | None:
     """สลับสายบอทที่พิสูจน์แล้วว่าเสีย (วันละไม่เกิน 1 ตัว) · คืนรายละเอียด หรือ None"""
     path = C.M5_BOTS_TUNED if C.M5_BOTS_TUNED.exists() else C.M5_BOTS_FILE
@@ -159,20 +196,22 @@ def rotate(rows: list[dict]) -> dict | None:
         if since and _now() - since < ROTATE_COOLDOWN_DAYS * 86400:
             continue
         ev = evidence(rows, b["bot"], b["family"], since)
-        if ev["n"] < ROTATE_MIN_N or ev["t"] > ROTATE_T or (b.get("wf_usd_day") or 0) > 0:
+        if not _proven_loser(b, ev):
             continue
         if worst is None or ev["t"] < worst[1]["t"]:
             worst = (b, ev)
     if worst is None:
         return None
     b, ev = worst
-    cands = candidates(b["symbol"], b["family"], bots)
+    cands = candidates(b["symbol"], b["family"], bots) or (explorer_candidates(bots) if _idle(b["bot"]) else [])
     if not cands:
         return None
     c = cands[0]
     old = {k: b.get(k) for k in ("family", "params", "plan")}
-    b.update(family=c["family"], params=c["params"], plan=c["plan"], wf_usd_day=c["wf_usd_day"])
-    b.pop("tf", None)                                  # ผู้สมัครมาจากงานวิจัย M5 → กลับไปใช้ timeframe รวม
+    b.update(family=c["family"], params=c["params"], plan=c["plan"], wf_usd_day=c["wf_usd_day"], holdout_usd_day=c["holdout_usd_day"])
+    b.pop("tf", None)                                  # ผู้สมัครจากงานวิจัย M5 → กลับไปใช้ timeframe รวม
+    if c.get("tf"):
+        b.update(tf=c["tf"], symbol=c["symbol"], lot=C.STD_LOTS[c["symbol"]])
     b["reassigned"] = {"at": datetime.now(timezone.utc).strftime("%Y%m%d%H%M"), "from": old, "by": "manager",
                        "why": f"ไม้จริง {ev['n']} ไม้ เฉลี่ย {ev['avg']:+.2f}$/ไม้ t={ev['t']:+.2f} · walk-forward {old.get('family')} ไม่บวก"}
     from .live.fileio import atomic_write

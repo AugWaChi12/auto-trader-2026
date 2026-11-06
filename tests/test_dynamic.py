@@ -244,3 +244,37 @@ def test_bot_can_have_its_own_timeframe_and_retune_leaves_it_alone(monkeypatch, 
     out = tmp_path / "bots.json"
     assert m5_lab.retune({}, [slot], out) == []                             # จูนจากผล M5 ไม่แตะบอท H1
     assert json.loads(out.read_text(encoding="utf-8"))["bots"][0]["params"] == {"a": 9}
+
+
+def _explorer(monkeypatch, tmp_path: Path, t: float = 2.0) -> None:  # noqa: ANN001
+    p = tmp_path / "explorer.json"
+    p.write_text(json.dumps({"rows": [{"family": "momo", "symbol": "XAUUSD", "tf": "M15", "edge": True, "wf": {"t": t, "usd_day": 9.0},
+                                       "holdout": {"usd_day": 4.0}, "live": {"params": {"entry_time": "11:00"}, "plan": "trail"}}]}),
+                 encoding="utf-8")
+    monkeypatch.setattr(A, "EXPLORE_PATH", p)
+
+
+def test_rotate_moves_idle_loser_to_explorer_edge_in_another_market(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    _lab(tmp_path, monkeypatch)
+    _explorer(monkeypatch, tmp_path)
+    monkeypatch.setattr(A, "candidates", lambda *a: [])
+    monkeypatch.setattr(A, "_idle", lambda bot: True)
+    doc = {"bots": [{"bot": "m5_8", "symbol": "BTCUSD", "family": "rsi2", "params": {}, "plan": "native", "wf_usd_day": -9, "holdout_usd_day": -3}]}
+    C.M5_BOTS_TUNED.write_text(json.dumps(doc), encoding="utf-8")
+    r = A.rotate(_rows("m5_8", "rsi2", [5, -9, 4, -8, 6, -7, 5, -9, 3, -8, 6, -9, 5, -7, 4, -8, 6, -9, 5, -8]))   # t ไม่ถึง −1.5 แต่ติดลบทุกด้าน
+    assert r and r["to"] == "momo"
+    b = json.loads(C.M5_BOTS_TUNED.read_text(encoding="utf-8"))["bots"][0]
+    assert (b["symbol"], b["tf"], b["lot"]) == ("XAUUSD", "M15", C.STD_LOTS["XAUUSD"])
+
+
+def test_explorer_edge_needs_strong_t_and_bot_with_open_trade_stays(monkeypatch, tmp_path: Path) -> None:  # noqa: ANN001
+    _lab(tmp_path, monkeypatch)
+    _explorer(monkeypatch, tmp_path, t=0.6)
+    assert A.explorer_candidates([]) == []
+    _explorer(monkeypatch, tmp_path)
+    assert A.explorer_candidates([{"family": "momo", "symbol": "XAUUSD", "tf": "M15"}]) == []
+    monkeypatch.setattr(A, "candidates", lambda *a: [])
+    monkeypatch.setattr(A, "_idle", lambda bot: False)
+    doc = {"bots": [{"bot": "m5_8", "symbol": "BTCUSD", "family": "rsi2", "params": {}, "plan": "native", "wf_usd_day": -9, "holdout_usd_day": -3}]}
+    C.M5_BOTS_TUNED.write_text(json.dumps(doc), encoding="utf-8")
+    assert A.rotate(_rows("m5_8", "rsi2", [-5, -9, -4, -8, -6, -7, -5, -9, -3, -8, -6, -9, -5, -7, -4, -8, -6, -9, -5, -8])) is None
