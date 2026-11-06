@@ -285,7 +285,7 @@ const hhmm = iso => new Intl.DateTimeFormat(LOC, { timeZone: TZ, hour: "2-digit"
 const dmy = iso => new Intl.DateTimeFormat(LOC, { timeZone: TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 const dshort = t => new Intl.DateTimeFormat(LOC, { timeZone: TZ, day: "numeric", month: "short" }).format(new Date(t));
 const FAM = { levels: "Level hunter", momo: "Morning momentum", pullback: "Pullback", bb: "Band fade", donchian: "Channel breakout", orb: "Opening range",
-              ema: "EMA cross", rsi2: "RSI-2 extreme", volx: "Quiet breakout", "momo+ema": "Main · momo + EMA" };
+              ema: "EMA cross", rsi2: "RSI-2 extreme", volx: "Quiet breakout", "momo+ema": "momo + EMA" };
 const SYM = { BTCUSD: "₿ BTC", XAUUSD: "🥇 Gold", NAS100: "📊 NAS100" };
 const WHO = { rules: "📏 Rules", guard: "🛡 Guard", gemini: "✨ Gemini Lite", gemini_smart: "✨ Gemini 3.8", claude: "🤖 Claude Sonnet", claude_smart: "🤖 Claude Opus",
               claude_paper: "🧪 Sonnet (paper)", claude_smart_paper: "🧪 Opus (paper)", gemini_paper: "🧪 Gemini (paper)", gemini_smart_paper: "🧪 Gemini 3.8 (paper)" };
@@ -418,7 +418,7 @@ function renderBots() {
     const s = pb[n], v = SORT === "today" ? todayOf(s) : s.total || 0, sc = scaleOf(n), op = opens.filter(o => o.bot === n).length;
     const w = Math.abs(v) / maxAbs * 50;
     return `<button class="bot" data-bot="${n}" aria-label="Details for ${n}">
-      <div class="r1"><span class="nm">${n === "main" ? "★ main" : n}</span>${n === "main" ? '<span class="chip main">MAIN</span>' : ""}
+      <div class="r1"><span class="nm">${n}</span>
         ${sc !== 1 ? `<span class="chip ${sc > 1 ? "scale-up" : "scale-dn"}" data-tip="Lot size set by the manager">×${sc}</span>` : ""}
         ${op ? `<span class="chip open">● ${op} open</span>` : ""}<span style="flex:1"></span><span class="muted" style="font-size:11.5px">${SYM[symOf(n)] || ""}</span></div>
       <div class="fam">${esc(FAM[famOf(n)] || famOf(n) || "–")} <span class="muted">(${esc(famOf(n) || "")})</span></div>
@@ -486,7 +486,7 @@ function botModal(n) {
   const trades = (D.trades || []).filter(t => t.bot === n), msgs = (M?.messages || []).filter(m => m.bot === n).slice(-8).reverse();
   const rb = M?.report?.by_bot?.[n], calls = (M?.shadow?.open || []).filter(c => c.bot === n);
   const params = n === "main" ? "xau_momo (decides at 12:00 UTC) + EMA 20/50 · fixed" : Object.entries(r.params || {}).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("/") || "–" : v}`).join(" · ");
-  openModal(`${n === "main" ? "★ main" : n} <span class="muted" style="font-weight:400;font-size:14px">${SYM[symOf(n)] || ""} · ${esc(FAM[famOf(n)] || famOf(n) || "")}</span>`, `
+  openModal(`${n} <span class="muted" style="font-weight:400;font-size:14px">${SYM[symOf(n)] || ""} · ${esc(FAM[famOf(n)] || famOf(n) || "")}</span>`, `
     <div class="kv"><div><span>Today (incl. floating)</span><b class="${cls(todayOf(s))}">${money(todayOf(s))}</b></div><div><span>All time</span><b class="${cls(s.total)}">${money(s.total || 0)}</b></div>
       <div><span>Trades / win rate</span><b>${s.trades || 0} · ${s.win_rate ?? "–"}%</b></div><div><span>Best / worst</span><b style="font-size:13px"><span class="up">${money(s.best)}</span> / <span class="down">${money(s.worst)}</span></b></div>
       <div><span>Lot size (manager)</span><b class="gold">×${al.scale ?? 1}</b></div>

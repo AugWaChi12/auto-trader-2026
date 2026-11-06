@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="google" content="notranslate">
 <title>Bot Village · The Tree AI Trading Lab (DEMO)</title>
-<meta name="description" content="Watch 20 trading bots (BTC / Gold / NAS100) work live in a 3D village with an AI portfolio manager — demo account, not investment advice.">
+<meta name="description" content="Watch 20 trading bots (BTC / Gold / NAS100) work live in a pixel-art village with an AI portfolio manager — demo account, not investment advice.">
 <meta name="theme-color" content="#4aa8f0">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Bot Village · The Tree AI Trading Lab (DEMO)">
-<meta property="og:description" content="20 BTC, Gold and NAS100 trading bots + an AI portfolio manager, live in a 3D village · demo account">
+<meta property="og:description" content="20 BTC, Gold and NAS100 trading bots + an AI portfolio manager, live in a pixel-art village · demo account">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,13 +23,12 @@
     --radius: 16px; --shadow: 0 10px 30px rgba(0, 0, 0, .45); --gap: 16px;
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; overflow: hidden; background: #070707; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #5cb85a; }
   body { font-family: "IBM Plex Sans Thai", "Leelawadee UI", "Noto Sans Thai", system-ui, sans-serif; color: var(--ink);
          font-size: clamp(13px, .45vw + 8px, 16px); -webkit-font-smoothing: antialiased; }
   button { font: inherit; color: inherit; }
   :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  #stage, #labels { position: fixed; inset: 0; }
-  #labels { pointer-events: none; }
+  #world { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; cursor: grab; image-rendering: pixelated; }
   .num { font-variant-numeric: tabular-nums; }
   .up { color: var(--up); } .down { color: var(--down); }
   .glass { background: var(--glass); backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
@@ -233,19 +232,14 @@
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
-<script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
-</script>
 </head>
 <body>
-<div class="loading" id="loading">Building the bot village… (first load needs internet for the 3D engine)</div>
-<div id="stage"></div>
-<div id="labels"></div>
+<div class="loading" id="loading">Building the bot village…</div>
+<canvas id="world" aria-label="Pixel-art map of the trading bot villages"></canvas>
 <header class="topbar">
   <div class="brand glass">
     <div class="logo" aria-hidden="true">🤖</div>
-    <div><h1>Bot Village</h1><p>20 trading bots · 2 islands + AI portfolio manager · live</p></div>
+    <div><h1>Bot Village</h1><p>20 trading bots · one village per market · AI manager · live</p></div>
   </div>
   <span class="demo">DEMO ACCOUNT</span>
   <span class="spacer"></span>
@@ -261,12 +255,7 @@
 <div class="subbar">
 <nav class="tools" aria-label="Tools">
   <button class="tool" id="infoBtn" type="button" aria-expanded="false" aria-controls="info"><span class="ico">ℹ️</span><span class="lbl">Guide</span></button>
-  <span class="isl-switch" role="group" aria-label="Choose island">
-    <button class="tool" id="isl1" type="button" aria-pressed="true" title="BTC island (m5_1–9)"><span class="ico">🏝</span><span>BTC</span></button>
-    <button class="tool" id="isl2" type="button" aria-pressed="false" title="Gold + NAS100 island (m5_10–19)"><span class="ico">🏝</span><span>Gold/NAS</span></button>
-  </span>
   <button class="tool" id="perfBtn" type="button" aria-haspopup="dialog"><span class="ico">📈</span><span class="lbl">Performance</span></button>
-  <button class="tool" id="spinBtn" type="button" aria-pressed="false"><span class="ico">🎥</span><span class="lbl">Camera still</span></button>
   <a class="tool private" href="/"><span class="ico">📊</span><span class="lbl">Dashboard</span></a>
   <a class="tool private" href="/settings"><span class="ico">⚙️</span><span class="lbl">Settings</span></a>
 </nav>
@@ -275,21 +264,21 @@
 <section class="info glass" id="info" aria-label="How to read the bot village">
   <button class="x" id="infoX" type="button" aria-label="Close">×</button>
   <h2>How to read the village</h2>
-  <div>Each robot is one trading bot and walks to the zone that matches what it is doing. The mountain behind is the last 3 hours of price.</div>
+  <div>Each robot is one trading bot living in its market's village, and walks to the spot that matches what it is doing. The black board in each village is the last 5 hours of price.</div>
   <h3>Head light colours</h3>
   <ul>
-    <li><i style="color:#4fb3ff;background:#4fb3ff"></i>Watching price — strolling in the plaza</li>
-    <li><i style="color:#ffcf33;background:#ffcf33"></i>Aiming — close to an entry, waiting at the ready spot</li>
-    <li><i style="color:#22c46a;background:#22c46a"></i>In a trade, in profit — on the trade stage</li>
-    <li><i style="color:#ff5a50;background:#ff5a50"></i>In a trade, at a loss — on the trade stage</li>
-    <li><i style="color:#aab2c0;background:#aab2c0"></i>Resting / outside trading hours — at the house</li>
+    <li><i style="color:#4fb3ff;background:#4fb3ff"></i>Watching price — strolling in the village square</li>
+    <li><i style="color:#ffcf33;background:#ffcf33"></i>Aiming — close to an entry, waiting on the yellow mat</li>
+    <li><i style="color:#22c46a;background:#22c46a"></i>In a trade, in profit — on the wooden stage (green ring)</li>
+    <li><i style="color:#ff5a50;background:#ff5a50"></i>In a trade, at a loss — on the wooden stage (red ring)</li>
+    <li><i style="color:#aab2c0;background:#aab2c0"></i>Resting / outside trading hours — by the house</li>
   </ul>
   <h3>How an order travels</h3>
-  <div class="flow">📦 Order → 🛡️ No duplicates → ⚖️ Risk check → 📏 Lot size → 🏦 MT5</div>
-  <h3>Portfolio manager (purple robot)</h3>
-  <div>Claude reads the market, closes trades that go wrong, sizes each bot's lots and swaps out strategies that have proven to lose. Every call is scored against real trades. It jumps over to whichever bot it is acting on. ★ main lives on the floating gold island.</div>
+  <div class="flow">A parcel flies from the bot to the bank at the town hall. Winning trades send coins back; losing trades bring a rain cloud.</div>
+  <h3>Portfolio manager (purple robot, town hall)</h3>
+  <div>Claude reads the market, makes calls and sizes each bot's lots; bigger robots have bigger lots. An automatic guard handles the exits. Every decision is scored against real trades, and the manager hops over to whichever bot it is acting on.</div>
   <h3>Controls</h3>
-  <div>Drag to orbit · scroll / pinch to zoom · hover a robot for its name · tap a robot for details</div>
+  <div>Scroll to zoom · drag to move · hover a robot for its name · tap a robot for details</div>
   <div class="note">Demo account for research only — not investment advice. Past results do not guarantee future results.</div>
 </section>
 <div class="backdrop" id="perfBg"></div>
@@ -314,11 +303,6 @@
 <div class="card glass" id="card" role="dialog" aria-label="Bot details"><button class="x" id="cardx" type="button" aria-label="Close">×</button><div id="cardbody"></div></div>
 
 <script type="module">
-import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-
 const $ = (id) => document.getElementById(id);
 const TZ = "Asia/Bangkok";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -326,36 +310,10 @@ const money = (v) => (v >= 0 ? "+" : "−") + "$" + Math.abs(v || 0).toFixed(2);
 const FAM = {
   levels: [0xff9f43, "Level hunter"], momo: [0xee5a9b, "Morning momentum"], pullback: [0x34b8c4, "Pullback"], bb: [0x9b7bff, "Band fade"],
   donchian: [0x3d8bfd, "Channel breakout"], orb: [0xff8fa3, "Opening range"], ema: [0x2ecc71, "EMA cross"], rsi2: [0xf4cf2b, "RSI-2 extreme"],
-  volx: [0x9aa5b1, "Quiet breakout"], main: [0xf2b632, "Main bot · Gold M5"], boss: [0x7b5cff, "Portfolio manager"],
+  volx: [0x9aa5b1, "Quiet breakout"], main: [0xf2b632, "momo + EMA"], boss: [0x7b5cff, "Portfolio manager"],
 };
 const LIGHT = { off: 0x5b6270, rest: 0xaab2c0, watch: 0x4fb3ff, aim: 0xffcf33, target: 0xffb020, win: 0x22c46a, lose: 0xff5a50 };
 
-// ------------------------------------------------------------------ renderer / scene
-// เครื่องสเปกต่ำ / มือถือ → ไม่ทำ antialias · ความละเอียดต่ำลง · เงาเล็กลง · วาดเว้นเฟรมสม่ำเสมอ (60 Hz → 30 fps)
-// เครื่องปกติวาดทุกเฟรมของจอ (จำกัดเฟรมแบบหารไม่ลงตัว เช่น 40 บนจอ 60 Hz → ระยะห่างภาพไม่เท่ากัน = กระตุก)
-const LOW = (navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 4 || matchMedia("(pointer: coarse)").matches;
-const renderer = new THREE.WebGLRenderer({ antialias: !LOW, powerPreference: "low-power" });
-let PR = Math.min(devicePixelRatio, LOW ? 1 : 1.5);
-renderer.setPixelRatio(PR);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-$("stage").appendChild(renderer.domElement);
-const labels = new CSS2DRenderer(); $("labels").appendChild(labels.domElement);
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
-camera.position.set(1, 11, 30);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(-1, 2.6, 1.5); controls.enableDamping = true; controls.dampingFactor = .06;
-controls.minDistance = 14; controls.maxDistance = 60; controls.maxPolarAngle = Math.PI * .47; controls.minPolarAngle = Math.PI * .18;
-controls.autoRotateSpeed = .25;
-// หมุนกล้องอัตโนมัติ: ปิดเป็นค่าเริ่มต้น · กดปุ่มบนแถบเพื่อเปิด (จำค่าไว้ในเบราว์เซอร์นี้)
-let spin = false;
-try { spin = localStorage.getItem("village.spin") === "1"; } catch {}
-const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
-if (REDUCED) spin = false;
-// วิธีดู (popover) + แชทแบบ bottom sheet บนมือถือ
 function setInfo(open) { $("info").classList.toggle("open", open); $("infoBtn").setAttribute("aria-expanded", open ? "true" : "false"); }
 $("infoBtn").onclick = () => setInfo(!$("info").classList.contains("open"));
 $("infoX").onclick = () => setInfo(false);
@@ -370,516 +328,403 @@ function setFold(folded) {
 }
 $("chatFold").onclick = (e) => { e.stopPropagation(); setFold(!document.querySelector(".chat").classList.contains("collapsed")); };
 try { if (localStorage.getItem("village.chatFold") === "1") setFold(true); } catch {}
-let idleSince = performance.now();
-controls.addEventListener("start", () => { controls.autoRotate = false; idleSince = Infinity; });
-controls.addEventListener("end", () => { idleSince = performance.now(); });
-function setSpin(on) {
-  spin = on; if (!on) controls.autoRotate = false;
-  try { localStorage.setItem("village.spin", on ? "1" : "0"); } catch {}
-  $("spinBtn").querySelector(".lbl").textContent = on ? "Camera orbit" : "Camera still";
-  $("spinBtn").setAttribute("aria-pressed", on ? "true" : "false");
-  $("spinBtn").title = on ? "Stop the camera" : "Let the camera sway slowly when idle";
-}
-$("spinBtn").onclick = () => setSpin(!spin);
-setSpin(spin);
-
+// ------------------------------------------------------------------ แผนที่หมู่บ้าน 2D (พิกเซลอาร์ตวาดด้วยโค้ด ไม่มีไฟล์ภาพ ไม่มี three.js)
 const STREAM = new URLSearchParams(location.search).has("stream");
 if (STREAM) document.documentElement.classList.add("stream");
-const ISLAND2_X = 80, ISL_X = { 1: 0, 2: ISLAND2_X };   // เกาะ 2 อยู่ห่างไปทางขวา
-let island = 1, fly = null;
-try { if (localStorage.getItem("village.island") === "2" && !new URLSearchParams(location.search).has("stream")) island = 2; } catch {}
-function flyTo(n) {
-  if (n === island && !fly) return;
-  const dx = ISL_X[n] - ISL_X[island];
-  fly = { t: 0, p0: camera.position.clone(), t0: controls.target.clone() };
-  fly.p1 = fly.p0.clone().add(new THREE.Vector3(dx, 0, 0)); fly.t1 = fly.t0.clone().add(new THREE.Vector3(dx, 0, 0));
-  island = n; controls.autoRotate = false; idleSince = performance.now();
-  try { localStorage.setItem("village.island", String(n)); } catch {}
-  for (const k of [1, 2]) document.getElementById("isl" + k)?.setAttribute("aria-pressed", k === n ? "true" : "false");
-  hideCard?.();
-}
-function stepFly(dt) {
-  if (!fly) return;
-  fly.t = Math.min(fly.t + dt / 1.6, 1);
-  const k = fly.t < .5 ? 2 * fly.t * fly.t : 1 - Math.pow(-2 * fly.t + 2, 2) / 2;   // ease-in-out
-  controls.target.lerpVectors(fly.t0, fly.t1, k); camera.position.lerpVectors(fly.p0, fly.p1, k);
-  camera.position.y += Math.sin(k * Math.PI) * 6;                                   // ลอยข้ามทะเล
-  if (fly.t >= 1) fly = null;
-}
-function resize() {
-  const w = innerWidth, h = innerHeight, a = w / h, portrait = a < .9;
-  renderer.setSize(w, h); labels.setSize(w, h); camera.aspect = a;
-  document.documentElement.classList.toggle("portrait", portrait);
-  // แนวตั้ง: มุมกว้างขึ้น + กล้องถอยให้เห็นทั้งลาน โซนเทรด และ MT5 ในจอแคบ
-  camera.fov = portrait ? 66 : a < 1.5 ? 46 : 38;   // แนวตั้ง: มุมกว้างพอให้เห็นตั้งแต่บ้านพักถึงโซนเทรด
-  if (portrait !== resize.portrait) {
-    resize.portrait = portrait;
-    const ox = ISL_X[island];
-    if (portrait) { camera.position.set(24 + ox, 22, 26); controls.target.set(-3 + ox, 0, 0); }   // ถ่ายเฉียงจากมุมโซนเทรด → หมู่บ้านทอดยาวตามแนวลึก พอดีจอตั้ง
-    else { camera.position.set(1 + ox, 11, 30); controls.target.set(-1 + ox, 2.6, 1.5); }
-  }
-  camera.updateProjectionMatrix();
-}
-addEventListener("resize", resize); resize();
+const LOW = (navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 4 || matchMedia("(pointer: coarse)").matches;
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const T = 16, VW = 15, VH = 11, GAP = 3, EDGE = 2;              // ไทล์ 16 px · หมู่บ้าน 15×11 ไทล์ · แม่น้ำกว้าง 3 ไทล์
+const hex = (n) => "#" + n.toString(16).padStart(6, "0");
+const MARKETS = {
+  BTCUSD: { key: "btc", title: "₿ BTC", roof: "#d9722e", roof2: "#a9521b" },
+  XAUUSD: { key: "gold", title: "🥇 Gold", roof: "#e2b84a", roof2: "#b08a2a" },
+  NAS100: { key: "nas", title: "📊 NAS100", roof: "#3f7fd1", roof2: "#2c5c9e" },
+};
+const FX_ROOF = ["#b0569f", "#7d3f73"];
+const cv = $("world"), ctx = cv.getContext("2d", { alpha: false });
+let slots = [], WORLD = { w: 0, h: 0 }, bg = null, lamps = [], water = [], rivers = { v: [], h: [] };
+const cam = { s: 1, ox: 0, oy: 0, z: 1, px: 0, py: 0 };
+let dpr = 1;
 
-// ท้องฟ้าไล่สี + หมอกตามเวลาไทย
-const skyCanvas = document.createElement("canvas"); skyCanvas.width = 2; skyCanvas.height = 256;
-const skyTex = new THREE.CanvasTexture(skyCanvas); skyTex.colorSpace = THREE.SRGBColorSpace; scene.background = skyTex;
-scene.fog = new THREE.Fog(0xd6efff, 45, 120);
-const hemi = new THREE.HemisphereLight(0xdff3ff, 0x6a9a55, 1.1); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xffffff, 2.2);
-sun.castShadow = true; sun.shadow.mapSize.set(LOW ? 1024 : 1536, LOW ? 1024 : 1536);
-Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 22, bottom: -14, near: 1, far: 120 }); sun.shadow.bias = -0.0005;
-scene.add(sun, sun.target);
-const sunBall = new THREE.Mesh(new THREE.SphereGeometry(3.2, 32, 16), new THREE.MeshBasicMaterial({ color: 0xffe27a, fog: false }));
-scene.add(sunBall);
-const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(
-  Array.from({ length: 600 }, () => [(Math.random() - .5) * 300, 25 + Math.random() * 60, -60 - Math.random() * 80]).flat(), 3)),
-  new THREE.PointsMaterial({ color: 0xffffff, size: .5, fog: false, transparent: true, opacity: .9 }));
-scene.add(stars);
-let skyKey = "";
-function thaiHour() { const p = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":"); return +p[0] + p[1] / 60; }
-function updateSky() {
-  const h = thaiHour(), day = h >= 6.5 && h < 17.8, dusk = !day && ((h >= 17.8 && h < 19.3) || (h >= 5.5 && h < 6.5));
-  const key = day ? "day" : dusk ? "dusk" : "night";
-  const f = day ? (h - 6.5) / 11.3 : dusk ? .95 : ((h + 24 - 19.3) % 24) / 10.2;
-  const ang = Math.PI * Math.min(Math.max(f, 0), 1);
-  sun.position.set(-40 * Math.cos(ang), 10 + 40 * Math.sin(ang), 18);
-  sunBall.position.set(-90 * Math.cos(ang), 14 + 55 * Math.sin(ang), -110);
-  if (key === skyKey) return; skyKey = key;
-  const [top, bot, fog, sunC, ballC, inten, hemiI] = {
-    day: ["#4aa8f0", "#cfeeff", 0xcfeeff, 0xffffff, 0xffe27a, 2.3, 1.15],
-    dusk: ["#5b4f9c", "#ffb38a", 0xffc4a0, 0xffb27a, 0xff9a5c, 1.5, .8],
-    night: ["#0b1236", "#3a3f7a", 0x2b3166, 0x9fb4ff, 0xf3f0dc, .55, .45],
-  }[key];
-  const c = skyCanvas.getContext("2d"), gr = c.createLinearGradient(0, 0, 0, 256);
-  gr.addColorStop(0, top); gr.addColorStop(1, bot); c.fillStyle = gr; c.fillRect(0, 0, 2, 256); skyTex.needsUpdate = true;
-  scene.fog.color.set(fog); sun.color.set(sunC); sun.intensity = inten; hemi.intensity = hemiI;
-  sunBall.material.color.set(ballC); stars.visible = key === "night";
-  renderer.toneMappingExposure = key === "night" ? 1.25 : 1.05;
+function rng(seed) { let s = seed >>> 0; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+
+// ---------- วาดของประกอบฉากลงภาพพื้นหลัง (ทำครั้งเดียว)
+function art(b) {
+  const R = (x, y, w, h, c) => { b.fillStyle = c; b.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+  const tree = (x, y, c1 = "#3fa34d", c2 = "#62c466") => {
+    R(x + 6, y + 15, 4, 6, "#7a4e2a"); R(x + 2, y + 20, 12, 2, "rgba(0,0,0,.18)");
+    R(x + 2, y + 4, 12, 12, c1); R(x, y + 7, 16, 7, c1); R(x + 4, y + 1, 8, 16, c1);
+    R(x + 3, y + 3, 7, 5, c2); R(x + 2, y + 7, 4, 3, c2);
+  };
+  const orange = (x, y) => { tree(x, y); for (const [a, c] of [[4, 6], [10, 5], [7, 11], [3, 11]]) R(x + a, y + c, 2, 2, "#f08a2c"); };
+  const bush = (x, y) => { R(x, y + 3, 11, 5, "#3f9a4a"); R(x + 2, y + 1, 7, 4, "#57b65f"); };
+  const lamp = (x, y) => { R(x + 2, y + 2, 2, 14, "#3a3f4b"); R(x, y, 6, 4, "#ffd98a"); R(x, y - 1, 6, 1, "#3a3f4b"); lamps.push([x + 3, y + 2]); };
+  const fenceH = (x, y, n) => { for (let i = 0; i < n; i++) { R(x + i * 8, y, 2, 7, "#8a5a33"); } R(x, y + 2, n * 8 - 6, 2, "#a8743f"); };
+  const fenceV = (x, y, n) => { for (let i = 0; i < n; i++) R(x, y + i * 8, 2, 6, "#8a5a33"); R(x, y, 2, n * 8 - 2, "#a8743f"); };
+  const house = (x, y, w, h, roof, roof2) => {
+    const wallH = Math.round(h * .42), roofH = h - wallH;
+    R(x + 2, y + h, w - 2, 3, "rgba(0,0,0,.2)");
+    R(x, y + roofH, w, wallH, "#f1e3c6"); R(x, y + roofH, w, 2, "#c9b48c");
+    R(x - 2, y, w + 4, roofH, roof);
+    for (let i = 3; i < roofH; i += 4) R(x - 2, y + i, w + 4, 1, roof2);
+    for (let i = 0; i < w + 4; i += 6) R(x - 2 + i, y, 1, roofH, roof2);
+    R(x - 2, y, w + 4, 2, roof2);
+    const dw = 10, dx = x + w / 2 - dw / 2;
+    R(dx, y + h - 14, dw, 14, "#7a4e2a"); R(dx + 7, y + h - 8, 1, 2, "#ffd98a");
+    for (const wx of [x + 7, x + w - 15]) { R(wx, y + roofH + 6, 8, 8, "#8fd0f0"); R(wx, y + roofH + 6, 8, 1, "#6d5a3a"); R(wx + 3, y + roofH + 6, 1, 8, "#6d5a3a"); }
+  };
+  const field = (x, y, w, h, leaf, fruit) => {
+    R(x, y, w, h, "#a8743f");
+    for (let yy = y + 2; yy < y + h - 3; yy += 7) for (let xx = x + 3; xx < x + w - 4; xx += 7) { R(xx, yy, 4, 3, leaf); R(xx + 1, yy + 3, 2, 2, fruit); }
+  };
+  return { R, tree, orange, bush, lamp, fenceH, fenceV, house, field };
 }
 
-// ------------------------------------------------------------------ วัสดุ + helper
-const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .55, metalness: .05, ...o });
-const INK = mat(0x2a3142, { roughness: .4 }), METAL = mat(0x4a5266, { metalness: .5, roughness: .35 });
-function shadowy(o) { o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; }
-function tag(html, cls = "tag3d") { const d = document.createElement("div"); d.className = cls; d.innerHTML = html; return new CSS2DObject(d); }
-// ป้ายคำพูด: ตัวจัดป้ายเลื่อนขึ้นด้วย CSS "translate" (ซ้อนกับ transform ที่ CSS2DRenderer ตั้งให้ทุกเฟรม ไม่ชนกัน)
-function setBubble(b, html) { if (b.userData.html !== html) { b.element.innerHTML = html; b.userData.html = html; } }
-function declutter() {   // ป้ายที่ทับกันบนจอ → ดันตัวที่อยู่สูงกว่าขึ้นไปเรื่อยๆ จนไม่ทับ (ตัวล่างอยู่ที่เดิม)
-  const items = [...robots.map(r => r.obj.userData.bubble), boss.userData.bubble]
-    .filter(b => b.visible && b.element.isConnected && b.element.style.display !== "none")
-    .map(b => { const r = b.element.getBoundingClientRect(), l = b.userData.lift || 0;      // ตำแหน่งเดิมก่อนยก
-                return { b, r: { left: r.left, right: r.right, width: r.width, height: r.height, top: r.top + l, bottom: r.bottom + l } }; })
-    .filter(x => x.r.width > 0)
-    .sort((a, z) => z.r.bottom - a.r.bottom);
-  const placed = [];
-  for (const it of items) {
-    let top = it.r.top, h = it.r.height;
-    for (let k = 0; k < 8; k++) {
-      const hit = placed.find(p => it.r.left < p.right + 3 && it.r.right > p.left - 3 && top < p.bottom + 3 && top + h > p.top - 3);
-      if (!hit) break;
-      top = hit.top - h - 4;
-    }
-    const lift = Math.round(it.r.top - top);
-    placed.push({ left: it.r.left, right: it.r.right, top, bottom: top + h });
-    if (lift !== (it.b.userData.lift || 0)) {
-      it.b.userData.lift = lift; it.b.element.style.translate = `0 ${-lift}px`;
-    }
-  }
+function drawVillage(a, v) {
+  const { R, tree, orange, bush, lamp, fenceH, fenceV, house, field } = a, x = v.x, y = v.y;
+  const r = rng(v.seed);
+  R(x + T, y + 5 * T, 8 * T, 5 * T, "#d9b27a");                                 // ลาน
+  for (let i = 0; i < 40; i++) R(x + T + r() * 8 * T, y + 5 * T + r() * 5 * T, 2, 1, "#c79e66");
+  R(x + 9 * T, y + 7 * T, 6 * T, 2 * T, "#d9b27a");                             // ทางออกไปสะพานขวา
+  R(x + 6.5 * T, y + 10 * T, 2 * T, T, "#d9b27a");                              // ทางออกไปสะพานล่าง
+  house(x + 1.2 * T, y + 0.8 * T, 5 * T, 3.6 * T, v.roof, v.roof2);             // บ้านพัก
+  const b = v.board;                                                            // ป้ายราคา
+  R(b.x + 8, b.y + b.h, 3, 10, "#7a4e2a"); R(b.x + b.w - 11, b.y + b.h, 3, 10, "#7a4e2a");
+  R(b.x - 2, b.y - 2, b.w + 4, b.h + 4, "#7a4e2a"); R(b.x, b.y, b.w, b.h, "#0d0d0b");
+  field(x + 10.2 * T, y + 0.9 * T, 4 * T, 3 * T, "#4aa34f", v.key === "gold" ? "#f2c63c" : v.key === "btc" ? "#f08a2c" : "#d94f4f");
+  const s = v.stage;                                                            // เวทีเทรด
+  R(s.x, s.y, s.w, s.h, "#7a5230");
+  for (let yy = s.y; yy < s.y + s.h; yy += 6) R(s.x, yy, s.w, 1, "#5f3f24");
+  for (let xx = s.x + 8; xx < s.x + s.w; xx += 16) R(xx, s.y, 1, s.h, "#5f3f24");
+  fenceH(s.x, s.y - 6, Math.floor(s.w / 8)); fenceH(s.x, s.y + s.h, Math.floor(s.w / 8));
+  fenceV(s.x + s.w, s.y - 4, Math.floor((s.h + 8) / 8));
+  R(v.gate.cx - 11, v.gate.cy - 7, 22, 14, "#f2c63c"); R(v.gate.cx - 9, v.gate.cy - 5, 18, 10, "#e2b84a");   // จุดเตรียมเข้า
+  lamp(x + 8.3 * T, y + 4.2 * T); lamp(x + 0.3 * T, y + 9.3 * T);
+  orange(x + 6.6 * T, y + 0.6 * T); tree(x + 13.7 * T, y + 4.1 * T); bush(x + 7.1 * T, y + 3.2 * T); bush(x + 0.3 * T, y + 4.5 * T);
 }
 
-// พื้น: เกาะหญ้าลอยมีชั้นดิน
-const world = new THREE.Group(); scene.add(world);
-// เกาะ 1 = บอท BTC (m5_1–9) · เกาะ 2 = บอททอง + NAS100 (m5_10–19) อยู่ห่างไปทางขวา ISLAND2_X หน่วย
-const grounds = [];
-function makeGround(dx, isl) {
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(30, 30, 1.2, 64), mat(isl === 2 ? 0x8fd06a : 0x78cc63, { roughness: .9 }));
-  top.scale.z = .55; top.position.set(dx, -.6, 0); top.receiveShadow = true; top.userData.isl = isl; world.add(top); grounds.push(top);
-  const dirt = new THREE.Mesh(new THREE.CylinderGeometry(29.6, 24, 4, 64), mat(0x9a6b45, { roughness: 1 }));
-  dirt.scale.z = .55; dirt.position.set(dx, -3.2, 0); world.add(dirt);
-  const rng = (a) => (Math.sin(a * 91.7) * 43758.5) % 1;
-  for (let k = 0; k < 26; k++) {         // ต้นไม้ low-poly รอบขอบ
-    const a = (k / 26) * Math.PI * 2 + rng(k) * .2, r = 24 + Math.abs(rng(k + 3)) * 4;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r * .55;
-    if (z > 5 && Math.abs(x) < 20) continue;   // เว้นด้านหน้ากล้อง
-    const t = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.18, .25, 1.2, 6), mat(0x8a5a36)); trunk.position.y = .6; t.add(trunk);
-    const crown = new THREE.Mesh(new THREE.ConeGeometry(1 + Math.abs(rng(k + 7)) * .6, 2.4, 7), mat(k % 3 ? 0x3fa45a : 0x2f8f4e, { flatShading: true }));
-    crown.position.y = 2.2; t.add(crown); t.position.set(x + dx, 0, z); world.add(shadowy(t));
-  }
-  for (let k = 0; k < 40; k++) {         // พุ่มหญ้า
-    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.35 + Math.abs(rng(k + 11)) * .3, 0), mat(0x5fb84f, { flatShading: true }));
-    b.position.set(rng(k + 13) * 26, .1, rng(k + 17) * 13); if (Math.abs(b.position.z - 4) < 2.5 && Math.abs(b.position.x) < 15) continue;
-    b.position.x += dx; world.add(shadowy(b));
-  }
-  const lbl = tag(isl === 1 ? "🏝 BTC island" : "🏝 Gold + NAS100 island", "tag3d big island"); lbl.position.set(dx - 22, 2.2, 12); world.add(lbl);
-}
-makeGround(0, 1); makeGround(ISLAND2_X, 2);
-// เมฆ
-const clouds = [];
-for (let k = 0; k < 7; k++) {
-  const c = new THREE.Group(), m = mat(0xffffff, { roughness: 1, transparent: true, opacity: .95 });
-  for (const [x, y, r] of [[0, 0, 1.6], [1.6, .5, 2], [3.3, 0, 1.5], [1.7, -.4, 1.6]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), m); s.position.set(x, y, 0); c.add(s); }
-  c.position.set(-50 + k * 16, 16 + (k % 3) * 3, -30 - (k % 2) * 12); c.userData.v = .4 + (k % 3) * .2; scene.add(c); clouds.push(c);
+function drawHall(a, v) {
+  const { R, tree, orange, bush, lamp, field, house } = a, x = v.x, y = v.y;
+  R(x + 4 * T, y + 6.5 * T, 7 * T, 3.5 * T, "#d9b27a");
+  R(x, y + 7 * T, 4 * T, 2 * T, "#d9b27a"); R(x + 6.5 * T, y + 9.8 * T, 2 * T, 1.2 * T, "#d9b27a");
+  house(x + 4.3 * T, y + 1.4 * T, 6.4 * T, 5 * T, "#6f5bd6", "#4c3da6");       // ศาลาผู้จัดการ
+  const b = { x: x + 11.4 * T, y: y + 1.6 * T };                                // ธนาคาร MT5
+  R(b.x, b.y + 12, 3 * T, 4 * T, "#e7e2d4"); R(b.x - 3, b.y, 3 * T + 6, 12, "#c9a227"); R(b.x - 3, b.y + 10, 3 * T + 6, 3, "#8a6f18");
+  for (let i = 0; i < 4; i++) R(b.x + 4 + i * 12, b.y + 16, 4, 4 * T - 8, "#c9c2ad");
+  R(b.x + 18, b.y + 4 * T - 4, 12, 16, "#7a4e2a");
+  v.bank = { x: b.x + 24, y: b.y + 4 * T + 8 };
+  // กังหัน
+  R(x + 1.4 * T, y + 2.6 * T, 2.2 * T, 2.6 * T, "#d8c6a0"); R(x + 1.2 * T, y + 2.2 * T, 2.6 * T, 12, "#7a4e2a");
+  R(x + 2.2 * T, y + 4.4 * T, 10, 13, "#7a4e2a");
+  const cx = x + 2.5 * T, cy = y + 2.5 * T;
+  for (const [dx, dy] of [[-14, -14], [12, -14], [-14, 10], [12, 10]]) R(cx + dx / 2 - 2, cy + dy / 2 - 2, 7, 7, "#ece3cf");
+  R(cx - 1, cy - 16, 2, 32, "#6b4526"); R(cx - 16, cy - 1, 32, 2, "#6b4526");
+  // บ่อน้ำ
+  R(x + 11.5 * T, y + 7.6 * T, 3 * T, 2.4 * T, "#3f9ae0"); R(x + 11.8 * T, y + 7.9 * T, 2.4 * T, 1.8 * T, "#5fb4ee");
+  field(x + 0.8 * T, y + 9 * T, 3 * T, 1.6 * T, "#4aa34f", "#d94f4f");
+  orange(x + 0.2 * T, y + 5.3 * T); tree(x + 3.6 * T, y + 0.2 * T); bush(x + 10.7 * T, y + 0.6 * T);
+  lamp(x + 4 * T, y + 6 * T); lamp(x + 10.8 * T, y + 6 * T);
 }
 
-// ------------------------------------------------------------------ ภูเขาราคา BTC
-const MT = { x0: -26, x1: 24, z: -14, base: 0, hmin: 2, hmax: 8.5, label: "BTC" };
-const MT2 = { ...MT, x0: -26 + ISLAND2_X, x1: 24 + ISLAND2_X, label: "Gold" };
-function buildMountain(bars, M = MT) {
-  if (bars.length < 2) return;
-  if (M.mountain) { scene.remove(M.mountain); M.mountain.traverse(o => o.geometry?.dispose()); }
-  const mountain = M.mountain = new THREE.Group();
-  const lo = Math.min(...bars), hi = Math.max(...bars), span = (hi - lo) || 1;
-  const H = (v) => M.hmin + (v - lo) / span * (M.hmax - M.hmin);
-  const X = (k) => M.x0 + (M.x1 - M.x0) * k / (bars.length - 1);
-  for (const [dz, depth, col, scale] of [[-7, 4, M === MT ? 0x8db4d6 : 0xd6c48d, 1.15], [0, 3, M === MT ? 0x5c9b6c : 0x8a9b5c, 1]]) {
-    const shape = new THREE.Shape(); shape.moveTo(M.x0, M.base);
-    bars.forEach((v, k) => shape.lineTo(X(k), dz ? M.base + (H(v) * scale + Math.sin(k * .25) * .8) : H(v)));
-    shape.lineTo(M.x1, M.base); shape.closePath();
-    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: .4, bevelSize: .3, bevelSegments: 2 });
-    const m = new THREE.Mesh(geo, mat(col, { flatShading: true, roughness: .95 }));
-    m.position.z = M.z + dz - depth; m.castShadow = !dz; m.receiveShadow = true; mountain.add(m);
-  }
-  // สันเขา = เส้นราคา
-  const pts = bars.map((v, k) => new THREE.Vector3(X(k), H(v) + .05, M.z + .45));
-  const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), bars.length * 2, .09, 6),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: .35 }));
-  mountain.add(tube);
-  scene.add(mountain);
-  // ธงราคาล่าสุด
-  const last = pts[pts.length - 1], up = bars[bars.length - 1] >= bars[0];
-  if (!M.flag) {
-    M.flag = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.4, 8), INK); pole.position.y = 1.2; M.flag.add(pole);
-    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.3, .8), mat(0x22c46a, { side: THREE.DoubleSide })); cloth.position.set(.65, 2, 0); M.flag.add(cloth);
-    M.flag.userData.cloth = cloth; M.priceTag = tag("", "tag3d price"); M.priceTag.position.set(0, 3.1, 0); M.flag.add(M.priceTag);
-    scene.add(shadowy(M.flag));
-    M.hiTag = tag("", "tag3d"); M.hiTag.visible = !STREAM; scene.add(M.hiTag);
-  }
-  const dec = M === MT ? 0 : 2;
-  M.flag.position.copy(last); M.flag.userData.cloth.material.color.set(up ? 0x22c46a : 0xff5a50);
-  M.priceTag.element.textContent = M.label + " " + bars[bars.length - 1].toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
-  const kHi = bars.indexOf(hi); M.hiTag.position.set(X(kHi), H(hi) + 1.2, M.z); M.hiTag.element.textContent = "High " + hi.toLocaleString("en-US", { maximumFractionDigits: dec });
-}
-
-// ------------------------------------------------------------------ สะพานสายพาน + ด่าน + หอ MT5
-const BR = { x0: -13.5, x1: 14.2, y: 2.4, z: -6.2 };   // ต่ำลงจาก 5.2 (ไม่บังภูเขาราคา) · ถอยหลังพ้นบ้านพัก
-const beltCanvas = document.createElement("canvas"); beltCanvas.width = 128; beltCanvas.height = 16;
-{ const c = beltCanvas.getContext("2d"); c.fillStyle = "#353c4f"; c.fillRect(0, 0, 128, 16); c.fillStyle = "#5a6382"; for (let x = 0; x < 128; x += 32) c.fillRect(x + 4, 3, 16, 10); }
-const beltTex = new THREE.CanvasTexture(beltCanvas); beltTex.wrapS = THREE.RepeatWrapping; beltTex.repeat.set(14, 1); beltTex.colorSpace = THREE.SRGBColorSpace;
-{
-  const len = BR.x1 - BR.x0 + 2;
-  const belt = new THREE.Mesh(new RoundedBoxGeometry(len, .45, 1.6, 3, .18), [METAL, METAL, new THREE.MeshStandardMaterial({ map: beltTex, roughness: .6 }), METAL, METAL, METAL]);
-  belt.position.set((BR.x0 + BR.x1) / 2, BR.y, BR.z); scene.add(shadowy(belt));
-  for (const f of [0, .33, .66, 1]) {
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(.22, .3, BR.y, 10), METAL); p.position.set(BR.x0 + (BR.x1 - BR.x0) * f, BR.y / 2, BR.z); scene.add(shadowy(p));
-  }
-}
-const GATES = [[-6.5, "🛡️", "No duplicates", "OrderGuard: the same signal is never sent twice"], [.5, "⚖️", "Risk check", "RiskManager: limits / targets / news"],
-               [7.5, "📏", "Lot size", "Standard lot × manager multiplier · margin check"]];
-const gates = GATES.map(([x, icon, name, tip]) => {
-  const g = new THREE.Group(), m = mat(0xfffdf6, { emissive: 0xfff3a6, emissiveIntensity: 0 });
-  for (const sx of [-1.1, 1.1]) { const leg = new THREE.Mesh(new RoundedBoxGeometry(.35, 2.4, 1.9, 2, .1), m); leg.position.set(sx, 1.2, 0); g.add(leg); }
-  const top = new THREE.Mesh(new RoundedBoxGeometry(2.9, .7, 2.1, 2, .2), m); top.position.y = 2.6; g.add(top);
-  const t = tag(STREAM ? icon : `${icon} ${name}`, "tag3d" + (STREAM ? " icon" : "")); t.element.title = tip; t.position.set(0, 3.5, 0); g.add(t);
-  g.position.set(x, BR.y + .2, BR.z); scene.add(shadowy(g)); g.userData = { m, t }; return g;
-});
-const tower = new THREE.Group();
-{
-  const wc = document.createElement("canvas"); wc.width = 64; wc.height = 128;
-  const c = wc.getContext("2d"); c.fillStyle = "#e9edf7"; c.fillRect(0, 0, 64, 128); c.fillStyle = "#ffd36b";
-  for (let y = 10; y < 120; y += 16) for (let x = 8; x < 60; x += 18) if ((x * y) % 7 !== 0) c.fillRect(x, y, 10, 9);
-  const wt = new THREE.CanvasTexture(wc); wt.colorSpace = THREE.SRGBColorSpace;
-  const body = new THREE.Mesh(new RoundedBoxGeometry(3.4, 10, 3.4, 3, .25), new THREE.MeshStandardMaterial({ map: wt, emissiveMap: wt, emissive: 0xffffff, emissiveIntensity: .15, roughness: .5 }));
-  body.position.y = 5; tower.add(body);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.6, 4), mat(0x3d8bfd)); roof.position.y = 10.8; roof.rotation.y = Math.PI / 4; tower.add(roof);
-  const ant = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 1.6, 6), INK); ant.position.y = 12.4; tower.add(ant);
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff5a50, emissive: 0xff3b30, emissiveIntensity: 2 }));
-  beacon.position.y = 13.2; tower.add(beacon); tower.userData.beacon = beacon;
-  const t = tag(STREAM ? "🏦" : "🏦 MT5 broker", "tag3d big" + (STREAM ? " icon" : "")); t.position.set(0, 14.4, 0); tower.add(t);
-  tower.position.set(BR.x1 + 2.6, 0, BR.z); scene.add(shadowy(tower));
-}
-
-// ------------------------------------------------------------------ หุ่นยนต์
-function makeRobot(name, fam) {
-  const [color] = FAM[fam] || FAM.volx;
-  const body = mat(color, { roughness: .35, metalness: .15 }), dark = mat(0x1d2433, { roughness: .25, metalness: .3 });
-  const eyeM = new THREE.MeshStandardMaterial({ color: 0x9fe3ff, emissive: 0x9fe3ff, emissiveIntensity: 2 });
-  const lightM = new THREE.MeshStandardMaterial({ color: 0x4fb3ff, emissive: 0x4fb3ff, emissiveIntensity: 2.2 });
-  const batM = new THREE.MeshStandardMaterial({ color: 0x4fb3ff, emissive: 0x4fb3ff, emissiveIntensity: 1.2 });
-  const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
-  const legs = [-.32, .32].map(sx => {   // ขา + เท้า หมุนรอบสะโพก (เดิน)
-    const hip = new THREE.Group(); hip.position.set(sx, .9, 0); rig.add(hip);
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, .8, 12), METAL); leg.position.y = -.45; hip.add(leg);
-    const foot = new THREE.Mesh(new RoundedBoxGeometry(.5, .2, .7, 2, .08), dark); foot.position.set(0, -.8, .1); hip.add(foot);
-    return hip;
+function buildWorld(keys) {
+  const list = [...keys.map(k => { const m = MARKETS[k] || { key: "fx" + k, title: "💱 " + k, roof: FX_ROOF[0], roof2: FX_ROOF[1] }; return { ...m, sym: k }; }),
+                { key: "hall", title: "🏛 Town hall", roof: "#6f5bd6", roof2: "#4c3da6" }];
+  const n = list.length, cols = n <= 4 ? 2 : 3, rows = Math.ceil(n / cols);
+  WORLD = { w: (EDGE * 2 + cols * VW + (cols - 1) * GAP) * T, h: (EDGE * 2 + rows * VH + (rows - 1) * GAP) * T };
+  slots = list.map((v, i) => {
+    const c = i % cols, r0 = Math.floor(i / cols), x = (EDGE + c * (VW + GAP)) * T, y = (EDGE + r0 * (VH + GAP)) * T;
+    return { ...v, x, y, c, r: r0, seed: 97 + i * 31,
+             board: { x: x + 7.7 * T, y: y + 0.9 * T, w: 2.2 * T, h: 1.5 * T },
+             stage: { x: x + 9.2 * T, y: y + 5 * T, w: 4.9 * T, h: 4.9 * T },
+             gate: { cx: x + 8.2 * T, cy: y + 8.9 * T },
+             plaza: { x0: x + 1.4 * T, x1: x + 7.4 * T, y0: y + 5.6 * T, y1: y + 9.6 * T },
+             house: { cx: x + 3.7 * T, cy: y + 4.9 * T } };
   });
-  const torso = new THREE.Mesh(new RoundedBoxGeometry(1.5, 1.2, 1.1, 4, .28), body); torso.position.y = 1.5; rig.add(torso);
-  const panel = new THREE.Mesh(new RoundedBoxGeometry(1, .34, .08, 2, .05), mat(0xfffdf6)); panel.position.set(0, 1.45, .56); rig.add(panel);
-  const bat = new THREE.Mesh(new THREE.BoxGeometry(.9, .22, .04), batM); bat.position.set(0, 1.45, .61); rig.add(bat);
-  const arms = [];
-  for (const sx of [-1, 1]) {
-    const arm = new THREE.Group(); arm.position.set(sx * .9, 1.85, 0);
-    const a = new THREE.Mesh(new THREE.CapsuleGeometry(.15, .6, 4, 10), METAL); a.position.y = -.4; arm.add(a);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(.2, 14, 10), dark); hand.position.y = -.85; arm.add(hand);
-    rig.add(arm); arms.push(arm);
+  bg = document.createElement("canvas"); bg.width = WORLD.w; bg.height = WORLD.h;
+  const b = bg.getContext("2d"), a = art(b), r = rng(7);
+  lamps = []; water = [];
+  a.R(0, 0, WORLD.w, WORLD.h, "#5cb85a");
+  for (let i = 0; i < WORLD.w * WORLD.h / 90; i++) a.R(r() * WORLD.w, r() * WORLD.h, 2, 1, r() > .5 ? "#6cc768" : "#52a950");
+  for (let i = 0; i < WORLD.w * WORLD.h / 900; i++) { const fx = r() * WORLD.w, fy = r() * WORLD.h; a.R(fx, fy, 2, 2, ["#ffe27a", "#ffffff", "#ff9fb3"][i % 3]); }
+  const riverV = (x) => { a.R(x, 0, GAP * T, WORLD.h, "#3f9ae0"); a.R(x, 0, 2, WORLD.h, "#2c7cc0"); a.R(x + GAP * T - 2, 0, 2, WORLD.h, "#2c7cc0"); };
+  const riverH = (y) => { a.R(0, y, WORLD.w, GAP * T, "#3f9ae0"); a.R(0, y, WORLD.w, 2, "#2c7cc0"); a.R(0, y + GAP * T - 2, WORLD.w, 2, "#2c7cc0"); };
+  rivers = { v: [], h: [] };
+  for (let c = 1; c < cols; c++) { const x = (EDGE + c * (VW + GAP) - GAP) * T; rivers.v.push(x); riverV(x); }
+  for (let q = 1; q < rows; q++) { const y = (EDGE + q * (VH + GAP) - GAP) * T; rivers.h.push(y); riverH(y); }
+  for (let i = 0; i < 90; i++) water.push([r(), r(), r()]);
+  for (const v of slots) (v.key === "hall" ? drawHall : drawVillage)(a, v);
+  for (const v of slots) {                                                     // สะพานไม้ข้ามแม่น้ำ
+    if (v.c < cols - 1) { const x = v.x + VW * T, y = v.y + 7 * T;
+      a.R(x, y, GAP * T, 2 * T, "#a8743f"); for (let i = 0; i < GAP * T; i += 5) a.R(x + i, y, 1, 2 * T, "#7a4e2a"); a.R(x, y - 2, GAP * T, 2, "#6b4526"); a.R(x, y + 2 * T, GAP * T, 2, "#6b4526"); }
+    if (v.r < rows - 1) { const x = v.x + 6.5 * T, y = v.y + VH * T;
+      a.R(x, y, 2 * T, GAP * T, "#a8743f"); for (let i = 0; i < GAP * T; i += 5) a.R(x, y + i, 2 * T, 1, "#7a4e2a"); a.R(x - 2, y, 2, GAP * T, "#6b4526"); a.R(x + 2 * T, y, 2, GAP * T, "#6b4526"); }
   }
-  const head = new THREE.Group(); head.position.y = 2.75; rig.add(head);
-  const skull = new THREE.Mesh(new RoundedBoxGeometry(1.4, 1.05, 1.1, 4, .3), body); head.add(skull);
-  const screen = new THREE.Mesh(new RoundedBoxGeometry(1.08, .66, .1, 3, .12), dark); screen.position.z = .53; head.add(screen);
-  const eyes = [-.24, .24].map(x => { const e = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), eyeM); e.position.set(x, 0, .6); e.scale.z = .4; head.add(e); return e; });
-  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, .5, 8), INK); stalk.position.y = .75; head.add(stalk);
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(.17, 16, 12), lightM); bulb.position.y = 1.08; head.add(bulb);
-  for (const sx of [-1, 1]) { const ear = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .14, 14), METAL); ear.rotation.z = Math.PI / 2; ear.position.x = sx * .75; head.add(ear); }
-  // ธงถือไม้
-  const flag = new THREE.Group(); flag.position.set(0, -.9, 0); arms[1].add(flag);
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 2.2, 8), INK); pole.position.y = .9; flag.add(pole);
-  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1, .62, 8, 1), mat(0x22c46a, { side: THREE.DoubleSide })); cloth.position.set(.52, 1.65, 0); flag.add(cloth);
-  flag.visible = false;
-  const hat = new THREE.Mesh(new THREE.ConeGeometry(.35, .7, 16), mat(0xff4fa3, { emissive: 0xff4fa3, emissiveIntensity: .2 })); hat.position.set(.3, .85, 0); hat.rotation.z = -.3; head.add(hat); hat.visible = false;
-  // เมฆฝน (ปิดไม้ขาดทุน)
-  const rain = new THREE.Group(); rain.position.y = 5.2; rain.visible = false; g.add(rain);
-  const rc = mat(0x6c7486, { roughness: 1 });
-  for (const [x, y, r] of [[-.5, 0, .55], [.1, .2, .7], [.7, 0, .5]]) { const s = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), rc); s.position.set(x, y, 0); rain.add(s); }
-  const drops = Array.from({ length: 8 }, (_, k) => { const d = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .3, 5), new THREE.MeshBasicMaterial({ color: 0x5ab8ff })); d.position.set(-.7 + k * .2, -.5, (k % 3) * .2 - .2); rain.add(d); return d; });
-  // วงแสงบนพื้นตอนถือไม้ (เขียว = กำไร / แดง = ขาดทุน)
-  const ringM = new THREE.MeshBasicMaterial({ color: 0x22c46a, transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending });
-  const ring = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.9, 48), ringM); ring.rotation.x = -Math.PI / 2; ring.position.y = .04; ring.visible = false; g.add(ring);
-  // ลำแสงพุ่งขึ้นจากพื้น (เห็นได้จากทุกมุมกล้อง)
-  const glowM = new THREE.MeshBasicMaterial({ color: 0x22c46a, transparent: true, opacity: .16, depthWrite: false, side: THREE.DoubleSide,
-                                             blending: THREE.AdditiveBlending });   // บวกแสง → ทำให้สว่างขึ้น ไม่บังตัวหุ่นจนมืด
-  const glow = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.45, 7, 32, 1, true), glowM); glow.position.y = 3.5; glow.visible = false; g.add(glow);
-  // ป้ายลอย
-  const bubble = tag("…", "bubble"); bubble.position.set(0, 4.35, 0); g.add(bubble);
-  const plate = tag("", "plate"); plate.position.set(0, -.55, .8); g.add(plate);
-  shadowy(g);
-  g.scale.setScalar(.82);
-  g.userData = { legs, name, rig, head, eyes, eyeM, lightM, batM, bat, flag, cloth, hat, arms, rain, drops, bubble, plate, body, ring, ringM, glow, glowM,
-                 bodyColor: new THREE.Color(color) };
-  return g;
+  for (let i = 0; i < 26; i++) {                                               // ต้นไม้รอบแผนที่
+    const e = i % 4, t = r(); const X = e < 2 ? t * WORLD.w : e === 2 ? 2 : WORLD.w - 18, Y = e === 0 ? 2 : e === 1 ? WORLD.h - 24 : t * WORLD.h;
+    a.tree(X, Y);
+  }
+  resize();
 }
+const hallOf = () => slots.find(v => v.key === "hall");
+const slotOf = (sym) => slots.find(v => v.sym === sym) || slots[0];
 
-// ผู้จัดการพอร์ต: หุ่นสีม่วงยืนบนแท่นระหว่างลานกับโซนเทรด · ป้ายคำพูด = ข้อความล่าสุดในแชท
-const boss = makeRobot("Manager", "boss");
-{
-  const pod = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 1.1, 32), mat(0x3a2f6b, { roughness: .35, metalness: .3 })); base.position.y = .55; pod.add(base);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.5, .07, 8, 48), new THREE.MeshStandardMaterial({ color: 0xb59bff, emissive: 0x9b7bff, emissiveIntensity: 1.4 }));
-  rim.rotation.x = Math.PI / 2; rim.position.y = 1.12; pod.add(rim);
-  const desk = new THREE.Mesh(new RoundedBoxGeometry(1.9, .7, .7, 2, .08), mat(0x8a5a36)); desk.position.set(0, 1.45, .95); pod.add(desk);
-  const scr = new THREE.Mesh(new RoundedBoxGeometry(.9, .55, .06, 2, .04), new THREE.MeshStandardMaterial({ color: 0x1d2433, emissive: 0x7b5cff, emissiveIntensity: .7 }));
-  scr.position.set(-.35, 2.05, .95); scr.rotation.x = -.25; pod.add(scr);
-  pod.position.set(3.4, 0, .6); scene.add(shadowy(pod));
-  boss.position.set(3.4, 1.1, .3); boss.scale.setScalar(.95); boss.rotation.y = .35; scene.add(boss);
-  const u = boss.userData; u.plate.visible = false; u.bubble.element.className = "bubble boss"; u.bubble.position.y = 4.6;
-  u.hat.material.color.set(0x1d2433); u.hat.material.emissive.set(0x000000); u.hat.visible = true;      // หมวกผู้จัดการ
-  setBubble(u.bubble, STREAM ? "🧠" : "🧠 Portfolio manager");
+// ---------- กล้อง: พอดีพื้นที่ที่ไม่ถูกแผงบัง · มือถือลากเลื่อนได้
+function resize() {
+  const w = innerWidth, h = innerHeight, portrait = w / h < .9;
+  document.documentElement.classList.toggle("portrait", portrait);
+  dpr = Math.min(devicePixelRatio || 1, LOW ? 1 : 1.5);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  if (!WORLD.w) return;
+  const chat = document.querySelector(".chat").getBoundingClientRect(), sub = document.querySelector(".subbar").getBoundingClientRect();
+  const top = portrait ? 110 : Math.max(sub.bottom, 60) + 6, right = portrait ? w : (STREAM ? w : chat.left - 8), bottom = portrait ? chat.top - 6 : h - 40;
+  const aw = right - 8, ah = bottom - top;
+  let s = Math.min(aw / WORLD.w, ah / WORLD.h);
+  s = s >= 1 ? Math.floor(s * 4) / 4 : s;
+  if (portrait) s = Math.max(s, 1.1);
+  cam.s = s; cam.ox = 8 + (aw - WORLD.w * s) / 2; cam.oy = top + (ah - WORLD.h * s) / 2;
+  clampCam();
 }
+function clampCam() {
+  const s = cam.s * cam.z, w = WORLD.w * s, h = WORLD.h * s;
+  const lim = (p, size, view) => size <= view ? 0 : Math.max(Math.min(p, (size - view) / 2 + 40), -(size - view) / 2 - 40);
+  cam.px = lim(cam.px, w, innerWidth); cam.py = lim(cam.py, h, innerHeight);
+}
+const viewS = () => cam.s * cam.z;
+const viewX = () => cam.ox + cam.px - WORLD.w * cam.s * (cam.z - 1) / 2;
+const viewY = () => cam.oy + cam.py - WORLD.h * cam.s * (cam.z - 1) / 2;
+const toScreen = (x, y) => [viewX() + x * viewS(), viewY() + y * viewS()];
+const toWorld = (x, y) => [(x - viewX()) / viewS(), (y - viewY()) / viewS()];
+addEventListener("resize", resize);
+
+// ---------- บอท
+const boss = { name: "Manager", x: 0, y: 0, hx: 0, hy: 0, say: "🧠 Portfolio manager", userData: {} };
 let bossJump = 0, bossTalk = 0, bossTrip = null;
-const BOSS_HOME = new THREE.Vector3(3.4, 1.1, .3);
 function visitBot(name) {
   const r = robots.find(x => x.name === name); if (!r || bossTrip) return;
-  const to = r.obj.position.clone().add(new THREE.Vector3(1.6, 0, 1.2)); to.y = r.name === "main" ? r.obj.position.y : 0;
-  bossTrip = { phase: "go", t: 0, from: boss.position.clone(), to, r };
+  bossTrip = { phase: "go", t: 0, fx: boss.x, fy: boss.y, tx: r.x + 14, ty: r.y + 8, r };
 }
-function stepBoss(dt) {   // กระโดดโค้ง 1.4 วิ → ยืนชี้ 5 วิ → กระโดดกลับแท่น
+function stepBoss(dt) {
   if (!bossTrip) return;
-  const b = bossTrip;
-  b.t += dt;
-  if (b.phase === "stay") {
-    boss.lookAt(b.r.obj.position.x, boss.position.y, b.r.obj.position.z);
-    if (b.t > 5) Object.assign(b, { phase: "back", t: 0, from: boss.position.clone(), to: BOSS_HOME.clone() });
-    return;
-  }
-  const dur = b.from.distanceTo(b.to) > 30 ? 2.2 : 1.4, k = Math.min(b.t / dur, 1), e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
-  boss.position.lerpVectors(b.from, b.to, e); boss.position.y += Math.sin(k * Math.PI) * Math.min(4 + b.from.distanceTo(b.to) * .15, 12);
-  boss.rotation.y = Math.atan2(b.to.x - b.from.x, b.to.z - b.from.z);
-  if (k >= 1) { if (b.phase === "go") Object.assign(b, { phase: "stay", t: 0 }); else { bossTrip = null; boss.rotation.y = .35; } }
+  const b = bossTrip; b.t += dt;
+  if (b.phase === "stay") { if (b.t > 5) Object.assign(b, { phase: "back", t: 0, fx: boss.x, fy: boss.y, tx: boss.hx, ty: boss.hy }); return; }
+  const dist = Math.hypot(b.tx - b.fx, b.ty - b.fy), dur = Math.min(2.4, .8 + dist / 260), k = Math.min(b.t / dur, 1), e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+  boss.x = b.fx + (b.tx - b.fx) * e; boss.y = b.fy + (b.ty - b.fy) * e; boss.lift = Math.sin(k * Math.PI) * Math.min(14 + dist * .08, 46);
+  if (k >= 1) { boss.lift = 0; if (b.phase === "go") Object.assign(b, { phase: "stay", t: 0 }); else bossTrip = null; }
 }
-function animateBoss(t, dt) {
-  const u = boss.userData;
-  bossJump = Math.max(0, bossJump - dt * .9); bossTalk = Math.max(0, bossTalk - dt);
-  u.rig.position.y = Math.abs(Math.sin(t * 1.5)) * .06 + Math.sin(bossJump * Math.PI) * 1.4;
-  u.head.rotation.y = Math.sin(t * .4) * .5;                      // หันมองทั้งหมู่บ้าน
-  u.arms[1].rotation.z = bossTalk > 0 ? -1.6 + Math.sin(t * 9) * .35 : Math.sin(t * .8) * .1;   // ชี้สั่งงาน
-  u.arms[0].rotation.z = -Math.sin(t * .8) * .1;
-  u.lightM.emissiveIntensity = bossTalk > 0 ? 1.5 + Math.sin(t * 12) * 1.2 : 2;
-  u.lightM.color.set(0xb59bff); u.lightM.emissive.set(0xb59bff); u.eyeM.color.set(0xd9ccff); u.eyeM.emissive.set(0xd9ccff);
-}
-
-// เกาะทองของ main
-const goldIsland = new THREE.Group();
-{
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 1.6, 1, 8), mat(0xf2b632, { metalness: .6, roughness: .3, flatShading: true }));
-  top.position.y = -.5; goldIsland.add(top);
-  const rock = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.4, 8), mat(0x9a6b45, { flatShading: true })); rock.position.y = -2.2; rock.rotation.x = Math.PI; goldIsland.add(rock);
-  for (const [x, z, r] of [[-1.6, .6, .3], [1.5, .8, -.4], [1.2, -1.1, .9]]) {
-    const bar = new THREE.Mesh(new RoundedBoxGeometry(.7, .3, .35, 2, .06), mat(0xffcf3f, { metalness: .8, roughness: .25 }));
-    bar.position.set(x, .15, z); bar.rotation.y = r; goldIsland.add(bar);
-  }
-  goldIsland.position.set(-19, 2.2, 1); scene.add(shadowy(goldIsland));
-}
-
-
-// ------------------------------------------------------------------ โซนในหมู่บ้าน + การเดิน
-// ลานเฝ้าราคา (เดินเล่นรอสัญญาณ) · จุดเตรียมเข้า (ใกล้เข้าไม้) · โซนเทรด (ถือไม้) · บ้านพัก (นอกเวลา/ถึงเป้า/ออฟไลน์)
-const ZONES = {
-  plaza: { x0: -15, x1: 1.5, z0: 1.5, z1: 9.5 },
-  gate: { cx: 3.2, cz: 9.6 },
-  trade: { cx: 9.6, cz: 3.6, r: 3.6 },
-  house: { cx: -9.5, cz: -1.2 },
-};
-function sign(text, x, z, h = 2.4) {
-  const g = new THREE.Group();
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, h, 8), mat(0x8a5a36)); post.position.y = h / 2; g.add(post);
-  const board = new THREE.Mesh(new RoundedBoxGeometry(1.5, .7, .12, 2, .05), mat(0xc98b4a)); board.position.y = h; g.add(board);
-  const t = tag(STREAM ? text.split(" ")[0] : text, "tag3d big" + (STREAM ? " icon" : "")); t.position.y = h + .9; g.add(t);
-  g.position.set(x, 0, z); scene.add(shadowy(g)); return g;
-}
-function shiftZones(Z, dx) {
-  return { plaza: { ...Z.plaza, x0: Z.plaza.x0 + dx, x1: Z.plaza.x1 + dx }, gate: { ...Z.gate, cx: Z.gate.cx + dx },
-           trade: { ...Z.trade, cx: Z.trade.cx + dx }, house: { ...Z.house, cx: Z.house.cx + dx } };
-}
-const ZONES_OF = { 1: ZONES, 2: shiftZones(ZONES, ISLAND2_X) };
-function makeZones(Z, dx) {
-  const tradeZone = new THREE.Group();
-  {
-    const { cx, cz, r } = Z.trade;
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(r, r + .3, .3, 48), mat(0x2b3550, { roughness: .4, metalness: .3 }));
-    base.position.y = .15; base.receiveShadow = true; tradeZone.add(base);
-    const inner = new THREE.Mesh(new THREE.CircleGeometry(r - .5, 48), new THREE.MeshStandardMaterial({ color: 0x1d2433, emissive: 0x2fd17a, emissiveIntensity: .08 }));
-    inner.rotation.x = -Math.PI / 2; inner.position.y = .31; tradeZone.add(inner);
-    const edgeM = new THREE.MeshStandardMaterial({ color: 0x2fd17a, emissive: 0x2fd17a, emissiveIntensity: 1.2 });
-    const edge = new THREE.Mesh(new THREE.TorusGeometry(r - .1, .07, 8, 64), edgeM); edge.rotation.x = Math.PI / 2; edge.position.y = .33; tradeZone.add(edge);
-    for (let k = 0; k < 8; k++) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(.06, .02, r - .8), new THREE.MeshBasicMaterial({ color: 0x2fd17a, transparent: true, opacity: .35 }));
-      b.position.set(Math.sin(k * Math.PI / 4) * (r - .8) / 2, .33, Math.cos(k * Math.PI / 4) * (r - .8) / 2); b.rotation.y = k * Math.PI / 4; tradeZone.add(b);
-    }
-    tradeZone.position.set(cx, 0, cz); tradeZone.userData = { edgeM, inner }; scene.add(tradeZone);
-    sign("⚡ Trade stage", cx + r + .4, cz - 1.6, 2.8);
-  }
-  {
-    const { cx, cz } = Z.gate;
-    const pad = new THREE.Mesh(new THREE.CircleGeometry(1.8, 40), new THREE.MeshStandardMaterial({ color: 0xffcf33, emissive: 0xffcf33, emissiveIntensity: .25, transparent: true, opacity: .55 }));
-    pad.rotation.x = -Math.PI / 2; pad.position.set(cx, .03, cz); scene.add(pad);
-    sign("🎯 Ready", cx - 2.3, cz + .9, 1.6);
-  }
-  {
-    const { cx, cz } = Z.house, h = new THREE.Group();
-    const walls = new THREE.Mesh(new RoundedBoxGeometry(3.4, 2.2, 2.6, 2, .12), mat(0xf6e7c8)); walls.position.y = 1.1; h.add(walls);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.6, 4), mat(0xd35b4a, { flatShading: true })); roof.position.y = 3; roof.rotation.y = Math.PI / 4; h.add(roof);
-    const door = new THREE.Mesh(new RoundedBoxGeometry(.8, 1.3, .1, 2, .08), mat(0x8a5a36)); door.position.set(0, .7, 1.31); h.add(door);
-    for (const wx of [-1.05, 1.05]) { const w = new THREE.Mesh(new THREE.BoxGeometry(.6, .55, .08), new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffc94a, emissiveIntensity: .5 })); w.position.set(wx, 1.35, 1.31); h.add(w); }
-    const chim = new THREE.Mesh(new THREE.BoxGeometry(.4, .9, .4), mat(0x9a6b45)); chim.position.set(.9, 3.3, -.4); h.add(chim);
-    h.position.set(cx, 0, cz - 1.6); scene.add(shadowy(h));
-    sign("💤 Rest house", cx - 2.4, cz + .6, 2);
-  }
-  sign("👀 Watch plaza", -12.5 + dx, 11, 1.6);
-  return tradeZone;
-}
-const tradeZones = { 1: makeZones(ZONES_OF[1], 0), 2: makeZones(ZONES_OF[2], ISLAND2_X) };
-
 function zoneFor(r) { return { trade: "trade", aim: "gate", watch: "plaza" }[r.mode] || "house"; }
 function pickPoint(zone, r) {
-  const Z = ZONES_OF[r?.isl || 1];
-  if (zone === "plaza") { const z = Z.plaza; return new THREE.Vector3(z.x0 + Math.random() * (z.x1 - z.x0), 0, z.z0 + Math.random() * (z.z1 - z.z0)); }
-  if (zone === "gate") { const z = Z.gate; return new THREE.Vector3(z.cx + (Math.random() - .5) * 2.4, 0, z.cz + (Math.random() - .5) * 1.6); }
-  if (zone === "house") { const z = Z.house; return new THREE.Vector3(z.cx + (Math.random() - .5) * 4.5, 0, z.cz + .6 + Math.random() * 1.6); }
-  const busy = robots.filter(x => x.mode === "trade" && x.name !== "main" && (x.isl || 1) === (r.isl || 1)), k = Math.max(busy.indexOf(r), 0), n = Math.max(busy.length, 1);
-  const a = -Math.PI / 2 + (k / n) * Math.PI * 2, rad = n === 1 ? 0 : Z.trade.r * .55;
-  return new THREE.Vector3(Z.trade.cx + Math.cos(a) * rad, .3, Z.trade.cz + Math.sin(a) * rad);
+  const v = r.v;
+  if (zone === "plaza") return [v.plaza.x0 + Math.random() * (v.plaza.x1 - v.plaza.x0), v.plaza.y0 + Math.random() * (v.plaza.y1 - v.plaza.y0)];
+  if (zone === "gate") return [v.gate.cx + (Math.random() - .5) * 16, v.gate.cy + (Math.random() - .5) * 8];
+  if (zone === "house") return [v.house.cx + (Math.random() - .5) * 40, v.house.cy + Math.random() * 10];
+  const busy = robots.filter(x => x.mode === "trade" && x.v === v), k = Math.max(busy.indexOf(r), 0), n = Math.max(busy.length, 1);
+  const a = -Math.PI / 2 + (k / n) * Math.PI * 2, rad = n === 1 ? 0 : 24;
+  return [v.stage.x + v.stage.w / 2 + Math.cos(a) * rad, v.stage.y + v.stage.h / 2 + Math.sin(a) * rad];
 }
-const _d = new THREE.Vector3();
-let moveDt = 0;
 function walk(r, dt) {
-  if (r.name === "main" || !r.target) return false;
-  const zone = zoneFor(r), nTrade = robots.filter(x => x.mode === "trade").length;
-  if (zone !== r.zone || (zone === "trade" && r.tradeN !== nTrade)) {   // เปลี่ยนโซน → เดินไปที่ใหม่
-    r.zone = zone; r.tradeN = nTrade; r.target = pickPoint(zone, r); r.wait = 0;
+  const zone = zoneFor(r), nTrade = robots.filter(x => x.mode === "trade" && x.v === r.v).length;
+  if (zone !== r.zone || (zone === "trade" && r.tradeN !== nTrade)) { r.zone = zone; r.tradeN = nTrade; [r.tx, r.ty] = pickPoint(zone, r); r.wait = 0; }
+  const dx = r.tx - r.x, dy = r.ty - r.y, d = Math.hypot(dx, dy);
+  if (d > 1) {
+    const sp = (zone === "trade" || zone === "gate" ? 42 : r.mode === "off" ? 12 : 20) * dt, k = Math.min(sp, d) / d;
+    r.x += dx * k; r.y += dy * k; r.face = dx < 0 ? -1 : 1; r.step = (r.step || 0) + dt * 8; return true;
   }
-  const p = r.obj.position;
-  _d.set(r.target.x - p.x, 0, r.target.z - p.z);
-  const dist = _d.length();
-  const ZT = ZONES_OF[r.isl || 1].trade, onStage = Math.hypot(p.x - ZT.cx, p.z - ZT.cz) < ZT.r;
-  p.y += ((onStage ? .3 : 0) - p.y) * .25;   // ขึ้นแท่นโซนเทรด
-  if (dist > .08) {
-    const speed = zone === "trade" || zone === "gate" ? 3.2 : r.mode === "off" ? 1 : 1.8;   // รีบไปโซนเทรด / เดินเล่นช้าๆ
-    _d.multiplyScalar(Math.min(speed * dt, dist) / dist); p.add(_d);
-    const want = Math.atan2(r.target.x - p.x, r.target.z - p.z);
-    let diff = want - r.obj.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); r.obj.rotation.y += diff * Math.min(dt * 8, 1);
-    return true;
-  }
-  const face = zone === "plaza" ? Math.sin(performance.now() / 4000 + r.seed) * .6 : zone === "house" ? .2 : 0;   // ถึงแล้ว: หันหาราคา/กล้อง
-  let diff = face - r.obj.rotation.y; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); r.obj.rotation.y += diff * Math.min(dt * 3, 1);
   r.wait -= dt;
-  if (r.wait < 0 && zone !== "trade") { r.target = pickPoint(zone, r); r.wait = 2 + Math.random() * 5; }
+  if (r.wait < 0 && zone !== "trade") { [r.tx, r.ty] = pickPoint(zone, r); r.wait = 2 + Math.random() * 6; }
   return false;
 }
-function separate() {   // ไม่เดินชนกัน
-  const list = robots.filter(r => r.name !== "main");
-  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
-    const a = list[i].obj.position, b = list[j].obj.position, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
-    if (d > 0 && d < 1.7) { const push = (1.7 - d) * .5, ux = dx / d, uz = dz / d; a.x -= ux * push; a.z -= uz * push; b.x += ux * push; b.z += uz * push; }
+function separate() {
+  for (let i = 0; i < robots.length; i++) for (let j = i + 1; j < robots.length; j++) {
+    const a = robots[i], b = robots[j]; if (a.v !== b.v) continue;
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+    if (d > 0 && d < 13) { const p = (13 - d) * .25, ux = dx / d, uy = dy / d; a.x -= ux * p; a.y -= uy * p; b.x += ux * p; b.y += uy * p; }
   }
 }
+function sprite(x, y, body, opt = {}) {
+  const k = opt.k || 1, dark = "#20242e", walkA = opt.walking ? Math.sin(opt.step || 0) : 0;
+  const R = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(a, b, w, h); };
+  ctx.save(); ctx.translate(Math.round(x), Math.round(y - (opt.lift || 0))); ctx.scale(k * (opt.face || 1), k);
+  if (!opt.lift) { ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fillRect(-5, -1, 10, 2); }
+  R(-4, -4 - (walkA > 0 ? 1 : 0), 3, 4, dark); R(1, -4 - (walkA < 0 ? 1 : 0), 3, 4, dark);    // ขา
+  R(-5, -12, 10, 8, body); R(-5, -12, 10, 1, "rgba(255,255,255,.35)"); R(-3, -9, 6, 3, "#fff3cf");   // ตัว
+  R(-7, -11 + (walkA > 0 ? 1 : 0), 2, 6, body); R(5, -11 + (walkA < 0 ? 1 : 0), 2, 6, body);   // แขน
+  R(-5, -20, 10, 8, body); R(-4, -18, 8, 4, dark);                                             // หัว + จอ
+  R(-3, -17, 2, 2, opt.eye || "#9fe3ff"); R(1, -17, 2, 2, opt.eye || "#9fe3ff");
+  R(0, -23, 1, 3, dark); R(-1, -25, 3, 2, opt.light || "#4fb3ff");                             // เสา + ไฟ
+  if (opt.hat) { R(-6, -21, 12, 2, opt.hat); R(-4, -25, 8, 4, opt.hat); }
+  if (opt.flag) { R(7, -22, 1, 16, dark); R(8, -22, 7, 5, opt.flag); }
+  ctx.restore();
+}
+const LIGHTC = Object.fromEntries(Object.entries(LIGHT).map(([k, v]) => [k, hex(v)]));
+function botShape(r, t) {
+  const trade = r.mode === "trade", win = r.float >= 0, off = r.mode === "off";
+  const body = off ? "#7d8390" : hex((FAM[r.fam] || FAM.volx)[0]);
+  const lift = Math.sin((r.jump || 0) * Math.PI) * 12 + (r.mode !== "off" && !r.walking ? Math.abs(Math.sin(t * (trade ? 6 : 2) + r.seed)) * (trade ? 1.5 : .5) : 0);
+  if (trade) { ctx.strokeStyle = win ? "#39ff88" : "#ff5d5d"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(r.x, r.y, 9 + Math.sin(t * 4), 4, 0, 0, 7); ctx.stroke(); }
+  sprite(r.x, r.y, body, { k: r.k, face: r.face, walking: r.walking, step: r.step, lift,
+    eye: r.mode === "aim" ? "#ffcf33" : trade ? (win ? "#7dffb0" : "#ff8a80") : off ? "#5b6270" : "#9fe3ff",
+    light: trade ? (win ? LIGHTC.win : LIGHTC.lose) : LIGHTC[r.mode] || LIGHTC.rest, flag: trade ? (r.pos[0].side === "BUY" ? "#22c46a" : "#ff5a50") : null,
+    hat: r.mode === "target" ? "#ff4fa3" : null });
+  if (r.rain > 0) {
+    ctx.fillStyle = "#6c7486"; ctx.fillRect(r.x - 8, r.y - 38, 16, 5); ctx.fillRect(r.x - 5, r.y - 41, 10, 4);
+    ctx.fillStyle = "#5ab8ff"; for (let i = 0; i < 4; i++) ctx.fillRect(r.x - 7 + i * 4, r.y - 33 + ((t * 26 + i * 5) % 14), 1, 3);
+  }
+}
+function drawBoards() {
+  for (const v of slots) {
+    if (!v.board || !v.sym) continue;
+    const b = v.board, c = (BARS[v.sym] || []).map(z => z[4]); if (c.length < 2) continue;
+    const lo = Math.min(...c), hi = Math.max(...c), up = c[c.length - 1] >= c[0];
+    ctx.strokeStyle = up ? "#39ff88" : "#ff5d5d"; ctx.lineWidth = 1; ctx.beginPath();
+    c.forEach((p, i) => { const X = b.x + 2 + i / (c.length - 1) * (b.w - 4), Y = b.y + b.h - 3 - (p - lo) / ((hi - lo) || 1) * (b.h - 6); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+    ctx.stroke();
+  }
+}
+function fxStep(list, dt, dur) { return list.filter(p => { p.t += dt / dur; return p.t < 1; }); }
+function drawFx() {
+  const bank = hallOf()?.bank; if (!bank) return;
+  for (const p of parcels) { if (p.t < 0) continue; const k = p.t, x = p.x + (bank.x - p.x) * k, y = p.y + (bank.y - p.y) * k - Math.sin(k * Math.PI) * 30;
+    ctx.fillStyle = "#c98b4a"; ctx.fillRect(x - 3, y - 3, 7, 6); ctx.fillStyle = "#ffe08a"; ctx.fillRect(x - 3, y - 1, 7, 1); }
+  for (const c of coins) { if (c.t < 0) continue; const k = c.t, x = bank.x + (c.r.x + c.dx - bank.x) * k, y = bank.y + (c.r.y - 12 - bank.y) * k - Math.sin(k * Math.PI) * 36;
+    ctx.fillStyle = "#ffc83d"; ctx.fillRect(x - 2, y - 2, 4, 4); ctx.fillStyle = "#fff0a8"; ctx.fillRect(x - 1, y - 2, 1, 1); }
+}
+function thaiHour() { const p = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()).split(":"); return +p[0] + p[1] / 60; }
+function nightTint() {
+  const h = thaiHour(), night = h >= 19.3 || h < 5.5, dusk = !night && (h >= 17.8 || h < 6.5);
+  if (!night && !dusk) return;
+  ctx.fillStyle = night ? "rgba(12,16,52,.42)" : "rgba(255,120,40,.13)"; ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+  if (night) { ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = "rgba(255,190,90,.16)";
+    for (const [x, y] of lamps) { ctx.beginPath(); ctx.arc(x, y, 16, 0, 7); ctx.fill(); } ctx.globalCompositeOperation = "source-over"; }
+}
+// ---------- ป้าย (วาดที่ความละเอียดจอ ตัวหนังสือคม) · ดันตัวที่ชนกันขึ้นไป
+function bubbleText(r) {
+  const today = (r.pb?.today || 0) + (r.pb?.floating || 0), sc = scaleOf(r.name), x = sc !== 1 ? ` ×${sc}` : "";
+  if (r.mode === "trade") return { s: `${r.name}${x} ${r.pos[0].side === "BUY" ? "▲" : "▼"} ${money(r.float)}`, c: r.float >= 0 ? "#39ff88" : "#ff5d5d" };
+  if (r.mode === "aim") return { s: `${r.name}${x} 🎯`, c: "#f6d77d" };
+  if (r.mode === "target") return { s: `${r.name} 🎯 ${money(today)}`, c: "#f6d77d" };
+  if (HOVER === r.name || cardFor === r.name) return { s: `${r.name}${x} · ${(FAM[r.fam] || FAM.volx)[1]} ${today ? money(today) : ""}`, c: "#e2b84a" };
+  return null;
+}
+function labelBox(items) {
+  ctx.font = `600 ${LOW ? 11 : 12}px "IBM Plex Sans Thai", system-ui, sans-serif`; ctx.textBaseline = "middle";
+  const placed = [];
+  items.sort((a, z) => z.y - a.y);
+  for (const it of items) {
+    const w = Math.min(ctx.measureText(it.s).width + 12, it.max || 240), h = 18;
+    let x = it.x - w / 2, y = it.y - h;
+    for (let k = 0; k < 8; k++) { const hit = placed.find(p => x < p.x + p.w + 3 && x + w > p.x - 3 && y < p.y + p.h + 3 && y + h > p.y - 3); if (!hit) break; y = hit.y - h - 3; }
+    placed.push({ x, y, w, h });
+    ctx.fillStyle = "rgba(10,10,9,.9)"; ctx.strokeStyle = it.c; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#f4f1e8"; ctx.save(); ctx.beginPath(); ctx.rect(x + 3, y, w - 6, h); ctx.clip(); ctx.fillText(it.s, x + 6, y + h / 2 + .5); ctx.restore();
+  }
+}
+function banners() {
+  ctx.font = `700 ${LOW ? 12 : 13}px "IBM Plex Sans Thai", system-ui, sans-serif`; ctx.textBaseline = "middle";
+  for (const v of slots) {
+    const [sx, sy] = toScreen(v.x + VW * T / 2, v.y - 2), q = D?.quotes?.[v.sym]?.bid;
+    const s = q ? `${v.title}  ${q.toLocaleString("en-US", { maximumFractionDigits: v.sym === "XAUUSD" ? 2 : 0 })}` : v.title, w = ctx.measureText(s).width + 18;
+    ctx.fillStyle = "rgba(10,10,9,.88)"; ctx.strokeStyle = "#e2b84a"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(sx - w / 2, sy - 11, w, 22, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#f6d77d"; ctx.fillText(s, sx - w / 2 + 9, sy + .5);
+  }
+}
+let tick = 0, last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (document.hidden || !bg || tick++ % (LOW ? 3 : 2)) return;              // 60 Hz → 30 fps (เครื่องอ่อน 20 fps) ระยะห่างภาพเท่ากันเสมอ
+  const dt = Math.min((now - last) / 1000, .25), t = now / 1000; last = now;
+  for (const r of robots) {
+    if (!r.v) continue;
+    r.walking = walk(r, dt); r.jump = Math.max(0, (r.jump || 0) - dt * 1.2); r.rain = Math.max(0, (r.rain || 0) - dt);
+    r.k += (sizeOf(r.name) - r.k) * Math.min(dt * 2, 1);
+  }
+  separate(); stepBoss(dt);
+  bossTalk = Math.max(0, bossTalk - dt); bossJump = Math.max(0, bossJump - dt);
+  parcels = fxStep(parcels, dt, 2.4); coins = fxStep(coins, dt, 1.4);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#5cb85a"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const S = viewS() * dpr; ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(S, 0, 0, S, viewX() * dpr, viewY() * dpr);
+  ctx.fillStyle = "#3f9ae0";                                                 // แม่น้ำยาวเลยขอบแผนที่ออกไปถึงขอบจอ
+  for (const x of rivers.v) ctx.fillRect(x, -3000, GAP * T, 7000);
+  for (const y of rivers.h) ctx.fillRect(-3000, y, 7000, GAP * T);
+  ctx.drawImage(bg, 0, 0);
+  if (!REDUCED) { ctx.fillStyle = "rgba(255,255,255,.28)";                    // ระลอกน้ำ
+    for (const [a, b, c] of water) { const X = (a * WORLD.w + t * 6 * (c + .4)) % WORLD.w, Y = b * WORLD.h; if (isWater(X, Y)) ctx.fillRect(X, Y, 4, 1); } }
+  drawBoards();
+  const order = [...robots.filter(r => r.v), boss].sort((a, z) => a.y - z.y);
+  for (const r of order) {
+    if (r === boss) sprite(boss.x, boss.y, "#7b5cff", { hat: "#1d2433", light: "#e2b84a", eye: "#d9ccff", lift: (boss.lift || 0) + Math.sin(bossJump * Math.PI) * 8 });
+    else botShape(r, t);
+  }
+  drawFx(); nightTint();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  banners();
+  const items = [];
+  for (const r of robots) { if (!r.v) continue; const b = bubbleText(r); if (b) { const [x, y] = toScreen(r.x, r.y - 28 * r.k); items.push({ x, y, ...b }); } }
+  if (bossTalk > 0 || !STREAM) { const [x, y] = toScreen(boss.x, boss.y - 30 - (boss.lift || 0)); items.push({ x, y, s: boss.say, c: "#f6d77d", max: 300 }); }
+  labelBox(items);
+}
+function isWater(x, y) {
+  const a = Math.floor((x / T - EDGE) % (VW + GAP)), b = Math.floor((y / T - EDGE) % (VH + GAP));
+  return a >= VW || b >= VH;
+}
+
+// ---------- จับเมาส์/นิ้ว
+let HOVER = null, downAt = null, dragged = false;
+function hitBot(cx, cy) {
+  const [x, y] = toWorld(cx, cy); let best = null, bd = 14;
+  for (const r of robots) { if (!r.v) continue; const d = Math.hypot(r.x - x, r.y - 10 - y); if (d < bd) { bd = d; best = r; } }
+  return best;
+}
+cv.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY, cam.px, cam.py]; dragged = false; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", (e) => {
+  if (downAt) { const dx = e.clientX - downAt[0], dy = e.clientY - downAt[1]; if (Math.hypot(dx, dy) > 5) dragged = true;
+    if (dragged) { cam.px = downAt[2] + dx; cam.py = downAt[3] + dy; clampCam(); } return; }
+  if (e.pointerType === "mouse") { const h = hitBot(e.clientX, e.clientY)?.name || null; if (h !== HOVER) { HOVER = h; cv.style.cursor = h ? "pointer" : "grab"; } }
+});
+cv.addEventListener("pointerup", (e) => {
+  const was = dragged; downAt = null; if (was) return;
+  const r = hitBot(e.clientX, e.clientY); if (r) { cardFor = r.name; showCard(r.name, e.clientX, e.clientY); } else hideCard();
+});
+cv.addEventListener("wheel", (e) => { e.preventDefault(); cam.z = Math.min(2.5, Math.max(1, cam.z * (e.deltaY < 0 ? 1.12 : .89))); clampCam(); }, { passive: false });
 
 // ------------------------------------------------------------------ ข้อมูล
 const MGR = { pauses: {}, last: null, first: true };
 const scaleOf = (n) => MGR.data?.alloc?.[n]?.scale ?? 1;
-const sizeOf = (n) => .82 * Math.max(.5, 1 + .15 * Math.log2(scaleOf(n)));   // ×2 ตัวโตขึ้น · ×0.25 ตัวเล็กลง
-let HOVER = null, SHOW_PLATES = false;
-let D = null, robots = [], parcels = [], coins = [], seenOpen = null, seenTrades = null, lastErr = 0;
+const sizeOf = (n) => Math.max(.7, 1 + .15 * Math.log2(scaleOf(n)));          // ×2 ตัวโตขึ้น · ×0.25 ตัวเล็กลง
+const labelRobot = () => {};
+let D = null, robots = [], parcels = [], coins = [], BARS = {}, seenOpen = null, seenTrades = null, lastErr = 0, cardFor = null;
 async function refresh() {
   try { const d = await (await fetch("/api", { cache: "no-store" })).json(); if (d.error) throw new Error(d.error);
         document.documentElement.classList.toggle("public", !!d.public); D = d; sync(d); }
   catch { if (Date.now() - lastErr > 60000) { lastErr = Date.now(); toast("⚠️ Can't reach the server — retrying"); } }
 }
 async function refreshBars() {
-  try {
-    const g = await (await fetch("/api/bars?symbol=XAUUSD&tf=M1&n=180", { cache: "no-store" })).json();
-    if (g.bars?.length) buildMountain(g.bars.map(b => b[4]), MT2);
-  } catch {}
-  try {
-    const r = await (await fetch("/api/bars?symbol=BTCUSD&tf=M1&n=180", { cache: "no-store" })).json();
-    if (r.bars?.length) buildMountain(r.bars.map(b => b[4]));
-    if (r.bid) {
-      const b = r.bars || [], ref = b.length > 61 ? b[b.length - 61][4] : null, chg = ref ? (r.bid - ref) / ref * 100 : null;
-      $("btc").innerHTML = r.bid.toLocaleString("en-US", { maximumFractionDigits: 0 }) +
-        (chg == null ? "" : ` <small class="${chg >= 0 ? "up" : "down"}" title="vs. 1 hour ago">${chg >= 0 ? "▲" : "▼"}${Math.abs(chg).toFixed(2)}%</small>`);
-    }
-  } catch {}
+  for (const sym of slots.filter(v => v.sym).map(v => v.sym)) {
+    try { const r = await (await fetch(`/api/bars?symbol=${sym}&tf=M5&n=60`, { cache: "no-store" })).json();
+          if (r.bars?.length) BARS[sym] = r.bars;
+          if (sym === "BTCUSD" && r.bid) { const b = r.bars || [], ref = b.length > 13 ? b[b.length - 13][4] : null, chg = ref ? (r.bid - ref) / ref * 100 : null;
+            $("btc").innerHTML = r.bid.toLocaleString("en-US", { maximumFractionDigits: 0 }) +
+              (chg == null ? "" : ` <small class="${chg >= 0 ? "up" : "down"}" title="vs. 1 hour ago">${chg >= 0 ? "▲" : "▼"}${Math.abs(chg).toFixed(2)}%</small>`); }
+    } catch {}
+  }
 }
-
-function placeRobots() {
-  robots.forEach(r => {
-    if (r.name === "main") { r.obj.position.set(-19, 2.2, 1); r.obj.rotation.y = .5; return; }
-    r.obj.position.copy(pickPoint("plaza", r)); r.target = r.obj.position.clone(); r.wait = Math.random() * 3; r.zone = null;
-  });
-}
-
+const symOf = (n, d) => n === "main" ? "XAUUSD" : d.research?.[n]?.symbol || "BTCUSD";
 function sync(d) {
   const names = ["main", ...Object.keys(d.research || {}).sort((a, z) => a.localeCompare(z, undefined, { numeric: true }))];
+  const keys = [...new Set(names.map(n => symOf(n, d)))].sort((a, z) => ["BTCUSD", "XAUUSD", "NAS100"].indexOf(a) - ["BTCUSD", "XAUUSD", "NAS100"].indexOf(z));
+  if (!slots.length || keys.join() !== slots.filter(v => v.sym).map(v => v.sym).join()) {
+    buildWorld(keys); const h = hallOf(); boss.hx = boss.x = h.x + 7.5 * T; boss.hy = boss.y = h.y + 7.4 * T; robots = []; refreshBars();
+  }
   if (robots.length !== names.length || robots.some((r, i) => r.name !== names[i])) {
-    robots.forEach(r => { scene.remove(r.obj); r.obj.traverse(o => o.element?.remove()); });
-    robots = names.map((n, i) => {
-      const fam = n === "main" ? "main" : (d.research?.[n]?.family || "volx");
-      const obj = makeRobot(n, fam); scene.add(obj);
-      const sym = d.research?.[n]?.symbol, isl = n !== "main" && sym && sym !== "BTCUSD" ? 2 : 1;
-      return { name: n, i, fam, obj, isl, jump: 0, rain: 0, blink: Math.random() * 4, seed: Math.random() * 10 };
-    });
-    placeRobots();
+    robots = names.map((n, i) => { const v = slotOf(symOf(n, d)), r = { name: n, i, v, jump: 0, rain: 0, k: 1, face: 1, seed: Math.random() * 10, mode: "watch", wait: Math.random() * 3 };
+      [r.x, r.y] = pickPoint("plaza", r); r.tx = r.x; r.ty = r.y; return r; });
   }
   for (const r of robots) {
     const fam = r.name === "main" ? "main" : (d.research?.[r.name]?.family || "volx");
-    if (fam !== r.fam) {                                   // ผู้จัดการ/งานวิจัยเปลี่ยนสาย → หุ่นตัวใหม่สีใหม่ ที่ตำแหน่งเดิม + หมุนโชว์
-      const old = r.obj, obj = makeRobot(r.name, fam);
-      obj.position.copy(old.position); obj.rotation.y = old.rotation.y; scene.add(obj);
-      scene.remove(old); old.traverse(o => o.element?.remove());
-      Object.assign(r, { obj, fam, spin: 1.6, jump: 1 });
-      toast(`🔄 ${r.name} switched to ${(FAM[fam] || FAM.volx)[1]}`);
-    }
+    if (r.fam && fam !== r.fam) { r.jump = 1; toast(`🔄 ${r.name} switched to ${(FAM[fam] || FAM.volx)[1]}`); }
+    r.fam = fam;
     const hb = d.bots?.[r.name] || {}, st = Object.values(hb.strategies || {})[0] || {}, pb = d.per_bot?.[r.name] || {};
     const pos = (d.open || []).filter(o => o.bot === r.name);
     Object.assign(r, { hb, st, pb, pos, res: d.research?.[r.name] });
@@ -887,24 +732,22 @@ function sync(d) {
     r.disabled = (d.disabled || []).includes(r.name);
     r.mode = r.disabled || !hb.alive || hb.killed ? "off" : hb.target_hit ? "target" : pos.length ? "trade"
       : (st.proximity || 0) >= .7 ? "aim" : /นอก|รอข้อมูล|ผ่านจุดตัดสิน|ไม่เข้าเกณฑ์|พัก/.test(st.state || "") ? "rest" : "watch";
-    labelRobot(r);
   }
-  // เหตุการณ์จริง
   const openNow = new Set((d.open || []).map(o => o.ticket));
   if (seenOpen) for (const o of d.open || []) if (!seenOpen.has(o.ticket)) {
     const r = robots.find(x => x.name === o.bot); if (!r) continue;
-    r.jump = 1; parcels.push(makeParcel(r, o.side));
+    r.jump = 1; parcels.push({ x: r.x, y: r.y - 12, t: 0 });
     toast(`📦 ${o.bot} sent ${o.side} ${o.volume} ${o.symbol === "BTCUSD" ? "BTC" : "lot"} @ ${o.open_price.toLocaleString()}`);
   }
   seenOpen = openNow;
   const tr = d.trades || [];
   if (seenTrades) for (const t of tr) if (!seenTrades.has(t.ticket)) {
     const r = robots.find(x => x.name === t.bot); if (!r) continue;
-    if (t.profit > 0) { for (let k = 0; k < 14; k++) coins.push(makeCoin(r, -k * .05)); r.jump = 1; } else r.rain = 7;
+    if (t.profit > 0) { for (let k = 0; k < 10; k++) coins.push({ r, t: -k * .07, dx: (Math.random() - .5) * 14 }); r.jump = 1; } else r.rain = 7;
     toast(`${t.profit > 0 ? "🎉" : "🌧️"} ${t.bot} closed ${money(t.profit)}`);
   }
   seenTrades = new Set(tr.map(t => t.ticket));
-  const tfs = [...new Set(robots.filter(r => r.name !== "main").map(r => r.hb?.tf).filter(Boolean))];
+  const tfs = [...new Set(robots.map(r => r.hb?.tf).filter(Boolean))];
   $("tfchip").textContent = tfs.join("/") || "–";
   const busy = robots.filter(r => r.mode === "trade");
   $("tradingchip").innerHTML = busy.length ? `🚩 Holding: ` + busy.map(r => `${esc(r.name)} <span class="${r.float >= 0 ? "up" : "down"}">${money(r.float)}</span>`).join(" · ")
@@ -914,28 +757,8 @@ function sync(d) {
   $("eq").textContent = "$" + (acc.equity ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const today = Object.values(d.per_bot || {}).reduce((a, s) => a + (s.today || 0) + (s.floating || 0), 0);
   $("today").innerHTML = `<span class="${today >= 0 ? "up" : "down"}">${money(today)}</span>`;
-  if (cardFor && !document.querySelector(".ctl button.armed, .ctl button:disabled[data-busy]")) showCard(cardFor);   // ไม่วาดทับตอนกำลังยืนยัน
+  if (cardFor && !document.querySelector(".ctl button.armed, .ctl button:disabled[data-busy]")) showCard(cardFor);
 }
-function labelRobot(r) {
-  // ป้ายเดียวต่อหุ่น: ตัวที่มีเรื่อง (ถือไม้ / เล็ง / ถึงเป้า / ออฟไลน์ / main) = ป้ายคำพูดเหนือหัวรวมชื่อ · ตัวอื่น = ป้ายชื่อเล็กใต้เท้า
-  const u = r.obj.userData, pb = r.pb || {}, st = r.st || {}, today = (pb.today || 0) + (pb.floating || 0);
-  const name = r.name === "main" ? "★ main" : r.name;
-  const talk = r.mode === "trade" || r.mode === "aim" || r.mode === "target" || r.name === "main" || (!STREAM && r.mode === "off") || !!MGR.pauses[r.name];
-  const pz = MGR.pauses[r.name], left = pz ? Math.max(1, Math.round((pz.until * 1000 - Date.now()) / 60000)) : 0;
-  const what = r.disabled ? "⏹ Turned off" : pz ? `⏸ Paused ${left} min` : r.mode === "off" ? "Offline 💤" : r.mode === "target" ? `🎯 Target hit ${money(today)} · resting` :
-    r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${r.pos[0].side} ${money(r.float)}` : (st.state || "…");
-  const short = r.mode === "trade" ? `${r.pos[0].side === "BUY" ? "▲" : "▼"} ${money(r.float)}` : r.mode === "aim" ? "🎯"
-    : r.mode === "target" ? `🎯 ${money(today)}` : pz ? "⏸ Paused" : "";
-  const sc = scaleOf(r.name), scTxt = sc !== 1 ? ` <span class="sc ${sc > 1 ? "up" : "down"}">×${sc}</span>` : "";
-  setBubble(u.bubble, STREAM ? `<b>${esc(name)}</b>${scTxt} ${esc(short)}` : `<b>${esc(name)}</b>${scTxt} · ${esc(what)}`);
-  u.bubble.element.className = "bubble hot " + (r.mode === "trade" ? (r.float >= 0 ? "win" : "lose") : r.mode === "aim" ? "aim" : pz ? "rest" : r.mode === "off" ? "off" : "");
-  u.bubble.visible = talk;
-  u.plate.visible = !talk && !STREAM && (SHOW_PLATES || HOVER === r.name || cardFor === r.name);
-  u.plate.element.className = "plate";
-  const plateHtml = `<b>${esc(name)}</b>${scTxt}` + (today ? ` <span class="m ${today > 0 ? "up" : "down"}">${money(today)}</span>` : "");
-  if (u.plate.userData.html !== plateHtml) { u.plate.element.innerHTML = plateHtml; u.plate.userData.html = plateHtml; }
-}
-
 // ปุ่มสั่งบอททีละตัว: กดครั้งแรก = ขอยืนยัน (4 วิ) · กดซ้ำ = ทำจริง
 async function botAction(btn, bot, action) {
   if (btn.dataset.armed !== "1") {
@@ -986,7 +809,7 @@ async function refreshManager() {
   if (stick || MGR.first || document.querySelector(".chat.collapsed")) toLatest();
   if (last) {
     const short = last.text.length > 90 ? last.text.slice(0, 88) + "…" : last.text;
-    setBubble(boss.userData.bubble, esc((KIND[last.kind] || "🧠") + " " + short));
+    boss.say = (KIND[last.kind] || "🧠") + " " + short;
     if (!MGR.first) {
       bossTalk = 6; if (last.kind === "action" || last.kind === "alert") bossJump = 1;
       const act = [...msgs].reverse().find(m => m.bot && m.t > (MGR.lastVisitT || "") &&
@@ -1054,7 +877,7 @@ function renderPerf() {
   const m = MGR.data || {}, pb = D?.per_bot || {}, res = D?.research || {};
   const rows = Object.entries(pb).sort((a, z) => (z[1].total || 0) - (a[1].total || 0));
   const sc = n => { const a = (m.alloc || {})[n]; return a && a.scale != null && a.scale !== 1 ? ` <span class="k" title="${esc(a.reason || "")}">×${a.scale}</span>` : ""; };
-  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${n === "main" ? "★ main" : esc(n)}</b>${sc(n)}</td><td>${esc(n === "main" ? "Gold M5" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
+  const board = rows.map(([n, s], i) => `<tr><td>${i + 1}. <b>${esc(n)}</b>${sc(n)}</td><td>${esc(n === "main" ? "Gold M5" : (FAM[res[n]?.family] || [0, res[n]?.family || "–"])[1])}</td>
     <td class="r ${(s.today || 0) + (s.floating || 0) >= 0 ? "up" : "down"}">${money((s.today || 0) + (s.floating || 0))}</td>
     <td class="r ${(s.total || 0) >= 0 ? "up" : "down"}">${money(s.total || 0)}</td><td class="r">${s.trades || 0}</td><td class="r">${s.win_rate == null ? "–" : s.win_rate + "%"}</td>
     <td class="r">${MGR.pauses[n] ? "⏸ Paused" : esc(gateText(res[n]?.params))}</td></tr>`).join("");
@@ -1081,72 +904,15 @@ function setPerf(open) {
   if (open) { refresh(); refreshManager().then(renderPerf); renderPerf(); $("perfX").focus(); }
 }
 $("perfBtn").onclick = () => setPerf(true);
-$("isl1").onclick = () => flyTo(1); $("isl2").onclick = () => flyTo(2);
-for (const k of [1, 2]) $("isl" + k).setAttribute("aria-pressed", k === island ? "true" : "false");
-if (STREAM) setInterval(() => flyTo(island === 1 ? 2 : 1), 45000);   // ไลฟ์: สลับเกาะเองทุก 45 วิ
 $("perfX").onclick = $("perfBg").onclick = () => setPerf(false);
 addEventListener("keydown", (e) => { if (e.key === "Escape") setPerf(false); });
 setInterval(renderPerf, 30000);
 
-// พัสดุออเดอร์: หุ่น → ขึ้นสะพาน → ผ่าน 3 ด่าน → หอ MT5
-const boxGeo = new RoundedBoxGeometry(.7, .55, .7, 2, .08), boxMat = mat(0xc98b4a), tapeMat = mat(0xffe08a);
-function makeParcel(r, side) {
-  const m = new THREE.Group(); m.add(new THREE.Mesh(boxGeo, boxMat));
-  m.add(new THREE.Mesh(new THREE.BoxGeometry(.72, .57, .14), tapeMat));
-  const t = tag(side, "tag3d"); t.element.style.color = side === "BUY" ? "#1fae5d" : "#ec4d44"; t.position.y = .8; m.add(t);
-  scene.add(shadowy(m));
-  const start = r.obj.position.clone().add(new THREE.Vector3(0, 3.6, 0));
-  const onBridge = new THREE.Vector3(Math.max(BR.x0, Math.min(r.obj.position.x, BR.x1)), BR.y + .55, BR.z);
-  return { m, t: 0, start, onBridge };
-}
-function stepParcel(p, dt) {
-  p.t += dt / 6;
-  const { start, onBridge } = p;
-  if (p.t < .2) { const k = p.t / .2; p.m.position.lerpVectors(start, onBridge, k); p.m.position.y += Math.sin(k * Math.PI) * 3; }
-  else if (p.t < .9) { const k = (p.t - .2) / .7; p.m.position.set(onBridge.x + (BR.x1 + 1.4 - onBridge.x) * k, BR.y + .55, BR.z); }
-  else { const k = (p.t - .9) / .1; p.m.position.set(tower.position.x, BR.y + .55 + k * 2, BR.z); p.m.scale.setScalar(Math.max(1 - k, .01)); }
-  p.m.rotation.y += dt * 2;
-  return p.t < 1;
-}
-const coinGeo = new THREE.CylinderGeometry(.3, .3, .08, 20), coinMat = new THREE.MeshStandardMaterial({ color: 0xffc83d, metalness: .85, roughness: .2, emissive: 0x7a4a00, emissiveIntensity: .3 });
-function makeCoin(r, delay) { const m = new THREE.Mesh(coinGeo, coinMat); m.visible = false; m.castShadow = true; scene.add(m); return { m, r, t: delay, dx: (Math.random() - .5) * 1.5 }; }
-function stepCoin(c, dt) {
-  c.t += dt / 1.4; if (c.t < 0) return true; c.m.visible = true;
-  const k = Math.min(c.t, 1), a = new THREE.Vector3(tower.position.x, 11, BR.z), b = c.r.obj.position.clone().add(new THREE.Vector3(c.dx, 3.4, 0));
-  c.m.position.lerpVectors(a, b, k); c.m.position.y += Math.sin(k * Math.PI) * 6; c.m.rotation.x += dt * 8; c.m.rotation.z += dt * 5;
-  if (c.t >= 1.15) { scene.remove(c.m); return false; } return true;
-}
-
-// ------------------------------------------------------------------ การ์ด
-let cardFor = null;
-const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
-let downAt = null;
-renderer.domElement.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
-renderer.domElement.addEventListener("pointerup", (e) => {
-  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;   // ลากกล้อง ไม่ใช่คลิก
-  mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(mouse, camera);
-  const hits = ray.intersectObjects(robots.map(r => r.obj), true);
-  let o = hits[0]?.object; while (o && !o.userData?.name) o = o.parent;
-  if (o) { cardFor = o.userData.name; showCard(cardFor, e.clientX, e.clientY); return; }
-  hideCard();
-  const g = ray.intersectObjects(grounds, false)[0];          // คลิกพื้นอีกเกาะ → ลอยไปเกาะนั้น
-  if (g && g.object.userData.isl !== island) flyTo(g.object.userData.isl);
-});
-let hoverAt = 0;
-renderer.domElement.addEventListener("pointermove", (e) => {
-  if (e.pointerType !== "mouse" || performance.now() - hoverAt < 100) return; hoverAt = performance.now();
-  mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(mouse, camera);
-  let o = ray.intersectObjects(robots.map(r => r.obj), true)[0]?.object; while (o && !o.userData?.name) o = o.parent;
-  const h = o?.userData.name || null;
-  if (h !== HOVER) { const prev = HOVER; HOVER = h; robots.filter(r => r.name === prev || r.name === h).forEach(labelRobot); renderer.domElement.style.cursor = h ? "pointer" : ""; }
-});
-$("cardx").onclick = hideCard;
-$("card").addEventListener("click", (e) => { const b = e.target.closest(".ctl button"); if (b && cardFor) botAction(b, cardFor, b.dataset.act); });
 function hideCard() { cardFor = null; $("card").style.display = "none"; }
 function showCard(name, cx, cy) {
   const r = robots.find(x => x.name === name); if (!r) return;
   const st = r.st || {}, pb = r.pb || {}, res = r.res, pos = r.pos || [], today = (pb.today || 0) + (pb.floating || 0);
-  $("cardbody").innerHTML = `<h4>${name === "main" ? "★ main" : esc(name)} — ${esc((FAM[r.fam] || FAM.volx)[1])}</h4>
+  $("cardbody").innerHTML = `<h4>${esc(name)} — ${esc((FAM[r.fam] || FAM.volx)[1])}</h4>
     <div><span class="k">Market</span> ${esc(st.symbol || "–")} · <span class="k">Status</span> <span lang="th">${esc(st.state || "–")}</span></div>
     <div><span class="k">Watching</span> <span lang="th">${esc(st.detail || "–")}</span></div>
     <div><span class="k">Closeness to entry</span> ${Math.round((st.proximity || 0) * 100)}% ${st.side ? "· side " + esc(st.side) : ""}</div>
@@ -1163,103 +929,11 @@ function showCard(name, cx, cy) {
   if (cx != null) { c.style.left = Math.min(cx + 16, innerWidth - c.offsetWidth - 16) + "px"; c.style.top = Math.max(16, Math.min(cy - c.offsetHeight / 2, innerHeight - c.offsetHeight - 16)) + "px"; }
 }
 
-// ------------------------------------------------------------------ แอนิเมชันหุ่น
-const tmpC = new THREE.Color(), GREY = new THREE.Color(0x8b93a3);
-function animateRobot(r, t, dt) {
-  const u = r.obj.userData, mode = r.mode || "off", trade = mode === "trade", win = r.float >= 0;
-  const walking = walk(r, moveDt);
-  r.stride = (r.stride || 0) + (walking ? dt * 9 : 0);
-  const swing = walking ? Math.sin(r.stride) * .55 : 0;
-  u.legs[0].rotation.x += (swing - u.legs[0].rotation.x) * .3; u.legs[1].rotation.x += (-swing - u.legs[1].rotation.x) * .3;
-  r.jump = Math.max(0, r.jump - dt * .9);
-  const speed = trade ? 6 : mode === "aim" ? 4.5 : mode === "watch" ? 2 : 1;
-  u.rig.position.y = (mode === "off" ? 0 : Math.abs(Math.sin(t * speed + r.seed)) * (trade ? .18 : .08)) + Math.sin(r.jump * Math.PI) * 2.2;
-  u.rig.rotation.z = trade ? Math.sin(t * speed + r.seed) * .05 : 0;
-  const look = mode === "watch" || mode === "aim" ? Math.sin(t * .6 + r.seed) * .35 : 0;   // มองภูเขาราคา
-  u.head.rotation.y += (look - u.head.rotation.y) * .08;
-  u.head.rotation.x += ((mode === "rest" || mode === "off" ? .25 : mode === "aim" ? -.12 : 0) - u.head.rotation.x) * .08;
-  r.blink -= dt; if (r.blink < -.12) r.blink = 2 + Math.random() * 4;
-  const sleepy = mode === "rest" || mode === "off" || mode === "target";
-  const ey = sleepy ? .18 : r.blink < 0 ? .15 : mode === "aim" ? 1.3 : 1;
-  u.eyes.forEach(e => { e.scale.y += (ey - e.scale.y) * .3; e.scale.x = mode === "aim" ? 1.25 : 1; });
-  const eyeCol = mode === "aim" ? 0xffcf33 : trade ? (win ? 0x7dffb0 : 0xff8a80) : mode === "off" ? 0x5b6270 : 0x9fe3ff;
-  u.eyeM.color.set(eyeCol); u.eyeM.emissive.set(eyeCol);
-  const lc = trade ? (win ? LIGHT.win : LIGHT.lose) : LIGHT[mode];
-  u.lightM.color.set(lc); u.lightM.emissive.set(lc); u.lightM.emissiveIntensity = mode === "aim" ? 1.5 + Math.sin(t * 10) * 1.2 : 2.2;
-  const prox = trade ? 1 : Math.max(0, Math.min(r.st?.proximity || 0, 1));   // แบตเตอรี่ = ความใกล้เข้าไม้
-  u.bat.scale.x = Math.max(prox, .02); u.bat.position.x = -.45 * (1 - prox);
-  const bc = trade ? (win ? LIGHT.win : LIGHT.lose) : prox >= .7 ? LIGHT.aim : LIGHT.watch;
-  u.batM.color.set(bc); u.batM.emissive.set(bc);
-  tmpC.copy(u.bodyColor).lerp(GREY, mode === "off" ? .75 : 0); u.body.color.copy(tmpC);
-  u.flag.visible = trade;
-  if (trade) {
-    u.cloth.material.color.set(r.pos[0].side === "BUY" ? 0x22c46a : 0xff5a50);
-    u.arms[1].rotation.z += ((-.9 + Math.sin(t * 5) * .1) - u.arms[1].rotation.z) * .15;
-    const p = u.cloth.geometry.attributes.position; for (let k = 0; k < p.count; k++) { const x = p.getX(k); p.setZ(k, Math.sin(x * 5 + t * 8) * .08 * (x + .5)); } p.needsUpdate = true;
-  } else u.arms[1].rotation.z += (Math.sin(t * speed * .5 + r.seed) * .12 - u.arms[1].rotation.z) * .1;
-  u.arms[0].rotation.z = -Math.sin(t * speed * .5 + r.seed) * .12 + (mode === "target" ? -2.4 + Math.sin(t * 6) * .3 : 0);
-  if (walking) { u.arms[0].rotation.x = -swing * .8; if (!trade) u.arms[1].rotation.x = swing * .8; u.rig.position.y += Math.abs(Math.sin(r.stride)) * .12; }
-  else { u.arms[0].rotation.x *= .85; u.arms[1].rotation.x *= .85; }
-  u.hat.visible = mode === "target";
-  u.ring.visible = u.glow.visible = trade;
-  if (trade) { const c = win ? 0x22c46a : 0xff5a50; u.ringM.color.set(c); u.glowM.color.set(c);
-    u.ringM.opacity = .55 + .35 * (.5 + .5 * Math.sin(t * 4)); u.ring.scale.setScalar(1 + .1 * Math.sin(t * 4));
-    u.glowM.opacity = .1 + .1 * (.5 + .5 * Math.sin(t * 2)); }
-  r.rain = Math.max(0, r.rain - dt); u.rain.visible = r.rain > 0;
-  const want = sizeOf(r.name), cur = r.obj.scale.x; if (Math.abs(want - cur) > .002) r.obj.scale.setScalar(cur + (want - cur) * Math.min(dt * 2, 1));
-  if (r.spin > 0) { r.spin = Math.max(0, r.spin - dt); u.rig.rotation.y = (1 - r.spin / 1.6) * Math.PI * 4; } else if (u.rig.rotation.y) u.rig.rotation.y = 0;
-  if (u.rain.visible) u.drops.forEach((d, k) => { d.position.y = -.5 - ((t * 3 + k * .37) % 1.8); });
-}
 
-// ------------------------------------------------------------------ วนลูป
-const clock = new THREE.Clock();
-let tick = 0, lastTidy = 0, slow = 0, degraded = false;
-function frame(now = performance.now()) {
-  requestAnimationFrame(frame);
-  if (document.hidden || (LOW && tick++ % 2)) return;                 // แท็บซ่อน = ไม่วาด · เครื่องอ่อน = เว้นเฟรมสม่ำเสมอ
-  const raw = clock.getDelta(), dt = Math.min(raw, .05), t = clock.elapsedTime;
-  if (!degraded) {                                                     // วาดช้าต่อเนื่อง (< ~20 fps) → ลดความละเอียด + ปิดเงา
-    slow = raw > (LOW ? .07 : .05) ? slow + 1 : Math.max(0, slow - 1);
-    if (slow > 90) { degraded = true; PR = 1; renderer.setPixelRatio(1); renderer.shadowMap.enabled = false;
-                     scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); resize(); }
-  }
-  if (now - lastTidy > 200) {                                          // ป้าย: จัดไม่ให้ทับกัน 5 ครั้ง/วิ
-    lastTidy = now;
-    const near = camera.position.distanceTo(controls.target) < 19;
-    if (near !== SHOW_PLATES) { SHOW_PLATES = near; robots.forEach(labelRobot); }
-    declutter();
-  }
-  moveDt = Math.min(raw, .5);   // การเดินใช้เวลาจริง — เบราว์เซอร์วาดช้า/แท็บอยู่เบื้องหลัง หุ่นก็ยังไปถึงที่หมายตรงเวลา
-  updateSky();
-  if (spin && performance.now() - idleSince > 12000) controls.autoRotate = true;
-  if (controls.autoRotate) controls.autoRotateSpeed = .35 * Math.sin(t * .05);   // ส่ายกล้องช้าๆ ไปมาตอนไม่มีคนจับ
-  stepFly(Math.min(raw, .05));
-  controls.update();
-  beltTex.offset.x -= dt * .6;
-  tower.userData.beacon.material.emissiveIntensity = 1 + (Math.sin(t * 4) > 0 ? 2 : 0);
-  clouds.forEach(c => { c.position.x += c.userData.v * dt; if (c.position.x > 60) c.position.x = -60; });
-  goldIsland.position.y = 2.2 + Math.sin(t * .8) * .25;
-  const main = robots.find(r => r.name === "main"); if (main) main.obj.position.y = goldIsland.position.y;
-  for (const M of [MT, MT2]) if (M.flag) M.flag.userData.cloth.rotation.y = Math.sin(t * 3) * .2;
-  for (const r of robots) animateRobot(r, t, dt);
-  animateBoss(t, dt); stepBoss(dt);
-  separate();
-  for (const isl of [1, 2]) {
-    const tz = tradeZones[isl], anyTrade = robots.some(r => r.mode === "trade" && r.name !== "main" && (r.isl || 1) === isl);
-    tz.userData.edgeM.emissiveIntensity = anyTrade ? 1.6 + Math.sin(t * 4) * .8 : .6;
-    tz.userData.inner.material.emissiveIntensity = anyTrade ? .25 + Math.sin(t * 4) * .1 : .06;
-  }
-  parcels = parcels.filter(p => { const alive = stepParcel(p, dt); if (!alive) { scene.remove(p.m); p.m.traverse(o => o.element?.remove()); } return alive; });
-  coins = coins.filter(c => stepCoin(c, dt));
-  gates.forEach(g => { const near = parcels.some(p => Math.abs(p.m.position.x - g.position.x) < 1.6 && p.t > .2);
-    g.userData.m.emissiveIntensity += ((near ? .9 : 0) - g.userData.m.emissiveIntensity) * .2; g.userData.t.element.classList.toggle("glow", near); });
-  renderer.render(scene, camera); labels.render(scene, camera);
-}
 setInterval(() => { $("clock").textContent = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date()); }, 1000);
-window.__village = { robots: () => robots, parcels, coins, makeParcel, makeCoin, toast, labelRobot, visitBot,
-                     push: (p) => parcels.push(p), coin: (c) => coins.push(c) };   // ใช้ทดสอบแอนิเมชันจาก console
+window.__village = { robots: () => robots, toast, visitBot, toScreen, slots: () => slots, parcels: () => parcels, coin: (r) => coins.push({ r, t: 0, dx: 0 }) };   // ใช้ทดสอบจาก console
 $("loading").remove();
-refresh(); refreshBars(); refreshManager(); setInterval(refresh, 5000); setInterval(refreshBars, 10000); setInterval(refreshManager, 5000);
+resize(); refresh().then(refreshBars); refreshManager(); setInterval(refresh, 5000); setInterval(refreshBars, 60000); setInterval(refreshManager, 5000);
 // อัปเดตหน้าเองเมื่อไฟล์หน้าเปลี่ยน (สำคัญตอนไลฟ์: รีโหลดในหน้าต่างเดิม ตัวจับภาพไม่หลุด)
 let pageV = null;
 setInterval(async () => {
@@ -1267,10 +941,6 @@ setInterval(async () => {
         if (pageV === null) pageV = v; else if (v && v !== pageV) location.reload(); } catch {}
 }, 10000);
 requestAnimationFrame(frame);
-</script>
-<script>
-  // three.js โหลดไม่ได้ (ออฟไลน์) → บอกตรงๆ แทนจอว่าง
-  setTimeout(() => { const l = document.getElementById("loading"); if (l) l.textContent = "Couldn't load the 3D engine — the first visit needs internet (cdn.jsdelivr.net). Please refresh."; }, 12000);
 </script>
 </body>
 </html>
