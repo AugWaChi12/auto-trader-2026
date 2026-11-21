@@ -894,8 +894,11 @@ class Manager:
             jsrc = "claude_smart" if claude else f"{self.llm.src}_smart" if smart else self.llm.src   # ใครเขียนจริง
             try:
                 ai = writer(smart=smart, prompt=
-                    "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO 2 ประโยคสั้นๆ ภาษาบ้านๆ เหมือนเล่าให้เพื่อนฟัง ไม่ใช้ศัพท์เทคนิค: วันนี้เกิดอะไรขึ้น คำสั่งไหนน่าจะถูก/ผิด "
-                    "และพรุ่งนี้จะปรับวิธีคิดอย่างไร (ตอบเป็นข้อความธรรมดา ไม่ต้องเรียกฟังก์ชัน)\n\n"
+                    "เขียนบันทึกท้ายวันของผู้จัดการพอร์ต DEMO ภาษาไทย 2 ประโยคสั้นๆ ภาษาบ้านๆ เหมือนเล่าให้เพื่อนฟัง ไม่ใช้ศัพท์เทคนิค "
+                    "ประโยคแรก: วันนี้ได้หรือเสียเท่าไหร่ (ตัวเลขจาก summary) และมาจากบอทหรือเหตุการณ์ไหนเป็นหลัก "
+                    "ประโยคที่สอง: สิ่งที่ผู้จัดการทำวันนี้ถูกหรือผิดตาม prediction_score_today (ไม่มีคะแนน = บอกว่ายังไม่มีผลให้วัด) "
+                    "และพรุ่งนี้จะระวังอะไร 1 อย่าง · ทุกตัวเลขต้องมาจากข้อมูล ห้ามเดา · ห้ามสัญญาว่าจะได้กำไร "
+                    "(ตอบเป็นข้อความธรรมดา ไม่ต้องเรียกฟังก์ชัน)\n\n"
                     + json.dumps({"summary": text, "bots": {n: {"strategy": b.get("family"), "today_usd": b["today"]} for n, b in tests.items()},
                                   "learned": self.learner.summary(), "lessons": lessons, "prediction_score_today": sb,
                                   "actions": [m["text"] for m in acts][-30:]}, ensure_ascii=False))
@@ -967,6 +970,12 @@ class Manager:
         bars = self.fetch_bars(symbol, "M5", 3)
         return bars[-1].close if bars and now - bars[-1].time.timestamp() < 1800 else None
 
+    def price_ago(self, symbol: str, now: float, hours: float = 4) -> float | None:
+        """ราคาปิดแท่ง M5 ราวๆ hours ชม.ก่อน (ให้ News Agent รู้ว่าตลาดเพิ่งวิ่งไปทางไหน) · ตลาดปิด = None"""
+        bars = self.fetch_bars(symbol, "M5", int(hours * 12) + 12)
+        old = [b for b in bars if b.time.timestamp() <= now - hours * 3600]
+        return old[-1].close if old and now - bars[-1].time.timestamp() < 1800 else None
+
     def maybe_news_agent(self, s: Snapshot) -> None:
         """News Agent (Gemini, paper): ทายทิศจากข่าวทุกชั่วโมง + ให้คะแนนคำทายเก่า"""
         from . import news_agent
@@ -975,7 +984,8 @@ class Manager:
         self.last_agent = s.t
         try:
             news_agent.evaluate(self.fetch_bars, s.t)
-            for c in news_agent.scan(lambda sym: self.price_now(sym, s.t), s.t):
+            for c in news_agent.scan(lambda sym: self.price_now(sym, s.t), s.t,
+                                     prev_of=lambda sym: self.price_ago(sym, s.t)):
                 say("info", news_agent.describe(c), src="news_agent")
         except Exception:  # noqa: BLE001 — ทีมข่าวพังต้องไม่กระทบรอบบริหาร
             log.exception("news agent failed")
